@@ -60,12 +60,14 @@ class OpenAIServingModels:
         *,
         lora_modules: Optional[list[LoRAModulePath]] = None,
         prompt_adapters: Optional[list[PromptAdapterPath]] = None,
+        engine_client2: Optional[EngineClient] = None,
     ):
         super().__init__()
 
         self.base_model_paths = base_model_paths
         self.max_model_len = model_config.max_model_len
         self.engine_client = engine_client
+        self.engine_client2 = engine_client2
         self.model_config = model_config
 
         self.static_lora_modules = lora_modules
@@ -170,6 +172,7 @@ class OpenAIServingModels:
         # This will also pre-load it for incoming requests
         try:
             await self.engine_client.add_lora(lora_request)
+            await self.engine_client2.add_lora(lora_request)
         except BaseException as e:
             error_type = "BadRequestError"
             status_code = HTTPStatus.BAD_REQUEST
@@ -278,6 +281,7 @@ class OpenAIServingModels:
 
                     try:
                         await self.engine_client.add_lora(lora_request)
+                        await self.engine_client2.add_lora(lora_request)
                         self.lora_requests.append(lora_request)
                         logger.info(
                             "Resolved and loaded LoRA adapter '%s' using %s",

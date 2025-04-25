@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
     VLLM_USE_V1: bool = True
-    VLLM_USE_COSPEC: bool = False
+    COSPEC: bool = False
     VLLM_ROCM_USE_AITER: bool = False
     VLLM_ROCM_USE_AITER_PAGED_ATTN: bool = False
     VLLM_ROCM_USE_AITER_LINEAR: bool = True
@@ -531,8 +531,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VLLM_USE_V1":
     lambda: bool(int(os.getenv("VLLM_USE_V1", "1"))),
 
-    "VLLM_USE_COSPEC":
-    lambda: bool(int(os.getenv("VLLM_USE_COSPEC", "0"))),
+    "COSPEC":
+    lambda: bool(int(os.getenv("COSPEC", "0"))),
 
     # Disable aiter ops unless specifically enabled.
     # Acts as a parent switch to enable the rest of the other operations.
@@ -762,13 +762,13 @@ def set_vllm_use_v1(use_v1: bool):
             "Issue and explicitly set VLLM_USE_V1=0 or 1.")
     os.environ["VLLM_USE_V1"] = "1" if use_v1 else "0"
 
-def set_vllm_use_cospec(use_cospec: bool):
-    if is_set("VLLM_USE_COSPEC"):
+def set_COSPEC(use_cospec: bool):
+    if is_set("COSPEC"):
         raise ValueError(
-            "Should not call set_vllm_use_cospec() if VLLM_USE_COSPEC is set "
+            "Should not call set_COSPEC() if COSPEC is set "
             "explicitly by the user. Please raise this as a Github "
-            "Issue and explicitly set VLLM_USE_COSPEC=0 or 1.")
-    os.environ["VLLM_USE_COSPEC"] = "1" if use_cospec else "0"
+            "Issue and explicitly set COSPEC=0 or 1.")
+    os.environ["COSPEC"] = "1" if use_cospec else "0"
 
 def compute_hash() -> str:
     """
