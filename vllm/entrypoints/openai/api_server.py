@@ -1318,6 +1318,21 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
 
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # Cleanup previous shared memory files on server start
+    try:
+        import glob
+        shm_files = glob.glob('/dev/shm/vllm*')
+        for f in shm_files:
+            try:
+                if os.path.isfile(f):
+                    os.remove(f)
+                    logger.debug("Cleaned up shared memory file: %s", f)
+            except Exception as e:
+                logger.warning("Failed to remove %s: %s", f, str(e))
+        logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
+    except Exception as e:
+        logger.error("Shared memory cleanup failed: %s", str(e))
+
     async with build_async_engine_client(args) as engine_client, \
         build_async_engine_client(args) as engine_client2:
         app = build_app(args)
