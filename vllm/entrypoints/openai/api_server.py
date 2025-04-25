@@ -73,6 +73,7 @@ from vllm.entrypoints.openai.protocol import (ChatCompletionRequest,
 # yapf: enable
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_completion import OpenAIServingCompletion
+from vllm.entrypoints.openai.serving_completion_cospec import OpenAIServingCompletionCoSpec
 from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 from vllm.entrypoints.openai.serving_engine import OpenAIServing
 from vllm.entrypoints.openai.serving_models import (BaseModelPath,
@@ -167,7 +168,7 @@ async def build_async_engine_client_from_engine_args(
     vllm_config = engine_args.create_engine_config(usage_context=usage_context)
     global prometheus_multiproc_dir
 
-    if envs.VLLM_USE_COSPEC:
+    if envs.COSPEC:
         logger.info("Using CoSpec.")
         if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
             # Make TemporaryDirectory for prometheus multiprocessing
@@ -1116,6 +1117,81 @@ async def init_app_state(
     state.server_load_metrics = 0
 
 
+async def init_app_state_cospec(
+    engine_client: EngineClient,
+    engine_client2: EngineClient,
+    vllm_config: VllmConfig,
+    state: State,
+    args: Namespace,
+) -> None:
+    if args.served_model_name is not None:
+        served_model_names = args.served_model_name
+    else:
+        served_model_names = [args.model]
+
+    if args.disable_log_requests:
+        request_logger = None
+    else:
+        request_logger = RequestLogger(max_log_len=args.max_log_len)
+
+    base_model_paths = [
+        BaseModelPath(name=name, model_path=args.model)
+        for name in served_model_names
+    ]
+
+    state.engine_client = engine_client
+    state.engine_client2 = engine_client2
+    state.log_stats = not args.disable_log_stats
+    state.vllm_config = vllm_config
+    model_config = vllm_config.model_config
+
+    resolved_chat_template = load_chat_template(args.chat_template)
+    if resolved_chat_template is not None:
+        # Get the tokenizer to check official template
+        tokenizer = await engine_client.get_tokenizer()
+
+        if isinstance(tokenizer, MistralTokenizer):
+            # The warning is logged in resolve_mistral_chat_template.
+            resolved_chat_template = resolve_mistral_chat_template(
+                chat_template=resolved_chat_template)
+        else:
+            hf_chat_template = resolve_hf_chat_template(
+                tokenizer,
+                chat_template=None,
+                tools=None,
+                trust_remote_code=model_config.trust_remote_code)
+
+            if hf_chat_template != resolved_chat_template:
+                logger.warning(
+                    "Using supplied chat template: %s\n"
+                    "It is different from official chat template '%s'. "
+                    "This discrepancy may lead to performance degradation.",
+                    resolved_chat_template, args.model)
+
+    state.openai_serving_models = OpenAIServingModels(
+        engine_client=engine_client,
+        engine_client2=engine_client2,
+        model_config=model_config,
+        base_model_paths=base_model_paths,
+        lora_modules=args.lora_modules,
+        prompt_adapters=args.prompt_adapters,
+    )
+    await state.openai_serving_models.init_static_loras()
+
+    # Only Serving Completion is supported for CoSpec
+    state.openai_serving_completion = OpenAIServingCompletionCoSpec(
+        engine_client,
+        engine_client2,
+        model_config,
+        state.openai_serving_models,
+        request_logger=request_logger,
+        return_tokens_as_token_ids=args.return_tokens_as_token_ids,
+    ) if model_config.runner_type == "generate" else None
+
+    state.task = model_config.task
+    state.enable_server_load_tracking = args.enable_server_load_tracking
+    state.server_load_metrics = 0
+
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET
     if is_valid_ipv6_address(addr[0]):
@@ -1206,6 +1282,83 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         sock.close()
 
 
+async def run_server_cospec(args, **uvicorn_kwargs) -> None:
+    logger.info("vLLM API server version %s", VLLM_VERSION)
+    logger.info("args: %s", args)
+
+    if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
+        ToolParserManager.import_tool_parser(args.tool_parser_plugin)
+
+    valid_tool_parses = ToolParserManager.tool_parsers.keys()
+    if args.enable_auto_tool_choice \
+        and args.tool_call_parser not in valid_tool_parses:
+        raise KeyError(f"invalid tool call parser: {args.tool_call_parser} "
+                       f"(chose from {{ {','.join(valid_tool_parses)} }})")
+
+    valid_reasoning_parses = ReasoningParserManager.reasoning_parsers.keys()
+    if args.enable_reasoning \
+        and args.reasoning_parser not in valid_reasoning_parses:
+        raise KeyError(
+            f"invalid reasoning parser: {args.reasoning_parser} "
+            f"(chose from {{ {','.join(valid_reasoning_parses)} }})")
+
+    # workaround to make sure that we bind the port before the engine is set up.
+    # This avoids race conditions with ray.
+    # see https://github.com/vllm-project/vllm/issues/8204
+    sock_addr = (args.host or "", args.port)
+    sock = create_server_socket(sock_addr)
+
+    # workaround to avoid footguns where uvicorn drops requests with too
+    # many concurrent requests active
+    set_ulimit()
+
+    def signal_handler(*_) -> None:
+        # Interrupt server on sigterm while initializing
+        raise KeyboardInterrupt("terminated")
+
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    async with build_async_engine_client(args) as engine_client, \
+        build_async_engine_client(args) as engine_client2:
+        app = build_app(args)
+
+        vllm_config = await engine_client.get_vllm_config()
+        await init_app_state_cospec(engine_client, engine_client2, vllm_config, app.state, args)
+
+        def _listen_addr(a: str) -> str:
+            if is_valid_ipv6_address(a):
+                return '[' + a + ']'
+            return a or "0.0.0.0"
+
+        is_ssl = args.ssl_keyfile and args.ssl_certfile
+        logger.info("Starting vLLM API server on http%s://%s:%d",
+                    "s" if is_ssl else "", _listen_addr(sock_addr[0]),
+                    sock_addr[1])
+
+        shutdown_task = await serve_http(
+            app,
+            sock=sock,
+            enable_ssl_refresh=args.enable_ssl_refresh,
+            host=args.host,
+            port=args.port,
+            log_level=args.uvicorn_log_level,
+            # NOTE: When the 'disable_uvicorn_access_log' value is True,
+            # no access log will be output.
+            access_log=not args.disable_uvicorn_access_log,
+            timeout_keep_alive=TIMEOUT_KEEP_ALIVE,
+            ssl_keyfile=args.ssl_keyfile,
+            ssl_certfile=args.ssl_certfile,
+            ssl_ca_certs=args.ssl_ca_certs,
+            ssl_cert_reqs=args.ssl_cert_reqs,
+            **uvicorn_kwargs,
+        )
+
+    # NB: Await server shutdown only after the backend context is exited
+    try:
+        await shutdown_task
+    finally:
+        sock.close()
+
 if __name__ == "__main__":
     # NOTE(simon):
     # This section should be in sync with vllm/entrypoints/cli/main.py for CLI
@@ -1217,4 +1370,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     validate_parsed_serve_args(args)
 
-    uvloop.run(run_server(args))
+    if envs.COSPEC:
+        uvloop.run(run_server_cospec(args))
+    else:
+        uvloop.run(run_server(args))

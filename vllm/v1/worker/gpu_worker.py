@@ -203,6 +203,10 @@ class Worker(WorkerBase):
         available_kv_cache_memory = (
             total_gpu_memory * self.cache_config.gpu_memory_utilization -
             peak_memory)
+        
+        # For CoSpec, halve the available memory
+        if envs.COSPEC:
+            available_kv_cache_memory = available_kv_cache_memory / 2
 
         return int(available_kv_cache_memory)
 
