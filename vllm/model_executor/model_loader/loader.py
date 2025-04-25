@@ -10,6 +10,7 @@ import inspect
 import itertools
 import math
 import os
+import re
 import time
 import warnings
 from abc import ABC, abstractmethod
@@ -285,7 +286,7 @@ class DefaultModelLoader(BaseModelLoader):
         use_safetensors = False
         index_file = SAFE_WEIGHTS_INDEX_NAME
         # Some quantized models use .pt files for storing the weights.
-        if load_format == LoadFormat.AUTO:
+        if load_format == LoadFormat.AUTO or load_format == LoadFormat.SHARED_MEMORY:
             allow_patterns = ["*.safetensors", "*.bin"]
         elif (load_format == LoadFormat.SAFETENSORS
               or load_format == LoadFormat.FASTSAFETENSORS):
@@ -1513,6 +1514,110 @@ class RunaiModelStreamerLoader(BaseModelLoader):
         return model.eval()
 
 
+class SharedMemoryModelLoader(BaseModelLoader):
+    """Model-specific CUDA IPC implementation"""
+    
+    SHARED_HANDLES_FILE = "/dev/shm/vllm_{model}_shm_rank_{rank}.pkl"
+    LOCK_FILE = "/dev/shm/vllm_{model}_lock_rank_{rank}.lock"
+
+    def __init__(self, load_config: LoadConfig):
+        super().__init__(load_config)
+        self.model_identifier = "uninitialized"
+        self.handles_created = False
+        self.model_ref = None
+
+    def download_model(self, model_config: ModelConfig) -> None:
+        pass
+
+    def _sanitize_model_name(self, model_name: str) -> str:
+        """Convert model name to filesystem-safe identifier"""
+        return re.sub(r"[^a-zA-Z0-9_-]", "_", model_name)[:64]
+
+    def load_model(self, vllm_config: VllmConfig) -> nn.Module:
+        import fcntl
+        import pickle
+        from vllm.distributed import get_tensor_model_parallel_rank
+
+        self.model_identifier = self._sanitize_model_name(
+            vllm_config.model_config.model
+        )
+        logger.info(f"Using model identifier: {self.model_identifier}")
+
+        rank = get_tensor_model_parallel_rank()
+        device_config = vllm_config.device_config
+        model_config = vllm_config.model_config
+        target_device = torch.device(device_config.device)
+
+        shared_handles_path = self.SHARED_HANDLES_FILE.format(
+            model=self.model_identifier,
+            rank=rank
+        )
+        lock_path = self.LOCK_FILE.format(
+            model=self.model_identifier,
+            rank=rank
+        )
+
+        with open(lock_path, "w") as _:
+            pass
+
+        with open(lock_path, "r+") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            
+            try:
+                if os.path.exists(shared_handles_path):
+                    # Secondary process - unpack full tuple structure
+                    with open(shared_handles_path, "rb") as f:
+                        handles_dict = pickle.load(f)
+
+                    state_dict = {}
+                    for name, (storage_info, dtype, shape, stride) in handles_dict.items():
+                        cuda_args = storage_info[:8]
+                        storage = torch.Storage._new_shared_cuda(*cuda_args)
+                        
+                        tensor = torch.tensor([], dtype=dtype, device=target_device)
+                        tensor.set_(storage, 0, shape, stride)
+                        state_dict[name] = tensor
+
+                    with set_default_torch_dtype(model_config.dtype):
+                        with target_device:
+                            model = _initialize_model(vllm_config=vllm_config)
+                            model.load_state_dict(state_dict)
+
+                else:
+                    # Primary process - store separated storage info and dtype
+                    with set_default_torch_dtype(model_config.dtype):
+                        with target_device:
+                            model = _initialize_model(vllm_config=vllm_config)
+                            weights_iterator = DefaultModelLoader(self.load_config).get_all_weights(model_config, model)
+                            model.load_weights(weights_iterator)
+                            _process_weights_after_loading(model, model_config, target_device)
+
+                    handles_dict = {}
+                    for name, param in model.state_dict().items():
+                        if param.device.type != "cuda":
+                            continue
+                            
+                        storage = param.storage()
+                        storage_info = storage._share_cuda_() 
+                        handles_dict[name] = (
+                            storage_info,  
+                            param.dtype,
+                            param.shape,
+                            param.stride()
+                        )
+
+                    with open(shared_handles_path, "wb") as f:
+                        pickle.dump(handles_dict, f)
+                    
+                    self.handles_created = True
+                    self.model_ref = model
+
+            finally:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+        return model.eval()
+
+
 def get_model_loader(load_config: LoadConfig) -> BaseModelLoader:
     """Get a model loader based on the load format."""
     if isinstance(load_config.load_format, type):
@@ -1538,5 +1643,8 @@ def get_model_loader(load_config: LoadConfig) -> BaseModelLoader:
 
     if load_config.load_format == LoadFormat.RUNAI_STREAMER_SHARDED:
         return ShardedStateLoader(load_config, runai_model_streamer=True)
+
+    if load_config.load_format == LoadFormat.SHARED_MEMORY:
+        return SharedMemoryModelLoader(load_config)
 
     return DefaultModelLoader(load_config)
