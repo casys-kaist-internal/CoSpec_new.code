@@ -1039,6 +1039,9 @@ class EngineArgs:
         )
 
     def create_load_config(self) -> LoadConfig:
+        if envs.COSPEC:
+            logger.info("For CoSpec, using shared memory to load models")
+            self.load_format = "shared_memory"
 
         if(self.qlora_adapter_name_or_path is not None) and \
             self.quantization != "bitsandbytes":
@@ -1062,6 +1065,7 @@ class EngineArgs:
         target_parallel_config: ParallelConfig,
         enable_chunked_prefill: bool,
         disable_log_stats: bool,
+        is_primary: Optional[bool] = None,
     ) -> Optional["SpeculativeConfig"]:
         """Initializes and returns a SpeculativeConfig object based on
         `speculative_config`.
@@ -1082,6 +1086,7 @@ class EngineArgs:
             "target_parallel_config": target_parallel_config,
             "enable_chunked_prefill": enable_chunked_prefill,
             "disable_log_stats": disable_log_stats,
+            "is_primary": is_primary,
         })
         speculative_config = SpeculativeConfig.from_dict(
             self.speculative_config)
@@ -1091,6 +1096,7 @@ class EngineArgs:
     def create_engine_config(
         self,
         usage_context: Optional[UsageContext] = None,
+        is_primary: Optional[bool] = None,
     ) -> VllmConfig:
         """
         Create the VllmConfig.
@@ -1180,6 +1186,7 @@ class EngineArgs:
             target_parallel_config=parallel_config,
             enable_chunked_prefill=self.enable_chunked_prefill,
             disable_log_stats=self.disable_log_stats,
+            is_primary=is_primary
         )
 
         # Reminder: Please update docs/source/features/compatibility_matrix.md

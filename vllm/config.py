@@ -2209,6 +2209,10 @@ class SpeculativeConfig:
                                                   init=True)  # type: ignore
     """The parallel configuration for the draft model initialized internal."""
 
+    # Cospec configuration
+    is_primary: bool = field(default=None, init=True)  # type: ignore
+    """Whether the current engine is the primary process."""
+
     def compute_hash(self) -> str:
         """
         WARNING: Whenever a new field is added to this config,

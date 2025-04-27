@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 from functools import partial
 from http import HTTPStatus
 from typing import Annotated, Optional, Union
+import subprocess
 
 import uvloop
 from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException, Request
@@ -35,8 +36,6 @@ from vllm.engine.arg_utils import AsyncEngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine  # type: ignore
 from vllm.engine.multiprocessing.client import MQLLMEngineClient
 from vllm.engine.multiprocessing.engine import run_mp_engine
-from vllm.v1.engine.multiprocessing.client import V1MQLLMEngineClient
-from vllm.v1.engine.multiprocessing.engine import v1_run_mp_engine
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.chat_utils import (load_chat_template,
                                          resolve_hf_chat_template,
@@ -140,14 +139,14 @@ async def lifespan(app: FastAPI):
 
 @asynccontextmanager
 async def build_async_engine_client(
-        args: Namespace) -> AsyncIterator[EngineClient]:
+        args: Namespace, is_primary: Optional[bool] = None) -> AsyncIterator[EngineClient]:
 
     # Context manager to handle engine_client lifecycle
     # Ensures everything is shutdown and cleaned up on error/exit
     engine_args = AsyncEngineArgs.from_cli_args(args)
 
     async with build_async_engine_client_from_engine_args(
-            engine_args, args.disable_frontend_multiprocessing) as engine:
+            engine_args, args.disable_frontend_multiprocessing, is_primary) as engine:
         yield engine
 
 
@@ -155,6 +154,7 @@ async def build_async_engine_client(
 async def build_async_engine_client_from_engine_args(
     engine_args: AsyncEngineArgs,
     disable_frontend_multiprocessing: bool = False,
+    is_primary: Optional[bool] = None,
 ) -> AsyncIterator[EngineClient]:
     """
     Create EngineClient, either:
@@ -165,7 +165,7 @@ async def build_async_engine_client_from_engine_args(
     """
     # Create the EngineConfig (determines if we can use V1).
     usage_context = UsageContext.OPENAI_API_SERVER
-    vllm_config = engine_args.create_engine_config(usage_context=usage_context)
+    vllm_config = engine_args.create_engine_config(usage_context=usage_context, is_primary=is_primary)
     global prometheus_multiproc_dir
 
     if envs.COSPEC:
@@ -202,7 +202,7 @@ async def build_async_engine_client_from_engine_args(
         # we use a shared variable to communicate the information.
         engine_alive = multiprocessing.Value('b', True, lock=False)
         engine_process = context.Process(
-            target=v1_run_mp_engine,
+            target=run_mp_engine,
             args=(vllm_config, UsageContext.OPENAI_API_SERVER, ipc_path,
                   engine_args.disable_log_stats,
                   engine_args.disable_log_requests, engine_alive))
@@ -220,7 +220,7 @@ async def build_async_engine_client_from_engine_args(
         atexit.register(_cleanup_ipc_path)
 
         # Build RPCClient, which conforms to EngineClient Protocol.
-        build_client = partial(V1MQLLMEngineClient, ipc_path, vllm_config,
+        build_client = partial(MQLLMEngineClient, ipc_path, vllm_config,
                                engine_pid)
         mq_engine_client = await asyncio.get_running_loop().run_in_executor(
             None, build_client)
@@ -1285,6 +1285,25 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 async def run_server_cospec(args, **uvicorn_kwargs) -> None:
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
+    
+    try:
+        logger.info("Initializing NVIDIA MPS...")
+        
+        # Set MPS environment variables
+        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
+        os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
+        
+        # Create directories if they don't exist
+        os.makedirs(os.environ["CUDA_MPS_PIPE_DIRECTORY"], exist_ok=True)
+        os.makedirs(os.environ["CUDA_MPS_LOG_DIRECTORY"], exist_ok=True)
+        
+        # Start MPS control daemon
+        subprocess.run(["nvidia-cuda-mps-control", "-d"], check=True)
+        logger.info("NVIDIA MPS daemon started successfully as a background process")
+        
+    except Exception as e:
+        logger.error("Failed to initialize NVIDIA MPS: %s", str(e))
+        raise
 
     if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
         ToolParserManager.import_tool_parser(args.tool_parser_plugin)
@@ -1318,23 +1337,8 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
 
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Cleanup previous shared memory files on server start
-    try:
-        import glob
-        shm_files = glob.glob('/dev/shm/vllm*')
-        for f in shm_files:
-            try:
-                if os.path.isfile(f):
-                    os.remove(f)
-                    logger.debug("Cleaned up shared memory file: %s", f)
-            except Exception as e:
-                logger.warning("Failed to remove %s: %s", f, str(e))
-        logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
-    except Exception as e:
-        logger.error("Shared memory cleanup failed: %s", str(e))
-
-    async with build_async_engine_client(args) as engine_client, \
-        build_async_engine_client(args) as engine_client2:
+    async with build_async_engine_client(args, is_primary=True) as engine_client, \
+        build_async_engine_client(args, is_primary=False) as engine_client2:
         app = build_app(args)
 
         vllm_config = await engine_client.get_vllm_config()
@@ -1373,6 +1377,12 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         await shutdown_task
     finally:
         sock.close()
+        # Stop MPS control daemon
+        try:
+            subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
+            logger.info("NVIDIA MPS daemon stopped successfully")
+        except Exception as e:
+            logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
 
 if __name__ == "__main__":
     # NOTE(simon):
@@ -1384,6 +1394,21 @@ if __name__ == "__main__":
     parser = make_arg_parser(parser)
     args = parser.parse_args()
     validate_parsed_serve_args(args)
+
+    # Cleanup previous shared memory files on server start
+    try:
+        import glob
+        shm_files = glob.glob('/dev/shm/cospec*')
+        for f in shm_files:
+            try:
+                if os.path.isfile(f):
+                    os.remove(f)
+                    logger.debug("Cleaned up shared memory file: %s", f)
+            except Exception as e:
+                logger.warning("Failed to remove %s: %s", f, str(e))
+        logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
+    except Exception as e:
+        logger.error("Shared memory cleanup failed: %s", str(e))
 
     if envs.COSPEC:
         uvloop.run(run_server_cospec(args))
