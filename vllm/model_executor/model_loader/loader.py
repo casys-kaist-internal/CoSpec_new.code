@@ -1517,8 +1517,8 @@ class RunaiModelStreamerLoader(BaseModelLoader):
 class SharedMemoryModelLoader(BaseModelLoader):
     """Model-specific CUDA IPC implementation"""
     
-    SHARED_HANDLES_FILE = "/dev/shm/vllm_{model}_shm_rank_{rank}.pkl"
-    LOCK_FILE = "/dev/shm/vllm_{model}_lock_rank_{rank}.lock"
+    SHARED_HANDLES_FILE = "/dev/shm/cospec_{model}_shm_rank_{rank}.pkl"
+    LOCK_FILE = "/dev/shm/cospec_{model}_lock_rank_{rank}.lock"
 
     def __init__(self, load_config: LoadConfig):
         super().__init__(load_config)
@@ -1565,6 +1565,7 @@ class SharedMemoryModelLoader(BaseModelLoader):
             
             try:
                 if os.path.exists(shared_handles_path):
+                    logger.info("Secondary process - loading model from shared memory")
                     # Secondary process - unpack full tuple structure
                     with open(shared_handles_path, "rb") as f:
                         handles_dict = pickle.load(f)
@@ -1581,9 +1582,10 @@ class SharedMemoryModelLoader(BaseModelLoader):
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
                             model = _initialize_model(vllm_config=vllm_config)
-                            model.load_state_dict(state_dict)
+                            model.load_state_dict(state_dict, assign=True)
 
                 else:
+                    logger.info("Primary process - initializing model")
                     # Primary process - store separated storage info and dtype
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:

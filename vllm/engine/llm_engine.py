@@ -20,6 +20,7 @@ from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
                          ObservabilityConfig, ParallelConfig, SchedulerConfig,
                          VllmConfig)
 from vllm.core.scheduler import ScheduledSequenceGroup, SchedulerOutputs
+from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics_types import StatLoggerBase, Stats
 from vllm.engine.output_processor.interfaces import (
@@ -239,6 +240,9 @@ class LLMEngine:
         self.observability_config = vllm_config.observability_config or ObservabilityConfig(  # noqa
         )
 
+        if envs.COSPEC:
+            self.cospec_shm = SharedMemoryManager()
+
         logger.info(
             "Initializing a V0 LLM engine (v%s) with config: %s, "
             "use_cached_outputs=%s, ",
@@ -424,8 +428,22 @@ class LLMEngine:
         and the swap CPU cache.
         """
         start = time.time()
-        num_gpu_blocks, num_cpu_blocks = (
-            self.model_executor.determine_num_available_blocks())
+        if envs.COSPEC:
+            logger.info("Using CoSpec for KV cache allocation")
+            if self.speculative_config.is_primary:
+                logger.info("Primary process, determining num of blocks")
+                num_gpu_blocks, num_cpu_blocks = self.model_executor.determine_num_available_blocks()
+                num_gpu_blocks = num_gpu_blocks // 2
+                num_cpu_blocks = num_cpu_blocks // 2
+                self.cospec_shm.put("gpu_blocks", num_gpu_blocks)
+                self.cospec_shm.put("cpu_blocks", num_cpu_blocks)
+            else:
+                logger.info("Secondary process, getting num of blocks")
+                num_gpu_blocks = self.cospec_shm.get("gpu_blocks")
+                num_cpu_blocks = self.cospec_shm.get("cpu_blocks")
+        else:
+            num_gpu_blocks, num_cpu_blocks = (
+                self.model_executor.determine_num_available_blocks())
 
         if self.cache_config.num_gpu_blocks_override is not None:
             num_gpu_blocks_override = self.cache_config.num_gpu_blocks_override
@@ -441,7 +459,7 @@ class LLMEngine:
         self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
         elapsed = time.time() - start
         logger.info(("init engine (profile, create kv cache, "
-                     "warmup model) took %.2f seconds"), elapsed)
+                    "warmup model) took %.2f seconds"), elapsed)
 
     @classmethod
     def _get_executor_cls(cls,
