@@ -743,3 +743,6 @@ class MQLLMEngineClient(EngineClient):
         # Raise on error, otherwise happily return None
         if isinstance(request_output, BaseException):
             raise request_output
+
+    def get_num_requests(self) -> int:
+        return len(self.output_queues)

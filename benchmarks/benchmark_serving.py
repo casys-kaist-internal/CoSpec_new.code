@@ -88,6 +88,11 @@ class BenchmarkMetrics:
     median_e2el_ms: float
     std_e2el_ms: float
     percentiles_e2el_ms: list[tuple[float, float]]
+    # Mean token latency stands for end-to-end latency per output token.
+    mean_token_latency_ms: float
+    median_token_latency_ms: float
+    std_token_latency_ms: float
+    percentiles_token_latency_ms: list[tuple[float, float]]
 
 
 async def get_request(
@@ -152,6 +157,7 @@ def calculate_metrics(
     all_tpots: list[float] = []
     ttfts: list[float] = []
     e2els: list[float] = []
+    token_latencies: list[float] = []
     for i in range(len(outputs)):
         if outputs[i].success:
             output_len = outputs[i].output_tokens
@@ -177,6 +183,7 @@ def calculate_metrics(
             itls += outputs[i].itl
             ttfts.append(outputs[i].ttft)
             e2els.append(outputs[i].latency)
+            token_latencies.append(outputs[i].latency / output_len)
             completed += 1
         else:
             actual_output_lens.append(0)
@@ -236,6 +243,11 @@ def calculate_metrics(
         std_e2el_ms=np.std(e2els or 0) * 1000,
         median_e2el_ms=np.median(e2els or 0) * 1000,
         percentiles_e2el_ms=[(p, np.percentile(e2els or 0, p) * 1000)
+                             for p in selected_percentiles],
+        mean_token_latency_ms=np.mean(token_latencies or 0) * 1000,
+        std_token_latency_ms=np.std(token_latencies or 0) * 1000,
+        median_token_latency_ms=np.median(token_latencies or 0) * 1000,
+        percentiles_token_latency_ms=[(p, np.percentile(token_latencies or 0, p) * 1000)
                              for p in selected_percentiles],
     )
 
@@ -472,7 +484,7 @@ async def benchmark(
                        "Time per Output Token (excl. 1st token)")
     process_one_metric("itl", "ITL", "Inter-token Latency")
     process_one_metric("e2el", "E2EL", "End-to-end Latency")
-
+    process_one_metric("token_latency", "Token Latency", "Token Latency (e2e_latency / output_len)")
     print("=" * 50)
 
     return result
@@ -935,10 +947,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--percentile-metrics",
         type=str,
-        default="ttft,tpot,itl",
+        default="ttft,tpot,itl,e2el,token_latency",
         help="Comma-separated list of selected metrics to report percentils. "
         "This argument specifies the metrics to report percentiles. "
-        "Allowed metric names are \"ttft\", \"tpot\", \"itl\", \"e2el\". "
+        "Allowed metric names are \"ttft\", \"tpot\", \"itl\", \"e2el\", \"token_latency\". "
         "Default value is \"ttft,tpot,itl\".")
     parser.add_argument(
         "--metric-percentiles",

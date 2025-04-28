@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 
 from vllm.config import ParallelConfig, SpeculativeConfig, VllmConfig
+from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.distributed.communication_op import (broadcast_tensor_dict,
                                                get_tp_group,
                                                tensor_model_parallel_gather)
@@ -341,6 +342,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self._disable_log_stats = disable_log_stats
         self._num_spec_prefill_steps = num_spec_prefill_steps
 
+        self.target_lock = SharedMemoryManager(namespace="cospec_target_lock")
+
+        logger.info("SpecDecodeWorker initialized")
+
     def init_device(self) -> None:
         """Initialize both scorer and proposer models.
         """
@@ -670,7 +675,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         updated, so they cannot enable spec decode in the rest decoding.
         """
 
-        sampler_output = self.scorer_worker.execute_model(execute_model_req)
+        sampler_output = self.scorer_worker.execute_model(execute_model_req, lock=self.target_lock)
         assert len(sampler_output) == 1
         sampler_output = sampler_output[0]
 
@@ -780,8 +785,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         with Timer() as proposal_timer:
             # Generate proposals using draft worker.
+            torch.cuda.nvtx.range_push("get_spec_proposals")
             proposals = self.proposer_worker.get_spec_proposals(
                 execute_model_req, self._seq_with_bonus_token_in_last_step)
+            torch.cuda.nvtx.range_pop()
 
         if not self._allow_zero_draft_token_step and proposals.no_proposals:
             #TODO: Fix it #5814
@@ -791,13 +798,18 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         execute_model_req.previous_hidden_states = None
 
         with Timer() as scoring_timer:
+            torch.cuda.nvtx.range_push("score_proposals")
             proposal_scores = self.scorer.score_proposals(
                 execute_model_req,
                 proposals,
+                lock=self.target_lock,
             )
+            torch.cuda.nvtx.range_pop()
 
+        torch.cuda.nvtx.range_push("split_batch_by_proposal_len")
         _, (non_spec_seqs, non_spec_indices) = split_batch_by_proposal_len(
             execute_model_req.seq_group_metadata_list, proposals.proposal_lens)
+        torch.cuda.nvtx.range_pop()
         # With prefill chunking enabled, `non_spec_seqs` contains prefills too:
         # discard decodes that have already been processed by proposer.
         non_spec_indices = [
@@ -816,10 +828,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             self.proposer_worker.execute_model(prefill_req)
 
         with Timer() as verification_timer:
+            torch.cuda.nvtx.range_push("verify_tokens")
             accepted_token_ids, target_logprobs = self._verify_tokens(
                 execute_model_req.seq_group_metadata_list, proposal_scores,
                 proposals, execute_model_req.num_lookahead_slots)
-
+            torch.cuda.nvtx.range_pop()
         stage_times = (proposal_timer.elapsed_time_ms / num_lookahead_slots,
                        scoring_timer.elapsed_time_ms,
                        verification_timer.elapsed_time_ms)

@@ -14,6 +14,12 @@ class SharedMemoryManager:
         self.shm_dir.mkdir(exist_ok=True)
         self.lock_fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR)
 
+    def lock(self):
+        fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
+
+    def unlock(self):
+        fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
+
     def put(self, key: str, value: Any) -> None:
         """Atomic write with exclusive lock"""
         key_path = self.shm_dir / f"{key}.pkl"

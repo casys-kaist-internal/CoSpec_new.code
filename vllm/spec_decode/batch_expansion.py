@@ -7,6 +7,7 @@ from typing import Iterator, List, Optional, Tuple
 import torch
 
 from vllm import SamplingParams
+from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import (VLLM_INVALID_TOKEN_ID, VLLM_TOKEN_ID_ARRAY_TYPE,
                            ExecuteModelRequest, SequenceData,
@@ -42,6 +43,7 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         self,
         execute_model_req: ExecuteModelRequest,
         proposals: SpeculativeProposals,
+        lock: Optional[SharedMemoryManager] = None,
     ) -> SpeculativeScores:
         """Score the proposed tokens via the scorer model.
 
@@ -79,7 +81,8 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
 
         target_sampler_output = self._scorer_worker.execute_model(
             execute_model_req=execute_model_req.clone(
-                seq_group_metadata_list=target_seq_group_metadata_list))
+                seq_group_metadata_list=target_seq_group_metadata_list),
+                lock=lock)
         assert len(target_sampler_output) == 1, "expected single-step output"
         target_sampler_output = target_sampler_output[0]
 
