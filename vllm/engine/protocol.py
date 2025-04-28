@@ -300,3 +300,8 @@ class EngineClient(ABC):
     async def add_lora(self, lora_request: LoRARequest) -> None:
         """Load a new LoRA adapter into the engine for future requests."""
         ...
+
+    @abstractmethod
+    def get_num_requests(self) -> int:
+        """Get the number of requests in the engine"""
+        ...

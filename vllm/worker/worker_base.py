@@ -12,6 +12,7 @@ import torch.nn as nn
 
 from vllm.config import (ObservabilityConfig, VllmConfig,
                          set_current_vllm_config)
+from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.distributed import broadcast_tensor_dict, get_pp_group, get_tp_group
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
@@ -76,7 +77,7 @@ class WorkerBase:
 
     def execute_model(
         self,
-        execute_model_req: Optional[ExecuteModelRequest] = None
+        execute_model_req: Optional[ExecuteModelRequest] = None,
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
 
@@ -386,6 +387,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
+        lock: Optional[SharedMemoryManager] = None,
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
         sequences are provided."""
@@ -400,7 +402,13 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         if (execute_model_req is not None and execute_model_req.spec_step_idx):
             kwargs["spec_step_idx"] = execute_model_req.spec_step_idx
 
+        torch.cuda.nvtx.range_push("execute_worker")
+        if lock is not None:
+            lock.lock()
         self.execute_worker(worker_input)
+        if lock is not None:
+            lock.unlock()
+        torch.cuda.nvtx.range_pop()
 
         # If there is no input, we don't need to execute the model.
         if worker_input.num_seq_groups == 0:

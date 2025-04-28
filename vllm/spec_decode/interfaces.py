@@ -6,6 +6,7 @@ from typing import List, Optional, Set, Union
 
 import torch
 
+from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.sequence import ExecuteModelRequest, PromptLogprobs
 from vllm.worker.worker_base import WorkerBase
 
@@ -94,5 +95,6 @@ class SpeculativeScorer(ABC):
         self,
         execute_model_req: ExecuteModelRequest,
         proposals: SpeculativeProposals,
+        lock: Optional[SharedMemoryManager] = None,
     ) -> SpeculativeScores:
         raise NotImplementedError

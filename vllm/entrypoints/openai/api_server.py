@@ -1303,6 +1303,12 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         
     except Exception as e:
         logger.error("Failed to initialize NVIDIA MPS: %s", str(e))
+        # Stop the already running MPS daemon
+        try:
+            subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
+            logger.info("NVIDIA MPS daemon stopped successfully. Rerun the command to start it again.")
+        except Exception as e:
+            logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
         raise
 
     if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
@@ -1409,6 +1415,9 @@ if __name__ == "__main__":
         logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
     except Exception as e:
         logger.error("Shared memory cleanup failed: %s", str(e))
+
+    # Set attention backend to XFORMERS
+    os.environ["VLLM_ATTENTION_BACKEND"] = "XFORMERS"
 
     if envs.COSPEC:
         uvloop.run(run_server_cospec(args))

@@ -64,11 +64,17 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             logger.info("Using default completion sampling params from %s: %s",
                         source, self.default_sampling_params)
 
+    # def _select_engine(self) -> EngineClient:
+    #     # Round-robin selection between two engines
+    #     selected = self.engine_client if self.current_engine_idx == 0 else self.engine_client2
+    #     self.current_engine_idx = (self.current_engine_idx + 1) % 2
+    #     return selected
+    
     def _select_engine(self) -> EngineClient:
-        # Round-robin selection between two engines
-        selected = self.engine_client if self.current_engine_idx == 0 else self.engine_client2
-        self.current_engine_idx = (self.current_engine_idx + 1) % 2
-        return selected
+        # Select the engine that has the least number of pending + running requests
+        engine_client1_num_requests = self.engine_client.get_num_requests()
+        engine_client2_num_requests = self.engine_client2.get_num_requests()
+        return self.engine_client if engine_client1_num_requests < engine_client2_num_requests else self.engine_client2
 
     async def create_completion(
         self,
