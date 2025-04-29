@@ -86,7 +86,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             - suffix (the language models we currently support do not support
             suffix)
         """
-        print(request, raw_request)
         error_check_ret = await self._check_model(request)
         if error_check_ret is not None:
             return error_check_ret
@@ -666,6 +665,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     def _load_balance(self) -> EngineClient:
         engine_client1_num_requests = self.engine_client.get_num_requests()
         engine_client2_num_requests = self.engine_client2.get_num_requests()
+        logger.info(f"engine 1: {engine_client1_num_requests}, engine 2: {engine_client2_num_requests}")
         return self.engine_client if engine_client1_num_requests < engine_client2_num_requests else self.engine_client2
 
     def _maybe_change_colocation_mode(self):

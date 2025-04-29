@@ -846,6 +846,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                 execute_model_req.seq_group_metadata_list, proposal_scores,
                 proposals, execute_model_req.num_lookahead_slots)
             torch.cuda.nvtx.range_pop()
+        
+        # self.target_lock.synchronized_get("lock")
+        # self.target_lock.unlock()
+        self.cospec_profiler.stop_marker(f"target")
+
         stage_times = (proposal_timer.elapsed_time_ms / num_lookahead_slots,
                        scoring_timer.elapsed_time_ms,
                        verification_timer.elapsed_time_ms)
