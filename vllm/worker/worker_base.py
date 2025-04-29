@@ -423,9 +423,11 @@ class LocalOrDistributedWorkerBase(WorkerBase):
 
         torch.cuda.nvtx.range_push("target_model_execute")
         if lock is not None:
+            # lock.synchronized_put("lock", True)
             lock.lock()
         if profiler is not None:
             profiler.start_marker(f"target")
+        
         output = self.model_runner.execute_model(
             model_input=model_input,
             kv_caches=self.kv_cache[worker_input.virtual_engine]
@@ -434,11 +436,10 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             num_steps=num_steps,
             **kwargs,
         )
-        if lock is not None:
-            lock.unlock()
-        if profiler is not None:
-            profiler.stop_marker(f"target")
         torch.cuda.nvtx.range_pop()
+        if lock is not None:
+            # lock.synchronized_put("lock", True)
+            lock.unlock()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:
