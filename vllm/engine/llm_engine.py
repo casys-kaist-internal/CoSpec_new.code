@@ -1940,6 +1940,21 @@ class LLMEngine:
     def stop_profile(self) -> None:
         self.model_executor.stop_profile()
 
+    def start_cospec_profile(self) -> None:
+        self.stat_loggers["logging"].disable_log()
+        self.model_executor.start_cospec_profile()
+
+    def stop_cospec_profile(self) -> None:
+        self.stat_loggers["logging"].enable_log()
+        self.model_executor.stop_cospec_profile()
+
+    def maybe_load_cached_cospec_profile(self) -> bool:
+        return self.model_executor.maybe_load_cached_cospec_profile()
+
+    def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
+        self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
+        self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
+
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (
             "Sleep mode is not enabled in the model config")

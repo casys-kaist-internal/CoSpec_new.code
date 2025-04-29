@@ -74,7 +74,6 @@ if TYPE_CHECKING:
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
     VLLM_USE_V1: bool = True
-    COSPEC: bool = False
     VLLM_ROCM_USE_AITER: bool = False
     VLLM_ROCM_USE_AITER_PAGED_ATTN: bool = False
     VLLM_ROCM_USE_AITER_LINEAR: bool = True
@@ -112,6 +111,11 @@ if TYPE_CHECKING:
     VLLM_XGRAMMAR_CACHE_MB: int = 0
     VLLM_MSGPACK_ZERO_COPY_THRESHOLD: int = 256
 
+    # CoSpec specific env vars
+    COSPEC: bool = False
+    COSPEC_DYNAMIC_COLOCATION: bool = False
+    COSPEC_SELECTIVE_VALIDATION: bool = False
+    COSPEC_CONSOLIDATED_ATTENTION: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -531,9 +535,6 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VLLM_USE_V1":
     lambda: bool(int(os.getenv("VLLM_USE_V1", "1"))),
 
-    "COSPEC":
-    lambda: bool(int(os.getenv("COSPEC", "0"))),
-
     # Disable aiter ops unless specifically enabled.
     # Acts as a parent switch to enable the rest of the other operations.
     "VLLM_ROCM_USE_AITER":
@@ -731,6 +732,18 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # limit will actually be zero-copy decoded.
     "VLLM_MSGPACK_ZERO_COPY_THRESHOLD":
     lambda: int(os.getenv("VLLM_MSGPACK_ZERO_COPY_THRESHOLD", "256")),
+
+    "COSPEC":
+    lambda: bool(int(os.getenv("COSPEC", "0"))),
+
+    "COSPEC_DYNAMIC_COLOCATION":
+    lambda: bool(int(os.getenv("COSPEC_DYNAMIC_COLOCATION", "0"))),
+
+    "COSPEC_SELECTIVE_VALIDATION":
+    lambda: bool(int(os.getenv("COSPEC_SELECTIVE_VALIDATION", "0"))),
+
+    "COSPEC_CONSOLIDATED_ATTENTION":
+    lambda: bool(int(os.getenv("COSPEC_CONSOLIDATED_ATTENTION", "0"))),
 }
 
 # end-env-vars-definition

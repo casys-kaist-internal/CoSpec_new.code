@@ -122,6 +122,13 @@ class RPCUProfileRequest(Enum):
     START_PROFILE = 1
     STOP_PROFILE = 2
 
+class RPCCospecProfileRequest(Enum):
+    START_PROFILE = 1
+    STOP_PROFILE = 2
+
+@dataclass
+class RPCSetNumSpeculativeTokensRequest:
+    num_speculative_tokens: int
 
 @dataclass
 class RPCResetPrefixCacheRequest:
@@ -161,14 +168,23 @@ class RPCLoadAdapterRequest:
 class RPCAdapterLoadedResponse:
     request_id: str
 
+@dataclass
+class RPCMaybeLoadCachedCospecProfileRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
+class RPCMaybeLoadCachedCospecProfileResponse:
+    request_id: str
+    loaded: bool
+
 
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
-                      RPCUProfileRequest, RPCLoadAdapterRequest,
+                      RPCUProfileRequest, RPCCospecProfileRequest, RPCLoadAdapterRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
-                      RPCWakeUpRequest, RPCIsSleepingRequest]
+                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedCospecProfileRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
-                          RPCIsSleepingResponse, RPCError]
+                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedCospecProfileResponse]
 
 
 def ENGINE_DEAD_ERROR(

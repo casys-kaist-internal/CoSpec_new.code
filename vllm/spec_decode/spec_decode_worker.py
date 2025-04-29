@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 
 from vllm.config import ParallelConfig, SpeculativeConfig, VllmConfig
+from vllm.cospec.profiler import CospecProfiler
 from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.distributed.communication_op import (broadcast_tensor_dict,
                                                get_tp_group,
@@ -343,7 +344,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self._num_spec_prefill_steps = num_spec_prefill_steps
 
         self.target_lock = SharedMemoryManager(namespace="cospec_target_lock")
-
+        self.cospec_profiler = CospecProfiler(self.scorer_worker.vllm_config)
+        
         logger.info("SpecDecodeWorker initialized")
 
     def init_device(self) -> None:
@@ -544,8 +546,18 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if no_spec:
             return self._run_no_spec(execute_model_req,
                                      skip_proposer=disable_all_speculation)
-        return self._run_speculative_decoding_step(execute_model_req,
+        
+        total_seq_len = 0
+        if self.cospec_profiler.profiling:
+            for seq_group_metadata in execute_model_req.seq_group_metadata_list:
+                seq_data = next(iter(seq_group_metadata.seq_data.values()))
+                total_seq_len += seq_data.get_len()
+
+        self.cospec_profiler.start_marker(f"run_speculative_decoding_step.{execute_model_req.running_queue_size}.{total_seq_len}.{num_lookahead_slots}")
+        result =  self._run_speculative_decoding_step(execute_model_req,
                                                    num_lookahead_slots)
+        self.cospec_profiler.stop_marker(f"run_speculative_decoding_step.{execute_model_req.running_queue_size}.{total_seq_len}.{num_lookahead_slots}")
+        return result
 
     @torch.inference_mode()
     def start_worker_execution_loop(self) -> None:
@@ -787,9 +799,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # Generate proposals using draft worker.
             torch.cuda.nvtx.range_push("get_spec_proposals")
             proposals = self.proposer_worker.get_spec_proposals(
-                execute_model_req, self._seq_with_bonus_token_in_last_step)
+                execute_model_req, self._seq_with_bonus_token_in_last_step,
+                profiler=self.cospec_profiler
+            )
             torch.cuda.nvtx.range_pop()
-
         if not self._allow_zero_draft_token_step and proposals.no_proposals:
             #TODO: Fix it #5814
             raise RuntimeError("Cannot handle cases where distributed draft "
@@ -803,13 +816,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                 execute_model_req,
                 proposals,
                 lock=self.target_lock,
+                profiler=self.cospec_profiler
             )
             torch.cuda.nvtx.range_pop()
 
-        torch.cuda.nvtx.range_push("split_batch_by_proposal_len")
         _, (non_spec_seqs, non_spec_indices) = split_batch_by_proposal_len(
             execute_model_req.seq_group_metadata_list, proposals.proposal_lens)
-        torch.cuda.nvtx.range_pop()
+
         # With prefill chunking enabled, `non_spec_seqs` contains prefills too:
         # discard decodes that have already been processed by proposer.
         non_spec_indices = [
@@ -836,7 +849,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         stage_times = (proposal_timer.elapsed_time_ms / num_lookahead_slots,
                        scoring_timer.elapsed_time_ms,
                        verification_timer.elapsed_time_ms)
-
+        
         return self._create_output_sampler_list(
             execute_model_req.seq_group_metadata_list,
             accepted_token_ids,
@@ -1122,6 +1135,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         """
         if self._disable_log_stats:
             return
+        
+        if self.cospec_profiler.profiling:
+            return
 
         logger.info(
             "SpecDecodeWorker stage times: "
@@ -1300,6 +1316,15 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
     def stop_profile(self):
         if isinstance(self.scorer_worker, WorkerBase):
             self.scorer_worker.stop_profile()
+
+    def start_cospec_profile(self):
+        self.cospec_profiler.start()
+
+    def stop_cospec_profile(self):
+        self.cospec_profiler.stop()
+
+    def maybe_load_cached_cospec_profile(self) -> bool:
+        return self.cospec_profiler.maybe_load_cached_results()
 
 
 def split_num_cache_blocks_evenly(scorer_cache_block_size_bytes: int,

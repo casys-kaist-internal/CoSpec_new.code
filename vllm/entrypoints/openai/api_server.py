@@ -595,7 +595,6 @@ async def create_completion(request: CompletionRequest, raw_request: Request):
 
     return StreamingResponse(content=generator, media_type="text/event-stream")
 
-
 @router.post("/v1/embeddings", dependencies=[Depends(validate_json_request)])
 @with_cancellation
 @load_aware_call
@@ -1191,6 +1190,9 @@ async def init_app_state_cospec(
     state.task = model_config.task
     state.enable_server_load_tracking = args.enable_server_load_tracking
     state.server_load_metrics = 0
+
+    # Profile 
+    await state.openai_serving_completion.profile()
 
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET

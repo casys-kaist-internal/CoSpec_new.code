@@ -2,10 +2,11 @@
 
 import copy
 import weakref
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 
+from vllm.cospec.profiler import CospecProfiler
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.model_executor.model_loader.weight_utils import default_weight_loader
 from vllm.platforms import current_platform
@@ -97,7 +98,9 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
             # supports_gpu_multi_step(..)
             if expanded_request.previous_hidden_states is not None:
                 self.worker.model_runner.return_hidden_states = True
+            torch.cuda.nvtx.range_push("multi step worker")
             for _ in range(sample_len):
+                torch.cuda.nvtx.range_push("execute model")
                 model_output: List[SamplerOutput] = self.worker.execute_model(
                     execute_model_req=expanded_request)
                 assert (len(model_output) == 1
@@ -110,7 +113,8 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                     model_output, expanded_request.seq_group_metadata_list,
                     indices_of_seq_with_bonus_tokens)
                 model_outputs.append(model_output)
-
+                torch.cuda.nvtx.range_pop()
+            torch.cuda.nvtx.range_pop()
         # move indices to device to avoid stream sync
         indices_of_seq_with_bonus_tokens = torch.tensor(
             indices_of_seq_with_bonus_tokens, device=self.device)
@@ -238,12 +242,13 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: set,
+        profiler: Optional[CospecProfiler] = None,
     ) -> SpeculativeProposals:
         """Produce speculations given an input batch of sequences. The number of
         speculative tokens per sequence is determined by max_proposal_len.
         """
         return self._proposer.get_spec_proposals(
-            execute_model_req, seq_ids_with_bonus_token_in_last_step)
+            execute_model_req, seq_ids_with_bonus_token_in_last_step, profiler=profiler)
 
     @staticmethod
     def _append_new_tokens(

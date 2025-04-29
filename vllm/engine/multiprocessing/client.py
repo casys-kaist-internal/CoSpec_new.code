@@ -33,8 +33,10 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCProcessRequest,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
-                                         RPCStartupResponse,
-                                         RPCUProfileRequest, RPCWakeUpRequest)
+                                         RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
+                                         RPCUProfileRequest, RPCCospecProfileRequest, RPCWakeUpRequest,
+                                         RPCMaybeLoadCachedCospecProfileResponse,
+                                         RPCMaybeLoadCachedCospecProfileRequest)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -250,7 +252,7 @@ class MQLLMEngineClient(EngineClient):
                 # Put each output into the appropriate queue.
                 elif isinstance(
                         request_outputs,
-                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse)):
+                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedCospecProfileResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -261,7 +263,8 @@ class MQLLMEngineClient(EngineClient):
 
     def _add_output(self, request_output: Union[RequestOutput,
                                                 RPCAdapterLoadedResponse,
-                                                RPCIsSleepingResponse]):
+                                                RPCIsSleepingResponse,
+                                                RPCMaybeLoadCachedCospecProfileResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -400,7 +403,10 @@ class MQLLMEngineClient(EngineClient):
 
     async def abort(self, request_id: str):
         """Send an ABORT_REQUEST signal to the RPC Server"""
-
+        try:
+            self.output_queues.pop(request_id)
+        except KeyError:
+            pass
         with suppress(MQClientClosedError):
             await self._send_one_way_rpc_request(
                 request=RPCAbortRequest(request_id), socket=self.input_socket)
@@ -673,7 +679,10 @@ class MQLLMEngineClient(EngineClient):
                 if not finished and not self.errored:
                     await self.abort(request_id)
         finally:
-            self.output_queues.pop(request_id)
+            try:
+                self.output_queues.pop(request_id)
+            except KeyError:
+                pass
 
     async def start_profile(self) -> None:
         """Start profiling the engine"""
@@ -686,6 +695,43 @@ class MQLLMEngineClient(EngineClient):
 
         await self._send_one_way_rpc_request(
             request=RPCUProfileRequest.STOP_PROFILE, socket=self.input_socket)
+        
+    async def start_cospec_profile(self) -> None:
+        """Start profiling the engine"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCCospecProfileRequest.START_PROFILE, socket=self.input_socket)
+
+    async def stop_cospec_profile(self) -> None:
+        """Stop profiling the engine"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCCospecProfileRequest.STOP_PROFILE, socket=self.input_socket)
+        
+    async def maybe_load_cached_cospec_profile(self) -> bool:
+        """Load cached cospec profile if exists"""
+        request = RPCMaybeLoadCachedCospecProfileRequest()
+
+        queue: asyncio.Queue[Union[BaseException,
+                                   RPCMaybeLoadCachedCospecProfileResponse]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
+        
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        if isinstance(request_output, BaseException):
+            raise request_output
+        return request_output.loaded
+        
+    async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
+        """Set the number of speculative tokens"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
+            socket=self.input_socket)
 
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:
