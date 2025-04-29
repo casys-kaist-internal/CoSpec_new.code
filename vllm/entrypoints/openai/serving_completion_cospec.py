@@ -576,9 +576,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
     async def profile(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_cospec_profile()
-        logger.info(f"Loaded cached cospec profile: {loaded_cached_profile}")
         if loaded_cached_profile:
-            logger.info("Loaded cached cospec profile")
+            logger.info("Loaded cached cospec profile successfully")
             return 
 
         vllm_config = await self.engine_client.get_vllm_config()
