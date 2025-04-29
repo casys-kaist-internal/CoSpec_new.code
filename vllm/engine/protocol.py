@@ -276,6 +276,26 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
+    async def start_cospec_profile(self) -> None:
+        """Start profiling the engine"""
+        ...
+
+    @abstractmethod
+    async def stop_cospec_profile(self) -> None:
+        """Stop profiling the engine"""
+        ...
+
+    @abstractmethod
+    async def maybe_load_cached_cospec_profile(self) -> bool:
+        """Load cached cospec profile if exists"""
+        ...
+
+    @abstractmethod
+    async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
+        """Set the number of speculative tokens"""
+        ...
+
+    @abstractmethod
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:
         """Reset the prefix cache"""

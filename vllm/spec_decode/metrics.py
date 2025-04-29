@@ -6,11 +6,14 @@ from typing import Callable, Optional, Union
 import msgspec
 import torch
 
+from vllm.config import envs
 from vllm.model_executor.layers.spec_decode_base_sampler import (
     SpecDecodeBaseSampler)
 from vllm.platforms import current_platform
 from vllm.utils import is_pin_memory_available
+from vllm.logger import init_logger
 
+logger = init_logger(__name__)
 
 class SpecDecodeWorkerMetrics(
         msgspec.Struct,
@@ -98,6 +101,9 @@ class AsyncMetricsCollector:
             self, k: int) -> Optional[SpecDecodeWorkerMetrics]:
         # Skip for any platform that doesn't have device Event
         if current_platform.Event is None:
+            return None
+        
+        if envs.COSPEC:
             return None
 
         # If a copy was initiated in the previous call, collect and return.
@@ -200,6 +206,7 @@ class AsyncMetricsCollector:
         """
         # Determine the number of sequences that have been speculated on. Since
         # the batch size can be variable, we divide by k.
+        logger.info(f"draft_tokens: {draft_tokens}, k: {k}")
         assert draft_tokens % k == 0
         total_num_spec_seqs = draft_tokens // k
 

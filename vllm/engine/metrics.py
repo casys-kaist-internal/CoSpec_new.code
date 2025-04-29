@@ -454,10 +454,14 @@ class LoggingStatLogger(StatLoggerBase):
         super().__init__(local_interval, vllm_config)
         self.last_prompt_throughput: Optional[float] = None
         self.last_generation_throughput: Optional[float] = None
+        self.log_enabled = True
 
     def log(self, stats: Stats) -> None:
         """Called by LLMEngine.
            Logs to Stdout every self.local_interval seconds."""
+
+        if not self.log_enabled:
+            return
 
         # Save tracked stats for token counters.
         self.num_prompt_tokens.append(stats.num_prompt_tokens_iter)
@@ -536,6 +540,12 @@ class LoggingStatLogger(StatLoggerBase):
 
     def info(self, type: str, obj: SupportsMetricsInfo) -> None:
         raise NotImplementedError
+    
+    def enable_log(self):
+        self.log_enabled = True
+
+    def disable_log(self):
+        self.log_enabled = False
 
 
 class PrometheusStatLogger(StatLoggerBase):

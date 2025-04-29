@@ -16,7 +16,8 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --model $TARGET_MODEL \
     --seed 42 \
     -tp $TENSOR_PARALLEL_SIZE \
-    --gpu_memory_utilization 0.85"
+    --gpu_memory_utilization 0.85 \
+    --disable-log-requests"
 
 # Speculative config
 if [ "$AR" -eq 0 ]; then

@@ -12,6 +12,7 @@ import torch.nn as nn
 
 from vllm.config import (ObservabilityConfig, VllmConfig,
                          set_current_vllm_config)
+from vllm.cospec.profiler import CospecProfiler
 from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.distributed import broadcast_tensor_dict, get_pp_group, get_tp_group
 from vllm.logger import init_logger
@@ -388,6 +389,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
         lock: Optional[SharedMemoryManager] = None,
+        profiler: Optional[CospecProfiler] = None,
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
         sequences are provided."""
@@ -402,13 +404,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         if (execute_model_req is not None and execute_model_req.spec_step_idx):
             kwargs["spec_step_idx"] = execute_model_req.spec_step_idx
 
-        torch.cuda.nvtx.range_push("execute_worker")
-        if lock is not None:
-            lock.lock()
         self.execute_worker(worker_input)
-        if lock is not None:
-            lock.unlock()
-        torch.cuda.nvtx.range_pop()
 
         # If there is no input, we don't need to execute the model.
         if worker_input.num_seq_groups == 0:
@@ -425,6 +421,11 @@ class LocalOrDistributedWorkerBase(WorkerBase):
                 orig_model_execute_time = intermediate_tensors.tensors.get(
                     "model_execute_time", torch.tensor(0)).item()
 
+        torch.cuda.nvtx.range_push("target_model_execute")
+        if lock is not None:
+            lock.lock()
+        if profiler is not None:
+            profiler.start_marker(f"target")
         output = self.model_runner.execute_model(
             model_input=model_input,
             kv_caches=self.kv_cache[worker_input.virtual_engine]
@@ -433,6 +434,11 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             num_steps=num_steps,
             **kwargs,
         )
+        if lock is not None:
+            lock.unlock()
+        if profiler is not None:
+            profiler.stop_marker(f"target")
+        torch.cuda.nvtx.range_pop()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:

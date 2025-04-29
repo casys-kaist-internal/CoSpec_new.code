@@ -6,6 +6,7 @@ from typing import List, Optional, Set, Union
 
 import torch
 
+from vllm.cospec.profiler import CospecProfiler
 from vllm.cospec.shm_manager import SharedMemoryManager
 from vllm.sequence import ExecuteModelRequest, PromptLogprobs
 from vllm.worker.worker_base import WorkerBase
@@ -76,6 +77,7 @@ class SpeculativeProposer(ABC):
         # If set, this contains all sequence IDs that were assigned
         # bonus tokens in their last forward pass.
         seq_ids_with_bonus_token_in_last_step: Set[int],
+        profiler: Optional[CospecProfiler] = None,
     ) -> SpeculativeProposals:
         raise NotImplementedError
 
@@ -96,5 +98,6 @@ class SpeculativeScorer(ABC):
         execute_model_req: ExecuteModelRequest,
         proposals: SpeculativeProposals,
         lock: Optional[SharedMemoryManager] = None,
+        profiler: Optional[CospecProfiler] = None,
     ) -> SpeculativeScores:
         raise NotImplementedError

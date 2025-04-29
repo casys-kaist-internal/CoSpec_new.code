@@ -3,7 +3,9 @@
 from typing import List, Optional, Set, Tuple
 
 import torch
+import logging
 
+from vllm.cospec.profiler import CospecProfiler
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
@@ -11,6 +13,7 @@ from vllm.spec_decode.interfaces import (SpeculativeProposals,
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
 from vllm.spec_decode.util import sampler_output_to_torch
 
+logger = logging.getLogger(__name__)
 
 class Top1Proposer(SpeculativeProposer):
     """Helper class which separates out sequences which would exceed the max
@@ -45,6 +48,7 @@ class Top1Proposer(SpeculativeProposer):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: Set[int],
+        profiler: Optional[CospecProfiler] = None,
     ) -> SpeculativeProposals:
         """Get speculative proposals given the input batch.
 
@@ -76,12 +80,18 @@ class Top1Proposer(SpeculativeProposer):
                 num_lookahead_slots=proposal_len,
                 previous_hidden_states=hidden_states,
             )
+            torch.cuda.nvtx.range_push("draft model run")
+            if profiler:
+                profiler.start_marker(f"draft")
             maybe_sampler_output, transposed = self._worker.sampler_output(
                 execute_model_req=nonzero_execute_model_req,
                 sample_len=proposal_len,
                 seq_ids_with_bonus_token_in_last_step=\
                     seq_ids_with_bonus_token_in_last_step,
             )
+            if profiler:
+                profiler.stop_marker(f"draft")
+            torch.cuda.nvtx.range_pop()
             (
                 proposal_lens,
                 maybe_sampler_output,
