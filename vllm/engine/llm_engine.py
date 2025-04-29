@@ -1949,7 +1949,7 @@ class LLMEngine:
         self.model_executor.stop_cospec_profile()
 
     def maybe_load_cached_cospec_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_cospec_profile()
+        return self.model_executor.maybe_load_cached_cospec_profile()[0]
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
