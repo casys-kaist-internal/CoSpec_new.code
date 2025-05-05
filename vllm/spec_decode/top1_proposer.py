@@ -5,7 +5,7 @@ from typing import List, Optional, Set, Tuple
 import torch
 import logging
 
-from vllm.cospec.profiler import CospecProfiler
+from vllm.cospec.cospec_manager import CospecManager
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
@@ -44,11 +44,13 @@ class Top1Proposer(SpeculativeProposer):
         self.max_proposal_len = max_proposal_len
         self._vocab_size = vocab_size
 
+    # important
     def get_spec_proposals(
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        profiler: Optional[CospecProfiler] = None,
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Get speculative proposals given the input batch.
 
@@ -80,18 +82,16 @@ class Top1Proposer(SpeculativeProposer):
                 num_lookahead_slots=proposal_len,
                 previous_hidden_states=hidden_states,
             )
-            torch.cuda.nvtx.range_push("draft model run")
-            if profiler:
-                profiler.start_marker(f"draft")
             maybe_sampler_output, transposed = self._worker.sampler_output(
                 execute_model_req=nonzero_execute_model_req,
                 sample_len=proposal_len,
                 seq_ids_with_bonus_token_in_last_step=\
                     seq_ids_with_bonus_token_in_last_step,
+                cospec_manager=cospec_manager,
+                is_target=is_target
             )
-            if profiler:
-                profiler.stop_marker(f"draft")
-            torch.cuda.nvtx.range_pop()
+            # maybe we should adjust the proposal_lens here 
+            proposal_len = self._adjust_proposal_lens(proposal_lens, maybe_sampler_output)
             (
                 proposal_lens,
                 maybe_sampler_output,
@@ -104,7 +104,7 @@ class Top1Proposer(SpeculativeProposer):
             # If no sequences can be speculated, set sampler output to None.
             maybe_sampler_output = None
             transposed = False
-
+    
         # Combine speculative- and non-speculative sequences into the same
         # representation.
         proposal_tokens, proposal_probs, proposal_lens = self._merge_outputs(
@@ -115,12 +115,12 @@ class Top1Proposer(SpeculativeProposer):
             nonzero_proposal_len_indices=nonzero_proposal_len_indices,
             sampler_transposed=transposed,
         )
-
         proposals = SpeculativeProposals(proposal_token_ids=proposal_tokens,
                                          proposal_probs=proposal_probs,
                                          proposal_lens=proposal_lens,
                                          no_proposals=maybe_sampler_output
                                          is None)
+        
         return proposals
 
     def _split_by_proposal_len(
@@ -166,6 +166,14 @@ class Top1Proposer(SpeculativeProposer):
             nonzero_proposal_len_seqs,
             nonzero_proposal_len_indices,
         )
+    
+    def _adjust_proposal_lens(self, proposal_lens, maybe_sampler_output):
+        proposal_len = len(maybe_sampler_output)
+        for i in range(len(proposal_lens)):
+            if proposal_lens[i] > proposal_len:
+                proposal_lens[i] = proposal_len
+
+        return proposal_len
 
     @staticmethod
     def _remove_no_proposal_seqs(proposal_lens, maybe_sampler_output,

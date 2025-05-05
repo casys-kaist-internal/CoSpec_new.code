@@ -20,7 +20,7 @@ from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
                          ObservabilityConfig, ParallelConfig, SchedulerConfig,
                          VllmConfig)
 from vllm.core.scheduler import ScheduledSequenceGroup, SchedulerOutputs
-from vllm.cospec.shm_manager import SharedMemoryManager
+from vllm.cospec.shm import SharedMemory
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics_types import StatLoggerBase, Stats
 from vllm.engine.output_processor.interfaces import (
@@ -241,7 +241,7 @@ class LLMEngine:
         )
 
         if envs.COSPEC:
-            self.cospec_shm = SharedMemoryManager()
+            self.cospec_shm = SharedMemory("cospec_kv_cache")
 
         logger.info(
             "Initializing a V0 LLM engine (v%s) with config: %s, "
@@ -1948,12 +1948,21 @@ class LLMEngine:
         self.stat_loggers["logging"].enable_log()
         self.model_executor.stop_cospec_profile()
 
+    def set_colocation_mode(self, colocation_mode: bool) -> None:
+        self.model_executor.set_colocation_mode(colocation_mode)
+
     def maybe_load_cached_cospec_profile(self) -> bool:
         return self.model_executor.maybe_load_cached_cospec_profile()[0]
+
+    def predict_colocation_speedup_ratio(self) -> float:
+        return self.model_executor.predict_colocation_speedup_ratio()[0]
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
         self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
+
+    def set_profile_batch_size(self, batch_size: int) -> None:
+        self.model_executor.set_profile_batch_size(batch_size)
 
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (

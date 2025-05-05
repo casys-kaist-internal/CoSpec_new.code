@@ -34,9 +34,12 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
                                          RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
+                                         RPCSetProfileBatchSizeRequest,
                                          RPCUProfileRequest, RPCCospecProfileRequest, RPCWakeUpRequest,
                                          RPCMaybeLoadCachedCospecProfileResponse,
-                                         RPCMaybeLoadCachedCospecProfileRequest)
+                                         RPCMaybeLoadCachedCospecProfileRequest,
+                                         RPCPredictColocationSpeedupRatioRequest,
+                                         RPCPredictColocationSpeedupRatioResponse)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -708,6 +711,12 @@ class MQLLMEngineClient(EngineClient):
         await self._send_one_way_rpc_request(
             request=RPCCospecProfileRequest.STOP_PROFILE, socket=self.input_socket)
         
+    async def set_colocation_mode(self, colocation_mode: bool) -> None:
+        """Set the colocation mode for the engine"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE if colocation_mode else RPCCospecProfileRequest.SET_COLOCATION_MODE_FALSE, socket=self.input_socket)
+        
     async def maybe_load_cached_cospec_profile(self) -> bool:
         """Load cached cospec profile if exists"""
         request = RPCMaybeLoadCachedCospecProfileRequest()
@@ -726,11 +735,29 @@ class MQLLMEngineClient(EngineClient):
             raise request_output
         return request_output.loaded
         
+    async def predict_colocation_speedup_ratio(self) -> float:
+        """Predict the speedup ratio for colocation"""
+        request = RPCPredictColocationSpeedupRatioRequest()
+
+        queue: asyncio.Queue[Union[BaseException,
+                                   RPCPredictColocationSpeedupRatioResponse]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
+        
     async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         """Set the number of speculative tokens"""
 
         await self._send_one_way_rpc_request(
             request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
+            socket=self.input_socket)
+        
+    async def set_profile_batch_size(self, batch_size: int) -> None:
+        """Set the batch size for profiling"""
+
+        await self._send_one_way_rpc_request(
+            request=RPCSetProfileBatchSizeRequest(batch_size),
             socket=self.input_socket)
 
     async def reset_prefix_cache(self,

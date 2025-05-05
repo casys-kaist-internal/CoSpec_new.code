@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 
-from vllm.cospec.profiler import CospecProfiler
+from vllm.cospec.cospec_manager import CospecManager
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.model_executor.model_loader.weight_utils import default_weight_loader
 from vllm.platforms import current_platform
@@ -21,7 +21,9 @@ from vllm.spec_decode.interfaces import (SpeculativeProposals,
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
 from vllm.spec_decode.top1_proposer import Top1Proposer
 from vllm.worker.worker_base import DelegateWorkerBase
+from vllm.logger import init_logger
 
+logger = init_logger(__name__)
 
 class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
     """The MultiStepWorker is equivalent to a Worker except that it allows
@@ -62,6 +64,8 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         execute_model_req: ExecuteModelRequest,
         sample_len: int,
         seq_ids_with_bonus_token_in_last_step: Set[int],
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = False
     ) -> Tuple[List[SamplerOutput], bool]:
         """Run the model forward pass sample_len times. Returns the list of
         sampler output, one per model forward pass, along with indicator of
@@ -98,11 +102,9 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
             # supports_gpu_multi_step(..)
             if expanded_request.previous_hidden_states is not None:
                 self.worker.model_runner.return_hidden_states = True
-            torch.cuda.nvtx.range_push("multi step worker")
-            for _ in range(sample_len):
-                torch.cuda.nvtx.range_push("execute model")
+            for i in range(sample_len):
                 model_output: List[SamplerOutput] = self.worker.execute_model(
-                    execute_model_req=expanded_request)
+                    execute_model_req=expanded_request, cospec_manager=cospec_manager, is_target=is_target)
                 assert (len(model_output) == 1
                         ), "composing multistep workers not supported"
                 model_output = model_output[0]
@@ -113,8 +115,11 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                     model_output, expanded_request.seq_group_metadata_list,
                     indices_of_seq_with_bonus_tokens)
                 model_outputs.append(model_output)
-                torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_pop()
+
+                if cospec_manager is not None:
+                    if cospec_manager.check_early_exit_draft():
+                        break
+
         # move indices to device to avoid stream sync
         indices_of_seq_with_bonus_tokens = torch.tensor(
             indices_of_seq_with_bonus_tokens, device=self.device)
@@ -242,13 +247,14 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: set,
-        profiler: Optional[CospecProfiler] = None,
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Produce speculations given an input batch of sequences. The number of
         speculative tokens per sequence is determined by max_proposal_len.
         """
         return self._proposer.get_spec_proposals(
-            execute_model_req, seq_ids_with_bonus_token_in_last_step, profiler=profiler)
+            execute_model_req, seq_ids_with_bonus_token_in_last_step, cospec_manager=cospec_manager, is_target=is_target)
 
     @staticmethod
     def _append_new_tokens(

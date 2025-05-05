@@ -206,7 +206,6 @@ class AsyncMetricsCollector:
         """
         # Determine the number of sequences that have been speculated on. Since
         # the batch size can be variable, we divide by k.
-        logger.info(f"draft_tokens: {draft_tokens}, k: {k}")
         assert draft_tokens % k == 0
         total_num_spec_seqs = draft_tokens // k
 

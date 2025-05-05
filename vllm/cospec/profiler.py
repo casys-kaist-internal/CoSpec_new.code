@@ -1,239 +1,634 @@
 import torch
 import time
 import os
-import numpy as np
-from typing import List, Dict, Tuple
-import re
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from typing import Dict, Optional, Tuple, List, Set
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import train_test_split
+
 logger = init_logger(__name__)
 
-class CospecProfiler:
+class Profiler:
+    """Profiler for measuring and analyzing performance of colocation vs non-colocation modes.
+    
+    This class handles:
+    1. Profiling step times for different configurations
+    2. Training regression models to predict performance
+    3. Generating visualizations and metrics
+    4. Managing train/test splits for model evaluation
+    """
+    
     def __init__(self, vllm_config: VllmConfig):
-        self.profiling = False
-        self.start_times = {}
-        self.profile_results = {}
-        self.current_key = None
-
-        # Get GPU name and sanitize
-        self.gpu_name = self._sanitize_filename(torch.cuda.get_device_name(0))
-        self.target_model = self._sanitize_filename(vllm_config.model_config.model)
-        self.draft_model = self._sanitize_filename(vllm_config.speculative_config.model)
+        """Initialize the profiler with configuration settings.
         
-        # Generate unique profile filename
-        self.profile_file = (
-            f"profile/{self.gpu_name}_"
-            f"{self.target_model}_"
-            f"{self.draft_model}_results.csv"
-        )
-        logger.info(f"Profile file: {self.profile_file}")
+        Args:
+            vllm_config: Configuration object containing model and GPU settings
+        """
+        # Profiling state
+        self.profiling = False
+        self.profile_results: Dict[Tuple[int, int, bool], List[float]] = {}
+        self.run_counts: Dict[Tuple[int, int, bool], int] = {}
+        self.current_set: Optional[Dict] = None
+        self.start_time: Optional[float] = None
+        
+        # Mode settings
+        self.colocation_mode = False
+        self.is_primary = vllm_config.speculative_config.is_primary
+        self.profile_batch_size: Optional[int] = None
+        
+        # Regression models
+        self.colocation_model: Optional[LinearRegression] = None
+        self.non_colocation_model: Optional[LinearRegression] = None
+        self.poly = PolynomialFeatures(degree=2)
+        self.test_keys: Optional[List[Tuple[int, int]]] = None
+        
+        # Warmup settings
+        self.warmup_steps = 3
+        self.current_step = 0
+        
+        # Setup paths and names
+        self._setup_paths_and_names(vllm_config)
+        
+        if self.is_primary:
+            logger.info(f"Profile file: {self.profile_file}")
 
-    def _sanitize_filename(self, model_name: str) -> str:
-        """Convert model name to filesystem-safe identifier"""
-        return re.sub(r"[^a-zA-Z0-9_-]", "_", model_name)[:64]
+    def _setup_paths_and_names(self, vllm_config: VllmConfig) -> None:
+        """Setup file paths and model names for profiling.
+        
+        Args:
+            vllm_config: Configuration object containing model settings
+        """
+        # Get and sanitize GPU name
+        self.gpu_name = torch.cuda.get_device_name(0).replace(" ", "_")
+        
+        # Extract model names
+        self.target_model = vllm_config.model_config.model.split("/")[-1]
+        self.draft_model = vllm_config.speculative_config.model.split("/")[-1]
+        
+        # Setup profile directory and file paths
+        self.profile_dir = os.path.join("profile", f"{self.gpu_name}_{self.target_model}_{self.draft_model}")
+        self.profile_file = os.path.join(self.profile_dir, "results.csv")
+
+    def _remove_outliers(self, data: List[float]) -> float:
+        """Remove outliers using IQR method and return mean of remaining values.
+        
+        Args:
+            data: List of timing measurements
+            
+        Returns:
+            Mean of data after removing outliers
+        """
+        if not data:
+            return 0.0
+            
+        data = np.array(data)
+        Q1 = np.percentile(data, 25)
+        Q3 = np.percentile(data, 75)
+        IQR = Q3 - Q1
+        
+        # Define bounds for outliers
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        
+        # Filter out outliers
+        filtered_data = data[(data >= lower_bound) & (data <= upper_bound)]
+        
+        if len(filtered_data) == 0:
+            return np.mean(data)  # Return mean of all data if all are outliers
+            
+        return np.mean(filtered_data)
+
+    def _get_unique_configurations(self) -> List[Tuple[int, int]]:
+        """Get list of unique (batch_size, num_spec_tokens) configurations.
+        
+        Returns:
+            List of unique configuration tuples
+        """
+        return sorted(list(set((bs, ns) for bs, ns, _ in self.profile_results.keys())))
+
+    def _prepare_training_data(self, train_keys: Set[Tuple[int, int]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Prepare training data for regression models.
+        
+        Args:
+            train_keys: Set of (batch_size, num_spec_tokens) tuples to use for training
+            
+        Returns:
+            Tuple of (X_colocation, y_colocation, X_non_colocation, y_non_colocation) arrays
+        """
+        X_colocation = []
+        y_colocation = []
+        X_non_colocation = []
+        y_non_colocation = []
+        
+        for (batch_size, num_spec_tokens, colocation_mode), step_times in self.profile_results.items():
+            config_key = (batch_size, num_spec_tokens)
+            if config_key not in train_keys or not step_times:
+                continue
+                
+            mean_time = self._remove_outliers(step_times)
+            features = [batch_size, num_spec_tokens]
+            
+            if colocation_mode:
+                X_colocation.append(features)
+                y_colocation.append(mean_time)
+            else:
+                X_non_colocation.append(features)
+                y_non_colocation.append(mean_time)
+                
+        return (np.array(X_colocation), np.array(y_colocation),
+                np.array(X_non_colocation), np.array(y_non_colocation))
+
+    def _train_regression_models(self) -> None:
+        """Train regression models using train/test split based on configurations."""
+        if not self.profile_results:
+            logger.warning("No profile results to train models")
+            return
+
+        # Get unique configurations and split into train/test
+        unique_keys = self._get_unique_configurations()
+        if len(unique_keys) < 5:
+            logger.warning(f"Only {len(unique_keys)} unique configurations found. Training on all data.")
+            train_keys = set(unique_keys)
+            self.test_keys = []
+        else:
+            train_keys, self.test_keys = train_test_split(unique_keys, test_size=0.2, random_state=42)
+            train_keys = set(train_keys)  # Convert to set for faster lookup
+            logger.info(f"Split data into {len(train_keys)} training and {len(self.test_keys)} test configurations.")
+
+        # Prepare training data
+        X_colocation, y_colocation, X_non_colocation, y_non_colocation = self._prepare_training_data(train_keys)
+        
+        if len(X_colocation) == 0 or len(X_non_colocation) == 0:
+            logger.error("Insufficient training data for one or both models")
+            self.colocation_model = None
+            self.non_colocation_model = None
+            return
+            
+        # Train colocation model
+        if len(X_colocation) > 0:
+            X_colocation_poly = self.poly.fit_transform(X_colocation)
+            self.colocation_model = LinearRegression()
+            self.colocation_model.fit(X_colocation_poly, y_colocation)
+            logger.info(f"Trained colocation model on {len(X_colocation)} data points")
+            
+        # Train non-colocation model
+        if len(X_non_colocation) > 0:
+            X_non_colocation_poly = self.poly.transform(X_non_colocation)
+            self.non_colocation_model = LinearRegression()
+            self.non_colocation_model.fit(X_non_colocation_poly, y_non_colocation)
+            logger.info(f"Trained non-colocation model on {len(X_non_colocation)} data points")
+
+    def _calculate_model_metrics(self) -> Dict:
+        """Calculate evaluation metrics for the regression model on the test set.
+        
+        Returns:
+            Dictionary containing model metrics (MAE, RMSE, R², ECE, AUROC)
+        """
+        if not self.profile_results or self.colocation_model is None or self.non_colocation_model is None or self.test_keys is None:
+            logger.warning("Cannot calculate metrics: Models not trained or test set not defined")
+            return {}
+            
+        # Prepare test data
+        actual_ratios = []
+        predicted_ratios = []
+        
+        # Group results by configuration
+        results_dict = self._group_results_by_configuration()
+        
+        # Calculate metrics on test set
+        for batch_size, num_spec_tokens in self.test_keys:
+            key = (batch_size, num_spec_tokens)
+            if key not in results_dict:
+                continue
+                
+            colocation_times = results_dict[key]['colocation']
+            non_colocation_times = results_dict[key]['non_colocation']
+            
+            if colocation_times and non_colocation_times:
+                avg_colocation = np.mean(colocation_times)
+                avg_non_colocation = np.mean(non_colocation_times)
+                
+                if avg_colocation > 0:
+                    actual_ratio = avg_non_colocation / avg_colocation
+                    predicted_ratio = self.predict_colocation_speedup_ratio(batch_size, num_spec_tokens)
+                    
+                    actual_ratios.append(actual_ratio)
+                    predicted_ratios.append(predicted_ratio)
+                    
+        if not actual_ratios:
+            return {}
+            
+        # Calculate metrics
+        actual_ratios = np.array(actual_ratios)
+        predicted_ratios = np.array(predicted_ratios)
+        
+        metrics = self._compute_metrics(actual_ratios, predicted_ratios)
+        return metrics
+
+    def _group_results_by_configuration(self) -> Dict[Tuple[int, int], Dict[str, List[float]]]:
+        """Group profiling results by configuration.
+        
+        Returns:
+            Dictionary mapping (batch_size, num_spec_tokens) to lists of timing data
+        """
+        results_dict = {}
+        for (batch_size, num_spec_tokens, colocation_mode), step_times in self.profile_results.items():
+            key = (batch_size, num_spec_tokens)
+            if key not in results_dict:
+                results_dict[key] = {'colocation': [], 'non_colocation': []}
+            
+            mean_time = self._remove_outliers(step_times)
+            if colocation_mode:
+                results_dict[key]['colocation'].append(mean_time)
+            else:
+                results_dict[key]['non_colocation'].append(mean_time)
+                
+        return results_dict
+
+    def _compute_metrics(self, actual_ratios: np.ndarray, predicted_ratios: np.ndarray) -> Dict:
+        """Compute regression and classification metrics.
+        
+        Args:
+            actual_ratios: Array of actual speedup ratios
+            predicted_ratios: Array of predicted speedup ratios
+            
+        Returns:
+            Dictionary containing computed metrics
+        """
+        # Regression metrics
+        mae = np.mean(np.abs(predicted_ratios - actual_ratios))
+        rmse = np.sqrt(np.mean((predicted_ratios - actual_ratios) ** 2))
+        r2 = 1 - np.sum((actual_ratios - predicted_ratios) ** 2) / np.sum((actual_ratios - np.mean(actual_ratios)) ** 2)
+        
+        # Calibration error
+        num_bins = 10
+        bin_edges = np.linspace(0, 1, num_bins + 1)
+        bin_indices = np.digitize(predicted_ratios, bin_edges) - 1
+        ece = 0
+        
+        for i in range(num_bins):
+            mask = bin_indices == i
+            if np.sum(mask) > 0:
+                bin_pred = np.mean(predicted_ratios[mask])
+                bin_actual = np.mean(actual_ratios[mask])
+                ece += np.abs(bin_pred - bin_actual) * np.sum(mask) / len(actual_ratios)
+        
+        # Classification metrics (AUROC)
+        actual_binary = (actual_ratios > 1).astype(int)
+        predicted_scores = predicted_ratios
+        
+        auroc = None
+        fpr, tpr = None, None
+        if len(np.unique(actual_binary)) > 1:
+            fpr, tpr, _ = roc_curve(actual_binary, predicted_scores)
+            auroc = auc(fpr, tpr)
+        else:
+            logger.warning("AUROC cannot be calculated: all outcomes belong to same class")
+            
+        return {
+            'MAE': mae,
+            'RMSE': rmse,
+            'R²': r2,
+            'ECE': ece,
+            'AUROC': auroc,
+            'fpr': fpr,
+            'tpr': tpr
+        }
+
+    def _plot_speedup_heatmap(self):
+        """Plot heatmap of speedup ratio between colocation and non-colocation modes"""
+        if not self.is_primary:
+            return
+            
+        if not self.profile_results:
+            logger.warning("No profile results to plot")
+            return
+            
+        # Group results by batch_size and num_speculative_tokens
+        results_dict = {}
+        for (batch_size, num_spec_tokens, colocation_mode), step_times in self.profile_results.items():
+            key = (batch_size, num_spec_tokens)
+            if key not in results_dict:
+                results_dict[key] = {'colocation': [], 'non_colocation': []}
+            
+            step_times = self._remove_outliers(step_times)
+
+            if colocation_mode:
+                results_dict[key]['colocation'].append(np.mean(step_times))
+            else:
+                results_dict[key]['non_colocation'].append(np.mean(step_times))
+        
+        # Get unique batch sizes and spec token numbers
+        batch_sizes = sorted(set(k[0] for k in results_dict.keys()))
+        spec_tokens = sorted(set(k[1] for k in results_dict.keys()), reverse=True)  # Reverse the order
+        
+        # Create speedup matrix
+        speedup_matrix = np.zeros((len(spec_tokens), len(batch_sizes)))
+        
+        for i, num_spec_tokens in enumerate(spec_tokens):
+            for j, batch_size in enumerate(batch_sizes):
+                key = (batch_size, num_spec_tokens)
+                if key in results_dict:
+                    colocation_times = results_dict[key]['colocation']
+                    non_colocation_times = results_dict[key]['non_colocation']
+                    
+                    if colocation_times and non_colocation_times:
+                        avg_colocation = np.mean(colocation_times)
+                        avg_non_colocation = np.mean(non_colocation_times)
+                        speedup_matrix[i, j] = avg_non_colocation / avg_colocation
+        
+        # Create heatmap
+        plt.figure(figsize=(20, 8))
+        sns.heatmap(speedup_matrix, 
+                   xticklabels=batch_sizes,
+                   yticklabels=spec_tokens,
+                   cmap='YlGnBu',
+                   center=1.0, 
+                   annot=True,
+                   fmt='.2f',  
+                   cbar_kws={'label': 'Speedup Ratio (Non-colocation / Colocation)\n>1: Colocation faster\n<1: Non-colocation faster'})
+        
+        plt.xlabel('Batch Size')
+        plt.ylabel('Speculative Window Size')
+        plt.title('Speedup Ratio Heatmap\nValues > 1: Colocation is faster\nValues < 1: Non-colocation is faster')
+        
+        # Save plot
+        os.makedirs(self.profile_dir, exist_ok=True)  # Ensure plot directory exists
+        plot_file = os.path.join(self.profile_dir, "speedup_heatmap.png")
+        plt.savefig(plot_file, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        logger.info(f"Saved speedup heatmap to {plot_file}")
+
+    def _plot_regression_heatmap(self):
+        """Plot heatmap of predicted speedup ratio using regression models"""
+        if not self.is_primary:
+            return
+            
+        if self.colocation_model is None or self.non_colocation_model is None:
+            logger.warning("Regression models not trained")
+            return
+            
+        # Get unique batch sizes and spec token numbers from profile results
+        batch_sizes = sorted(set(k[0] for k in self.profile_results.keys()))
+        spec_tokens = sorted(set(k[1] for k in self.profile_results.keys()), reverse=True)
+        
+        # Create prediction matrix
+        speedup_matrix = np.zeros((len(spec_tokens), len(batch_sizes)))
+        
+        for i, num_spec_tokens in enumerate(spec_tokens):
+            for j, batch_size in enumerate(batch_sizes):
+                ratio = self.predict_colocation_speedup_ratio(batch_size, num_spec_tokens)
+                speedup_matrix[i, j] = ratio
+        
+        # Calculate model metrics
+        metrics = self._calculate_model_metrics()
+        # Exclude fpr/tpr from the text box
+        metrics_to_display = {k: v for k, v in metrics.items() if k not in ['fpr', 'tpr']}
+        metrics_text = "\n".join([f"{k}: {v:.3f}" if v is not None else f"{k}: N/A" for k, v in metrics_to_display.items()])
+        
+        # Create heatmap
+        plt.figure(figsize=(20, 8))
+        sns.heatmap(speedup_matrix, 
+                   xticklabels=batch_sizes,
+                   yticklabels=spec_tokens,
+                   cmap='RdYlGn',  # Red for colocation faster, Green for non-colocation faster
+                   center=1.0,  # Center the colormap at 1.0 (no change)
+                   annot=True,  # Show values in cells
+                   fmt='.2f',   # Format values to 2 decimal places
+                   cbar_kws={'label': 'Predicted Speedup Ratio (Non-colocation / Colocation)\n>1: Colocation faster\n<1: Non-colocation faster'})
+        
+        plt.xlabel('Batch Size')
+        plt.ylabel('Number of Speculative Tokens')
+        plt.title('Predicted Speedup Ratio Heatmap (Regression Model)\nValues > 1: Colocation is faster\nValues < 1: Non-colocation is faster')
+        
+        # Add metrics text box - Adjusted position
+        plt.text(1.05, 0.5, f"Model Metrics:\n{metrics_text}",
+                transform=plt.gca().transAxes,
+                bbox=dict(facecolor='white', alpha=0.8),
+                verticalalignment='center',
+                horizontalalignment='left') # Align left
+
+        # Adjust layout to prevent overlap
+        plt.tight_layout(rect=[0, 0, 0.9, 1]) # Leave space on the right
+        
+        # Save plot
+        os.makedirs(self.profile_dir, exist_ok=True)  # Ensure plot directory exists
+        plot_file = os.path.join(self.profile_dir, "predicted_speedup_heatmap.png")
+        plt.savefig(plot_file, bbox_inches='tight', dpi=300)
+        plt.close()
+        
+        logger.info(f"Saved predicted speedup heatmap to {plot_file}")
+        logger.info(f"Model metrics: {metrics_to_display}")
+
+    def _plot_roc_curve(self, fpr, tpr, auroc):
+        """Plot the ROC curve."""
+        if fpr is None or tpr is None or auroc is None:
+            logger.info("Skipping ROC curve plot as AUROC could not be calculated.")
+            return
+
+        plt.figure()
+        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {auroc:.3f})')
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.legend(loc="lower right")
+        
+        # Save plot
+        os.makedirs(self.profile_dir, exist_ok=True) # Ensure plot directory exists
+        plot_file = os.path.join(self.profile_dir, "roc_curve.png")
+        plt.savefig(plot_file, bbox_inches='tight', dpi=300)
+        plt.close()
+        logger.info(f"Saved ROC curve plot to {plot_file}")
 
     def start(self):
+        """Start profiling"""
         logger.info("Starting cospec profiler")
         self.profiling = True
+        self.profile_results = {}  # Reset results when starting new profiling session
+        self.run_counts = {}  # Reset run counts
+
+    def predict_colocation_speedup_ratio(self, batch_size: int, num_spec_tokens: int) -> float:
+        """Predict the speedup ratio between non-colocation and colocation modes for given batch size and number of speculative tokens.
+        
+        Returns:
+            float: Speedup ratio (non-colocation_time / colocation_time). 
+                  Values > 1 indicate colocation is faster,
+                  Values < 1 indicate non-colocation is faster.
+        """
+        if self.colocation_model is None or self.non_colocation_model is None:
+            self._train_regression_models()
+            if self.colocation_model is None or self.non_colocation_model is None:
+                return 0.0
+        
+        # Prepare input features
+        X = np.array([[batch_size, num_spec_tokens]])
+        X_poly = self.poly.transform(X)
+        
+        # Make predictions
+        colocation_time = self.colocation_model.predict(X_poly)[0]
+        non_colocation_time = self.non_colocation_model.predict(X_poly)[0]
+        
+        # Calculate ratio (non-colocation / colocation)
+        ratio = non_colocation_time / colocation_time if colocation_time > 0 else 0.0
+        
+        return ratio
 
     def stop(self):
+        """Stop profiling and save results"""
+        if not self.profiling:
+            return
+            
         logger.info("Stopping cospec profiler")
         self.profiling = False
+        
+        # Only save results if this is the primary process
+        if not self.is_primary:
+            return
 
         try:
-            os.makedirs(os.path.dirname(self.profile_file), exist_ok=True)
+            os.makedirs(self.profile_dir, exist_ok=True)
             
-            with open(self.profile_file, "a") as f:  # Changed to append mode
+            with open(self.profile_file, "a") as f:
                 if os.stat(self.profile_file).st_size == 0:
-                    f.write("name,running_queue_size,total_seq_len,num_lookahead_slots,duration\n")
-                
+                    f.write("batch_size,num_speculative_tokens,colocation_mode,mean_step_time\n")
+
                 if not self.profile_results:
                     logger.warning("No profile results to write")
                     return
                     
-                for key, durations in self.profile_results.items():
-                    if not durations:
-                        continue
-                    key_str = ",".join(map(str, key))
-                    for duration in durations:
-                        f.write(f"{key_str},{duration}\n")
+                for (batch_size, num_spec_tokens, colocation_mode), step_times in self.profile_results.items():
+                    # Calculate mean after removing outliers
+                    mean_time = self._remove_outliers(step_times)
+                    f.write(f"{batch_size},{num_spec_tokens},{colocation_mode},{mean_time:.6f}\n")
             
-            logger.info(f"Successfully wrote {len(self.profile_results)} profile entries to {self.profile_file}")
-
+            # Train regression models
+            self._train_regression_models()
+            
+            # Calculate metrics (needed for plots)
+            metrics = self._calculate_model_metrics()
+            
+            # Generate plots
+            self._plot_speedup_heatmap()
+            self._plot_regression_heatmap() # This already uses the metrics dict
+            self._plot_roc_curve(metrics.get('fpr'), metrics.get('tpr'), metrics.get('AUROC'))
+            
         except Exception as e:
-            logger.error(f"Failed to write profile results: {str(e)}")
+            logger.error(f"Failed to write profile results or generate plots: {str(e)}")
 
     def maybe_load_cached_results(self) -> bool:
-        if not os.path.exists(self.profile_file):
-            logger.warning(f"Profile file {self.profile_file} does not exist")
+        """Load cached results from CSV file if it exists"""
+        if not self.is_primary:
             return False
-        
-        with open(self.profile_file, "r") as f:
-            reader = csv.reader(f)
-            next(reader)  # Skip header
-            for row in reader:
-                if len(row) != 5:
-                    logger.warning(f"Skipping invalid row: {row}")
-                    continue
-                
-                try:
-                    # Parse row: name,q,seq_len,lookahead,duration
-                    key = (row[0], int(row[1]), int(row[2]), int(row[3]))
-                    duration = float(row[4])
-                    
-                    if key not in self.profile_results:
-                        self.profile_results[key] = []
-                    self.profile_results[key].append(duration)
-                    
-                except (ValueError, IndexError) as e:
-                    logger.warning(f"Skipping malformed row {row}: {str(e)}")
+            
+        if not os.path.exists(self.profile_file):
+            logger.info(f"No cached results found at {self.profile_file}")
+            return False
+            
+        try:
+            with open(self.profile_file, "r") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    try:
+                        batch_size = int(row['batch_size'])
+                        num_spec_tokens = int(row['num_speculative_tokens'])
+                        colocation_mode = row['colocation_mode'].lower() == 'true'
+                        mean_time = float(row['mean_step_time'])
+                        
+                        key = (batch_size, num_spec_tokens, colocation_mode)
+                        self.profile_results[key] = [mean_time]  # Store as single-item list for compatibility
+                    except (ValueError, KeyError) as e:
+                        logger.warning(f"Skipping invalid row: {row}, error: {str(e)}")
+                        continue
+                        
+            logger.info(f"Loaded {len(self.profile_results)} cached results from {self.profile_file}")
+            self._train_regression_models()
+            
+            # Calculate metrics (needed for plots)
+            metrics = self._calculate_model_metrics()
+            
+            # Generate plots
+            self._plot_speedup_heatmap()
+            self._plot_regression_heatmap() # This already uses the metrics dict
+            self._plot_roc_curve(metrics.get('fpr'), metrics.get('tpr'), metrics.get('AUROC'))
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load cached results or generate plots: {str(e)}")
+            return False
 
-        logger.info(f"Loaded cached profile results from {self.profile_file}. Skipping profiling.")
-        return True
+    def set_colocation_mode(self, colocation_mode: bool):
+        """Set the colocation mode for subsequent profiling"""
+        self.colocation_mode = colocation_mode
 
-    def start_marker(self, name:str):
+    def set_profile_batch_size(self, batch_size: int):
+        """Set the batch size for subsequent profiling"""
+        self.profile_batch_size = batch_size
+
+    def start_step_marker(self, batch_size: int, num_speculative_tokens: int):
+        """Start timing a step"""
         if not self.profiling:
-            return 
+            return
         
+        if self.colocation_mode:
+            batch_size = batch_size * 2
+        
+        # We only want data for the batch size we set
+        if batch_size != self.profile_batch_size:
+            return
+            
         torch.cuda.synchronize()
+        
+        # Start a new timing set
+        self.current_set = {
+            'batch_size': batch_size,
+            'num_speculative_tokens': num_speculative_tokens,
+            'step_time': None,
+            'colocation_mode': self.colocation_mode,
+        }
+        self.start_time = time.perf_counter()
 
-        if name.startswith("run_speculative_decoding_step"):
-            # parse name with . as delimiter
-            running_queue_size, total_seq_len, num_lookahead_slots = name.split(".")[1:]
-            self.current_key = (running_queue_size, total_seq_len, num_lookahead_slots)
-            key = ("step", running_queue_size, total_seq_len, num_lookahead_slots)
-        else:
-            assert self.current_key is not None
-            key = self.current_key
-            if name == "draft":
-                key = ("draft", key[0], key[1], key[2])
-            elif name == "target":
-                key = ("target", key[0], key[1], key[2])
-            else:
-                raise ValueError(f"Unknown name: {name}")
-
-        self.start_times[key] = time.perf_counter()
-
-    def stop_marker(self, name:str):
+    def stop_step_marker(self):
+        """Stop timing a step and record results"""
         if not self.profiling:
-            return 
-        
+            return
+            
+        if self.current_set is None or self.start_time is None:
+            return
+            
         torch.cuda.synchronize()
-        assert self.current_key is not None
-        key = self.current_key
-
-        if name.startswith("run_speculative_decoding_step"):
-            key = ("step", key[0], key[1], key[2])
-        else:
-            assert name == "draft" or name == "target"
-            key = (name, key[0], key[1], key[2])
-
-        assert key in self.start_times
-        duration = time.perf_counter() - self.start_times[key]
-        del self.start_times[key]
-
+        
+        duration = time.perf_counter() - self.start_time
+        self.current_set['step_time'] = duration
+        
+        # Create key for the current configuration
+        key = (
+            self.current_set['batch_size'],
+            self.current_set['num_speculative_tokens'],
+            self.current_set['colocation_mode']
+        )
+        
+        # Initialize tracking for this configuration if it doesn't exist
         if key not in self.profile_results:
             self.profile_results[key] = []
-        self.profile_results[key].append(duration)
-
-    def analyze(self):
-        """Perform latency analysis and generate interactive report"""
-        if not self.profile_results:
-            logger.warning("No profile data to analyze")
-            return
-
-        processed_sets = self._process_profile_data()
-        if not processed_sets:
-            logger.warning("No complete sets for analysis")
-            return
-
-        self._generate_regression_models(processed_sets)
-
-    def _process_profile_data(self) -> List[Dict]:
-        """Organize raw profile data into structured sets"""
-        param_keys = {
-            (key[1], key[2], key[3])
-            for key in self.profile_results
-            if key[0] in ('draft', 'target', 'step')
-        }
-
-        processed_sets = []
-        for q, seq_len, lookahead in param_keys:
-            try:
-                draft_dur = np.median(self.profile_results[('draft', q, seq_len, lookahead)])
-                target_dur = np.median(self.profile_results[('target', q, seq_len, lookahead)])
-                step_dur = np.median(self.profile_results[('step', q, seq_len, lookahead)])
-                
-                processed_sets.append({
-                    'q': int(q),
-                    'seq_len': int(seq_len),
-                    'lookahead': int(lookahead),
-                    'draft': draft_dur,
-                    'target': target_dur,
-                    'step': step_dur
-                })
-            except KeyError:
-                continue
-        return processed_sets
-
-    def _generate_regression_models(self, data: List[Dict]):
-        """Train and store regression models using optimized approach"""
-        model_configs = [
-            {
-                'name': 'draft',
-                'features': lambda d: [d['q'], d['seq_len']],
-                'target': lambda d: d['draft'] / d['lookahead'],
-                'coeff_names': ['q_coeff', 'seq_len_coeff']
-            },
-            {
-                'name': 'target',
-                'features': lambda d: [d['q'] * (d['lookahead'] + 1), d['seq_len']],
-                'target': lambda d: d['target'],
-                'coeff_names': ['adjq_coeff', 'seq_len_coeff']
-            },
-            {
-                'name': 'prepost',
-                'features': lambda d: [d['q'], d['lookahead']],
-                'target': lambda d: d['step'] - (d['draft'] + d['target']),
-                'coeff_names': ['q_coeff', 'lookahead_coeff']
-            }
-        ]
-
-        self.models.clear()
-        for config in model_configs:
-            X = [config['features'](d) for d in data]
-            y = [config['target'](d) for d in data]
+            self.run_counts[key] = 0
             
-            intercept, *coeffs = self._train_linear_model(X, y)
-            logger.info(f"{config['name'].title()} model: y = {intercept:.2e} + " +
-                        " + ".join(f"{c:.2e}*{n}" for c, n in zip(coeffs, config['coeff_names'])))
-
-            self.models[config['name']] = {
-                'intercept': intercept,
-                **{name: coeff for name, coeff in zip(config['coeff_names'], coeffs)}
-            }
-
-    def _train_linear_model(self, X: List[List], y: List[float]) -> Tuple[float, ...]:
-        """Efficient linear regression training with numpy"""
-        X = np.column_stack([np.ones(len(X)), X])
-        return np.linalg.lstsq(X, y, rcond=None)[0]
-
-    def predict_draft_latency(self, batch_size: int, num_seq_len: int) -> float:
-        model = self.models.get("draft")
-        return (model['intercept'] 
-                + model['q_coeff'] * batch_size
-                + model['seq_len_coeff'] * num_seq_len)
-    
-    def predict_target_latency(self, num_tokens: int, num_seq_len: int) -> float:
-        # For target model, batch size is not same as num_tokens. We input num_tokens to the model.
-        model = self.models.get("target")
-        return (model['intercept'] 
-                + model['adjq_coeff'] * num_tokens
-                + model['seq_len_coeff'] * num_seq_len)
+        # Increment run counter
+        self.run_counts[key] += 1
         
-    def predict_prepost_latency(self, batch_size: int, num_lookahead: int) -> float:
-        model = self.models.get("prepost")
-        return (model['intercept']
-                + model['q_coeff'] * batch_size
-                + model['lookahead_coeff'] * num_lookahead)
+        if self.run_counts[key] > 3 and self.run_counts[key] <= 13:
+            self.profile_results[key].append(duration)
+
+        # Reset current timing state
+        self.current_set = None
+        self.start_time = None

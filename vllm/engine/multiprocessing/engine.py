@@ -28,7 +28,10 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCUProfileRequest, RPCCospecProfileRequest,
                                          RPCWakeUpRequest, RPCSetNumSpeculativeTokensRequest,
                                          RPCMaybeLoadCachedCospecProfileResponse,
-                                         RPCMaybeLoadCachedCospecProfileRequest)
+                                         RPCMaybeLoadCachedCospecProfileRequest,
+                                         RPCSetProfileBatchSizeRequest,
+                                         RPCPredictColocationSpeedupRatioRequest,
+                                         RPCPredictColocationSpeedupRatioResponse)
 # yapf: enable
 from vllm.logger import init_logger
 from vllm.outputs import RequestOutput
@@ -275,11 +278,17 @@ class MQLLMEngine:
                         self.start_cospec_profile()
                     elif request == RPCCospecProfileRequest.STOP_PROFILE:
                         self.stop_cospec_profile()
+                    elif request == RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE:
+                        self.set_colocation_mode(True)
+                    elif request == RPCCospecProfileRequest.SET_COLOCATION_MODE_FALSE:
+                        self.set_colocation_mode(False)
                     else:
                         raise ValueError("Unknown RPCCospecProfileRequest: "
                                          f"{type(request)}")
                 elif isinstance(request, RPCSetNumSpeculativeTokensRequest):
                     self.set_num_speculative_tokens(request.num_speculative_tokens)
+                elif isinstance(request, RPCSetProfileBatchSizeRequest):
+                    self.set_profile_batch_size(request.batch_size)
                 elif isinstance(request, RPCLoadAdapterRequest):
                     self._handle_load_adapter_request(request)
                 elif isinstance(request, RPCResetPrefixCacheRequest):
@@ -292,6 +301,8 @@ class MQLLMEngine:
                     self._handle_is_sleeping_request(request)
                 elif isinstance(request, RPCMaybeLoadCachedCospecProfileRequest):
                     self._handle_maybe_load_cached_cospec_profile_request(request)
+                elif isinstance(request, RPCPredictColocationSpeedupRatioRequest):
+                    self._handle_predict_colocation_speedup_ratio_request(request)
                 else:
                     raise ValueError("Unknown RPCRequest Type: "
                                      f"{type(request)}")
@@ -430,6 +441,9 @@ class MQLLMEngine:
     def stop_cospec_profile(self) -> None:
         self.engine.stop_cospec_profile()
 
+    def set_colocation_mode(self, colocation_mode: bool) -> None:
+        self.engine.set_colocation_mode(colocation_mode)
+
     def _handle_maybe_load_cached_cospec_profile_request(self, 
                                                          request: RPCMaybeLoadCachedCospecProfileRequest) -> bool:
         loaded = self.engine.maybe_load_cached_cospec_profile()
@@ -437,8 +451,18 @@ class MQLLMEngine:
             RPCMaybeLoadCachedCospecProfileResponse(request_id=request.request_id, 
                                                     loaded=loaded))
 
+    def _handle_predict_colocation_speedup_ratio_request(self, 
+                                                         request: RPCPredictColocationSpeedupRatioRequest) -> float:
+        ratio = self.engine.predict_colocation_speedup_ratio()
+        self._send_outputs(
+            RPCPredictColocationSpeedupRatioResponse(request_id=request.request_id, 
+                                                    ratio=ratio))
+
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.engine.set_num_speculative_tokens(num_speculative_tokens)
+
+    def set_profile_batch_size(self, batch_size: int) -> None:
+        self.engine.set_profile_batch_size(batch_size)
 
     def reset_prefix_cache(self) -> bool:
         return self.engine.reset_prefix_cache()

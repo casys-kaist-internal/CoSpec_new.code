@@ -1,249 +1,179 @@
-import csv
-import os
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+from pathlib import Path
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-def read_csv_file(filename):
-    """Read and parse a CSV file from the same directory"""
-    file_path = os.path.join(os.path.dirname(__file__), filename)
+def remove_outliers(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Remove outliers from a DataFrame column using IQR method."""
+    Q1 = df[column].quantile(0.25)
+    Q3 = df[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
+
+def plot_model_and_calibration(df, num_tokens_col, total_seq_len_col, time_col, title, output_path):
+    """Create plots showing the model and calibration plot."""
+    # Prepare data for regression
+    x = np.column_stack((
+        df[num_tokens_col].values,
+        df[total_seq_len_col].values,
+        df[total_seq_len_col].values ** 2  # Quadratic term for total_seq_len
+    ))
+    y = df[time_col].values.reshape(-1, 1)
     
-    with open(file_path, 'r') as csvfile:
-        csv_dict_reader = csv.DictReader(csvfile)  # Changed to DictReader for named access
-        data = [row for row in csv_dict_reader]
+    # Fit linear regression
+    reg = LinearRegression()
+    reg.fit(x, y)
+    y_pred = reg.predict(x)
     
-    return data
-
-def filter_outliers(data, value_index):
-    """Remove outliers using IQR method on specified value index"""
-    values = [item[value_index] for item in data]
-    q1 = np.percentile(values, 25)
-    q3 = np.percentile(values, 75)
-    iqr = q3 - q1
-    lower_bound = q1 - 1.5 * iqr
-    upper_bound = q3 + 1.5 * iqr
+    # Calculate metrics
+    r2 = r2_score(y, y_pred)
+    mse = mean_squared_error(y, y_pred)
+    mae = mean_absolute_error(y, y_pred)
     
-    return [d for d in data if lower_bound <= d[value_index] <= upper_bound]
-
-
-def __main__():
-    data = read_csv_file("cospec_profiler_results.csv")
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
     
-    # Prepare storage for processed data
-    processed_sets = []
+    # Plot 1: Model fit using num_tokens as x-axis
+    sns.scatterplot(data=df, x=num_tokens_col, y=time_col, alpha=0.5, label='Data points', ax=ax1)
+    sort_idx = np.argsort(x[:, 0])
+    ax1.plot(x[sort_idx, 0], y_pred[sort_idx], 'r-', 
+             label=f'Model (R²={r2:.3f})')
+    ax1.set_title(f'{title}\nModel Fit')
+    ax1.set_xlabel(num_tokens_col)
+    ax1.set_ylabel(time_col)
+    ax1.legend()
+    ax1.grid(True)
     
-    # Process data in groups of 3 consecutive entries (draft, target, step)
-    for i in range(0, len(data)-2, 3):
-        try:
-            draft = data[i]
-            target = data[i+1]
-            step = data[i+2]
-            
-            # Verify we have a complete set
-            if (draft['name'] == 'draft' and 
-                target['name'] == 'target' and 
-                step['name'] == 'step'):
-
-                assert draft['running_queue_size'] == target['running_queue_size'] == step['running_queue_size']
-                assert draft['num_lookahead_slots'] == target['num_lookahead_slots'] == step['num_lookahead_slots']
-                assert draft['total_seq_len'] == target['total_seq_len'] == step['total_seq_len']
-                
-                draft['running_queue_size'] = int(draft['running_queue_size'])
-                draft['num_lookahead_slots'] = int(draft['num_lookahead_slots'])
-                draft['total_seq_len'] = int(draft['total_seq_len'])
-                draft['duration'] = float(draft['duration'])
-
-                target['running_queue_size'] = int(target['running_queue_size'])
-                target['num_lookahead_slots'] = int(target['num_lookahead_slots'])
-                target['total_seq_len'] = int(target['total_seq_len'])
-                target['duration'] = float(target['duration'])
-
-                step['running_queue_size'] = int(step['running_queue_size'])
-                step['num_lookahead_slots'] = int(step['num_lookahead_slots'])
-                step['total_seq_len'] = int(step['total_seq_len'])
-                step['duration'] = float(step['duration'])
-
-                processed_sets.append({
-                    'draft': draft,
-                    'target': target,
-                    'step': step,
-                })
-        except (KeyError, IndexError):
-            continue
+    # Plot 2: Calibration plot
+    sns.scatterplot(x=y.flatten(), y=y_pred.flatten(), alpha=0.5, ax=ax2)
+    min_val = min(y.min(), y_pred.min())
+    max_val = max(y.max(), y_pred.max())
+    ax2.plot([min_val, max_val], [min_val, max_val], 'r--', label='Perfect prediction')
+    ax2.set_title('Calibration Plot')
+    ax2.set_xlabel('Actual Time')
+    ax2.set_ylabel('Predicted Time')
+    ax2.legend()
+    ax2.grid(True)
     
-    # Prepare plot data using consecutive sets
-    draft_data = []
-    target_data = []
-    step_data = []
+    # Add model equation to the figure
+    plt.figtext(0.5, 0.01, 
+                f"Equation: {time_col} = {reg.intercept_[0]:.3f} + {reg.coef_[0][0]:.3f}*{num_tokens_col} + {reg.coef_[0][1]:.3f}*{total_seq_len_col} + {reg.coef_[0][2]:.3f}*{total_seq_len_col}²", 
+                ha='center', fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
     
-    for s in processed_sets:
-        # Draft model analysis
-        draft_data.append((
-            s['draft']['running_queue_size'],
-            s['draft']['total_seq_len'],
-            s['draft']['duration'] / s['draft']['num_lookahead_slots']
-        ))
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+    
+    # Print model details
+    print(f"\nModel Details for {title}:")
+    print(f"R² Score: {r2:.3f}")
+    print(f"MSE: {mse:.3f}")
+    print(f"MAE: {mae:.3f}")
+    print(f"Equation: {time_col} = {reg.intercept_[0]:.3f} + {reg.coef_[0][0]:.3f}*{num_tokens_col} + {reg.coef_[0][1]:.3f}*{total_seq_len_col} + {reg.coef_[0][2]:.3f}*{total_seq_len_col}²")
+    
+    return reg
+
+def analyze_profile_data(csv_path: str):
+    # Read the CSV file
+    df = pd.read_csv(csv_path)
+    
+    # Print initial data info
+    print("\nInitial Data Info:")
+    print(df.info())
+    print("\nFirst few rows:")
+    print(df.head())
+    
+    # Create output directory for plots
+    output_dir = Path(csv_path).parent / "analysis_plots"
+    output_dir.mkdir(exist_ok=True)
+    
+    # Convert 'None' strings to actual NaN values
+    df = df.replace('None', np.nan)
+    
+    # Convert numeric columns to float
+    numeric_columns = [
+        'draft_time', 'target_decode_time', 'target_prefill_time',
+        'draft_num_tokens', 'draft_max_seq_len', 'draft_total_seq_len',
+        'target_num_tokens', 'target_max_seq_len', 'target_total_seq_len'
+    ]
+    for col in numeric_columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Print data info after conversion
+    print("\nData Info after conversion:")
+    print(df.info())
+    
+    # Print number of non-NaN values for each column
+    print("\nNumber of non-NaN values for each column:")
+    print(df.count())
+    
+    # Create plots for draft model
+    draft_df = df[df['draft_time'].notna()]
+    if not draft_df.empty:
+        # Remove outliers from draft time
+        draft_df = remove_outliers(draft_df, 'draft_time')
+        print("\nDraft model data points after outlier removal:", len(draft_df))
         
-        # Target model analysis
-        target_data.append((
-            s['target']['running_queue_size'] * (s['target']['num_lookahead_slots'] + 1),
-            s['target']['total_seq_len'],
-            s['target']['duration']
-        ))
-        
-        # Pre/post processing analysis
-        step_data.append((
-            s['step']['running_queue_size'],
-            s['step']['num_lookahead_slots'],  # Added lookahead slots
-            s['step']['duration'] - (s['draft']['duration'] + s['target']['duration'])
-        ))
-
-    draft_data = filter_outliers(draft_data, 2)  # Filter on duration/slot
-    target_data = filter_outliers(target_data, 2)  # Filter on duration
-    step_data = filter_outliers(step_data, 2)    # Filter on overhead
-
-    # Train regression models
-    def train_model(features, target):
-        """Efficient linear regression training with numpy"""
-        X = np.array(features)
-        y = np.array(target)
-        X = np.column_stack([np.ones(len(X)), X])  # Add intercept term
-        coeffs = np.linalg.lstsq(X, y, rcond=None)[0]
-        return coeffs[0], coeffs[1:]  # intercept, coefficients
-
-    # Draft model: Predict duration/slot from queue_size and seq_len
-    X_draft = [[d[0], d[1]] for d in draft_data]
-    y_draft = [d[2] for d in draft_data]
-    draft_intercept, draft_coeffs = train_model(X_draft, y_draft)
-    
-    # Target model: Predict duration from adj_queue_size and seq_len
-    X_target = [[t[0], t[1]] for t in target_data]
-    y_target = [t[2] for t in target_data]
-    target_intercept, target_coeffs = train_model(X_target, y_target)
-    
-    # Pre/post model: Predict overhead from queue_size and lookahead
-    X_prepost = [[s[0], s[1]] for s in step_data]
-    y_prepost = [s[2] for s in step_data]
-    prepost_intercept, prepost_coeffs = train_model(X_prepost, y_prepost)
-
-    # Print model equations
-    print("\nRegression Models:")
-    print(f"Draft: y = {draft_intercept:.2e} + {draft_coeffs[0]:.2e}*Q + {draft_coeffs[1]:.2e}*L")
-    print(f"Target: y = {target_intercept:.2e} + {target_coeffs[0]:.2e}*Q_adj + {target_coeffs[1]:.2e}*L")
-    print(f"PrePost: y = {prepost_intercept:.2e} + {prepost_coeffs[0]:.2e}*Q + {prepost_coeffs[1]:.2e}*N")
-
-    # Calculate R² scores
-    def calculate_r2(features, target, intercept, coeffs):
-        pred = intercept + np.dot(features, coeffs)
-        return r2_score(target, pred)
-
-    print("\nR² Scores:")
-    print(f"Draft: {calculate_r2(X_draft, y_draft, draft_intercept, draft_coeffs):.3f}")
-    print(f"Target: {calculate_r2(X_target, y_target, target_intercept, target_coeffs):.3f}")
-    print(f"PrePost: {calculate_r2(X_prepost, y_prepost, prepost_intercept, prepost_coeffs):.3f}")
-
-    # Update subplot specs for three 3D plots
-    fig = make_subplots(
-        rows=1, cols=3,
-        specs=[[{'type': 'scene'}, {'type': 'scene'}, {'type': 'scene'}]],
-        subplot_titles=(
-            'Draft Model Latency',
-            'Target Model Latency',
-            'Pre/Post Processing Overhead'
+        # Plot model and calibration
+        plot_model_and_calibration(
+            draft_df, 'draft_num_tokens', 'draft_total_seq_len', 'draft_time',
+            'Draft Time Model (Outliers Removed)',
+            output_dir / 'draft_time_model.png'
         )
-    )
-
-    # Common marker settings
-    marker_size = 3  # Reduced from 5
-    marker_opacity = 0.8
-
-    # Draft Model 3D Plot
-    fig.add_trace(
-        go.Scatter3d(
-            x=[d[0] for d in draft_data],
-            y=[d[1] for d in draft_data],
-            z=[d[2] for d in draft_data],
-            mode='markers',
-            marker=dict(
-                size=marker_size,
-                color=[d[2] for d in draft_data],
-                colorscale='Viridis',
-                opacity=marker_opacity
-            ),
-            name='Draft'
-        ),
-        row=1, col=1
-    )
-
-    # Target Model 3D Plot
-    fig.add_trace(
-        go.Scatter3d(
-            x=[t[0] for t in target_data],
-            y=[t[1] for t in target_data],
-            z=[t[2] for t in target_data],
-            mode='markers',
-            marker=dict(
-                size=marker_size,
-                color=[t[2] for t in target_data],
-                colorscale='Plasma',
-                opacity=marker_opacity
-            ),
-            name='Target'
-        ),
-        row=1, col=2
-    )
-
-    # Pre/Post Processing 3D Plot
-    fig.add_trace(
-        go.Scatter3d(
-            x=[s[0] for s in step_data],  # Queue Size
-            y=[s[1] for s in step_data],  # Lookahead Slots
-            z=[s[2] for s in step_data],  # Overhead
-            mode='markers',
-            marker=dict(
-                size=marker_size,
-                color=[s[0] for s in step_data],  # Color by Queue Size
-                colorscale='Ice',
-                opacity=marker_opacity,
-                colorbar=dict(title='Queue Size')
-            ),
-            name='Overhead'
-        ),
-        row=1, col=3
-    )
-
-    # Update layout
-    fig.update_layout(
-        height=600,
-        width=1600,
-        scene1=dict(
-            xaxis_title='Queue Size',
-            yaxis_title='Sequence Length',
-            zaxis_title='Duration (s)'
-        ),
-        scene2=dict(
-            xaxis_title='Adjusted Queue Size',
-            yaxis_title='Sequence Length',
-            zaxis_title='Duration (s)'
-        ),
-        scene3=dict(
-            xaxis_title='Queue Size',
-            yaxis_title='Lookahead Slots',
-            zaxis_title='Overhead (s)'
-        ),
-        showlegend=False
-    )
+        
+        # Calculate correlations
+        print("\nDraft Model Correlations (Outliers Removed):")
+        draft_corr = draft_df[['draft_time', 'draft_num_tokens', 'draft_total_seq_len']].corr()
+        print(draft_corr)
     
-    # Update 2D plot axis labels
-    fig.update_xaxes(title_text="Running Queue Size", row=1, col=3)
-    fig.update_yaxes(title_text="Overhead Duration (s)", row=1, col=3)
-
-    # Save and show
-    fig.write_html("latency_analysis_interactive.html")
-    print("Saved interactive plot to latency_analysis_interactive.html")
+    # Create plots for target decode model
+    target_decode_df = df[df['target_decode_time'].notna()]
+    if not target_decode_df.empty:
+        # Remove outliers from target decode time
+        target_decode_df = remove_outliers(target_decode_df, 'target_decode_time')
+        print("\nTarget decode model data points after outlier removal:", len(target_decode_df))
+        
+        # Plot model and calibration
+        plot_model_and_calibration(
+            target_decode_df, 'target_num_tokens', 'target_total_seq_len', 'target_decode_time',
+            'Target Decode Time Model (Outliers Removed)',
+            output_dir / 'target_decode_time_model.png'
+        )
+        
+        # Calculate correlations
+        print("\nTarget Decode Model Correlations (Outliers Removed):")
+        target_decode_corr = target_decode_df[['target_decode_time', 'target_num_tokens', 'target_total_seq_len']].corr()
+        print(target_decode_corr)
+    
+    # Create plots for target prefill model
+    target_prefill_df = df[df['target_prefill_time'].notna()]
+    if not target_prefill_df.empty:
+        # Remove outliers from target prefill time
+        target_prefill_df = remove_outliers(target_prefill_df, 'target_prefill_time')
+        print("\nTarget prefill model data points after outlier removal:", len(target_prefill_df))
+        
+        # Plot model and calibration
+        plot_model_and_calibration(
+            target_prefill_df, 'target_num_tokens', 'target_total_seq_len', 'target_prefill_time',
+            'Target Prefill Time Model (Outliers Removed)',
+            output_dir / 'target_prefill_time_model.png'
+        )
+        
+        # Calculate correlations
+        print("\nTarget Prefill Model Correlations (Outliers Removed):")
+        target_prefill_corr = target_prefill_df[['target_prefill_time', 'target_num_tokens', 'target_total_seq_len']].corr()
+        print(target_prefill_corr)
 
 if __name__ == "__main__":
-    __main__()
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python analyze_profile.py <path_to_csv>")
+        sys.exit(1)
+    
+    csv_path = sys.argv[1]
+    analyze_profile_data(csv_path)

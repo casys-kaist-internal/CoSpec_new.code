@@ -204,8 +204,17 @@ class ExecutorBase(ABC):
     def stop_cospec_profile(self) -> None:
         self.collective_rpc("stop_cospec_profile")
 
+    def set_colocation_mode(self, colocation_mode: bool) -> None:
+        self.collective_rpc("set_colocation_mode", kwargs=dict(colocation_mode=colocation_mode))
+
+    def set_profile_batch_size(self, batch_size: int) -> None:
+        self.collective_rpc("set_profile_batch_size", kwargs=dict(batch_size=batch_size))
+
     def maybe_load_cached_cospec_profile(self) -> bool:
         return self.collective_rpc("maybe_load_cached_cospec_profile")
+
+    def predict_colocation_speedup_ratio(self) -> float:
+        return self.collective_rpc("predict_colocation_speedup_ratio")
 
     def sleep(self, level: int = 1):
         if self.is_sleeping:
