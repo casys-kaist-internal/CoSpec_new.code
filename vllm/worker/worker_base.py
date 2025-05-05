@@ -12,8 +12,7 @@ import torch.nn as nn
 
 from vllm.config import (ObservabilityConfig, VllmConfig,
                          set_current_vllm_config)
-from vllm.cospec.profiler import CospecProfiler
-from vllm.cospec.shm_manager import SharedMemoryManager
+from vllm.cospec.cospec_manager import CospecManager
 from vllm.distributed import broadcast_tensor_dict, get_pp_group, get_tp_group
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
@@ -79,6 +78,8 @@ class WorkerBase:
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
 
@@ -168,9 +169,11 @@ class DelegateWorkerBase(WorkerBase):
 
     def execute_model(
         self,
-        execute_model_req: Optional[ExecuteModelRequest] = None
+        execute_model_req: Optional[ExecuteModelRequest] = None,
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
-        return self.worker.execute_model(execute_model_req)
+        return self.worker.execute_model(execute_model_req, cospec_manager, is_target)
 
     def get_cache_block_size_bytes(self) -> int:
         return self.worker.get_cache_block_size_bytes()
@@ -388,8 +391,8 @@ class LocalOrDistributedWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        lock: Optional[SharedMemoryManager] = None,
-        profiler: Optional[CospecProfiler] = None,
+        cospec_manager: Optional[CospecManager] = None,
+        is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
         sequences are provided."""
@@ -421,13 +424,11 @@ class LocalOrDistributedWorkerBase(WorkerBase):
                 orig_model_execute_time = intermediate_tensors.tensors.get(
                     "model_execute_time", torch.tensor(0)).item()
 
-        torch.cuda.nvtx.range_push("target_model_execute")
-        if lock is not None:
-            # lock.synchronized_put("lock", True)
-            lock.lock()
-        if profiler is not None:
-            profiler.start_marker(f"target")
+        if cospec_manager is not None:
+            if is_target:
+                cospec_manager.target_start()
         
+        torch.cuda.nvtx.range_push(f"execute_model_{'target' if is_target else 'draft'}")
         output = self.model_runner.execute_model(
             model_input=model_input,
             kv_caches=self.kv_cache[worker_input.virtual_engine]
@@ -437,9 +438,9 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             **kwargs,
         )
         torch.cuda.nvtx.range_pop()
-        if lock is not None:
-            # lock.synchronized_put("lock", True)
-            lock.unlock()
+        if cospec_manager is not None:
+            if is_target:
+                cospec_manager.target_finish()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:

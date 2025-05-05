@@ -128,6 +128,7 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
         seq_ids_with_bonus_token_in_last_step: Set[int],
     ) -> Tuple[List[SamplerOutput], bool]:
         # Do not check _is_dummy, as it's always called by get_spec_proposals
+        logger.info(f"draft sampler_output")
         return self._worker.sampler_output(
             execute_model_req, sample_len,
             seq_ids_with_bonus_token_in_last_step)
@@ -161,6 +162,7 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
         if self._is_dummy:
             return []
 
+        logger.info(f"execute_model draft")
         with self._patch_tensor_parallel_group():
             return self._worker.execute_model(execute_model_req)
 

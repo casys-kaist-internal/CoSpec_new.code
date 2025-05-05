@@ -125,10 +125,16 @@ class RPCUProfileRequest(Enum):
 class RPCCospecProfileRequest(Enum):
     START_PROFILE = 1
     STOP_PROFILE = 2
+    SET_COLOCATION_MODE_TRUE = 3
+    SET_COLOCATION_MODE_FALSE = 4
 
 @dataclass
 class RPCSetNumSpeculativeTokensRequest:
     num_speculative_tokens: int
+
+@dataclass
+class RPCSetProfileBatchSizeRequest:
+    batch_size: int
 
 @dataclass
 class RPCResetPrefixCacheRequest:
@@ -171,6 +177,15 @@ class RPCAdapterLoadedResponse:
 @dataclass
 class RPCMaybeLoadCachedCospecProfileRequest:
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
+class RPCPredictColocationSpeedupRatioRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
+class RPCPredictColocationSpeedupRatioResponse:
+    request_id: str
+    ratio: float
 
 @dataclass
 class RPCMaybeLoadCachedCospecProfileResponse:

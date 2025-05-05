@@ -4,14 +4,16 @@ import asyncio
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
 from collections.abc import Sequence as GenericSequence
-from typing import Optional, Union, cast
+from typing import Optional, Union, cast, List
 import torch
 from tqdm import tqdm
 import jinja2
 from fastapi import Request
 import os
 import pandas as pd
+import random
 
+from vllm.cospec.shm import SharedMemory
 from vllm.config import ModelConfig, VllmConfig, envs
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.logger import RequestLogger
@@ -70,7 +72,9 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         self.dynamic_colocation = envs.COSPEC_DYNAMIC_COLOCATION
         self.colocation_mode = True
         self.selected_engine_idx = 0
-        self.dwelling_time = 60 # 60 seconds for dynamic colocation mode switch cooldown
+        self.last_mode_switch_time = time.time()
+        self.dwelling_time = 60  # 60 seconds for dynamic colocation mode switch cooldown
+        self.performance_threshold = 0.05  # 5% performance difference threshold
 
     async def create_completion(
         self,
@@ -572,11 +576,12 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             tokens=out_tokens,
             top_logprobs=out_top_logprobs,
         )
-
+    
     async def profile(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_cospec_profile()
+        logger.info(f"Loaded cached cospec profile: {loaded_cached_profile}")
         if loaded_cached_profile:
-            logger.info("Loaded cached cospec profile successfully")
+            logger.info("Loaded cached cospec profile")
             return 
 
         vllm_config = await self.engine_client.get_vllm_config()
@@ -584,19 +589,15 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         original_num_speculative_tokens = vllm_config.speculative_config.num_speculative_tokens
         original_num_speculative_tokens2 = vllm_config2.speculative_config.num_speculative_tokens
 
-        batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs, 8)
+        batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs // 2 + 1, 8)
         num_speculative_tokens_list = range(1, 8)
 
         # Set tqdm as a single progress bar
         total_iterations = len(batch_sizes) * len(num_speculative_tokens_list)
-        # with tqdm(total=total_iterations, desc="Profiling colocation") as pbar:
-        #     for batch_size in batch_sizes:
-        #         for num_speculative_tokens in num_speculative_tokens_list:
-        #             await self._profile_colocation(batch_size, num_speculative_tokens, max_tokens)
-        #             pbar.update(1)
 
         # warmup
         await self._profile_non_colocation(8, 1)
+        await self._profile_colocation(8, 1)
 
         await self.engine_client.start_cospec_profile()
         await self.engine_client2.start_cospec_profile()
@@ -605,38 +606,23 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             for batch_size in batch_sizes:
                 for num_speculative_tokens in num_speculative_tokens_list:
                     await self._profile_non_colocation(batch_size, num_speculative_tokens)
+                    await self._profile_colocation(batch_size, num_speculative_tokens)
                     pbar.update(1)
 
         await self.engine_client.stop_cospec_profile()
         await self.engine_client2.stop_cospec_profile()
+
         # reset num_speculative_tokens
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-    # async def _profile_colocation(self, batch_size: int, num_speculative_tokens: int) -> float:  
-    #     dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-    #     sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=128)
-    #     generators: list[AsyncGenerator[RequestOutput, None]] = []
-
-    #     await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
-    #     await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
-        
-    #     engine_idx = 0
-    #     for i in range(batch_size):
-    #         request_id = f"profile_{i}"
-    #         engine_idx = (engine_idx + 1) % 2
-    #         current_engine = self.engine_client if engine_idx == 0 else self.engine_client2
-    #         generator = current_engine.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
-    #         generators.append(generator)
-        
-    #     result_generator = merge_async_iterators(*generators)
-
-    #     async for _ in result_generator:
-    #         pass
-
     async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int):
+        await self.engine_client.set_colocation_mode(False)
+        await self.engine_client2.set_colocation_mode(False)
         await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
+        await self.engine_client.set_profile_batch_size(batch_size)
+        await self.engine_client2.set_profile_batch_size(batch_size)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
@@ -647,6 +633,31 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
             generators.append(generator)
         
+        result_generator = merge_async_iterators(*generators)
+
+        async for _ in result_generator:
+            pass
+
+    async def _profile_colocation(self, batch_size: int, num_speculative_tokens: int):
+        await self.engine_client.set_colocation_mode(True)
+        await self.engine_client2.set_colocation_mode(True)
+        await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
+        await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
+        await self.engine_client.set_profile_batch_size(batch_size)
+        await self.engine_client2.set_profile_batch_size(batch_size)
+
+        generators: list[AsyncGenerator[RequestOutput, None]] = []
+
+        engine_idx = 0
+        for i in range(batch_size):
+            request_id = f"profile_{i}"
+            dummy_prompt = TokensPrompt(prompt_token_ids=[1])
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=128)
+            engine_idx = (engine_idx + 1) % 2
+            current_engine = self.engine_client if engine_idx == 0 else self.engine_client2
+            generator = current_engine.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
+            generators.append(generator)
+
         result_generator = merge_async_iterators(*generators)
 
         async for _ in result_generator:
@@ -665,7 +676,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     def _load_balance(self) -> EngineClient:
         engine_client1_num_requests = self.engine_client.get_num_requests()
         engine_client2_num_requests = self.engine_client2.get_num_requests()
-        logger.info(f"engine 1: {engine_client1_num_requests}, engine 2: {engine_client2_num_requests}")
         return self.engine_client if engine_client1_num_requests < engine_client2_num_requests else self.engine_client2
 
     def _maybe_change_colocation_mode(self):
@@ -676,14 +686,26 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         if elapsed < self.dwelling_time:
             return
         
+        ratio = self.engine_client.predict_colocation_speedup_ratio()
+        logger.info(f"Colocation speedup ratio: {ratio}")
+        
         switched = False
         if self.colocation_mode:
-            # Check whether we should change to non-colocation mode
-            pass 
+            if ratio < (1 - self.performance_threshold):
+                logger.info(f"Switching to non-colocation mode")
+                self.colocation_mode = False
+                # Select the engine with more requests
+                engine1_requests = self.engine_client.get_num_requests()
+                engine2_requests = self.engine_client2.get_num_requests()
+                self.selected_engine_idx = 0 if engine1_requests >= engine2_requests else 1
+                switched = True
             
         else: 
-            # Check whether we should change to colocation mode
-            pass
+            if ratio > (1 + self.performance_threshold):
+                logger.info(f"Switching to colocation mode")
+                self.colocation_mode = True
+                switched = True
 
         if switched:
             self.last_mode_switch_time = current_time
+            logger.info(f"Mode switched to {'colocation' if self.colocation_mode else 'non-colocation'}")
