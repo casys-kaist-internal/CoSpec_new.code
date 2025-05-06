@@ -816,7 +816,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             raise RuntimeError("Cannot handle cases where distributed draft "
                                "workers generate no tokens")
         
-        proposals = self.cospec_manager.selective_validation(proposals)
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            proposals = self.cospec_manager.selective_validation(proposals)
 
         max_proposal_len = max(proposals.proposal_lens)
         execute_model_req.previous_hidden_states = None
@@ -851,7 +852,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # TODO avoid sampling here?
             self.proposer_worker.execute_model(prefill_req)
 
-        self.cospec_manager.update_proposal_history(proposals, proposal_scores)
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            self.cospec_manager.update_proposal_history(proposals, proposal_scores)
 
         with Timer() as verification_timer:
             torch.cuda.nvtx.range_push("verify_tokens")
