@@ -7,6 +7,8 @@ import torch
 
 from vllm import _custom_ops as ops
 from vllm.triton_utils import HAS_TRITON
+import vllm.envs as envs
+
 
 if HAS_TRITON:
     from vllm.attention.ops.prefix_prefill import context_attention_fwd
@@ -130,27 +132,50 @@ class PagedAttention:
 
         if use_v1:
             # Run PagedAttention V1.
-            ops.paged_attention_v1(
-                output,
-                query,
-                key_cache,
-                value_cache,
-                num_kv_heads,
-                scale,
-                block_tables,
-                seq_lens,
-                block_size,
-                max_seq_len,
-                alibi_slopes,
-                kv_cache_dtype,
-                k_scale,
-                v_scale,
-                tp_rank,
-                blocksparse_local_blocks,
-                blocksparse_vert_stride,
-                blocksparse_block_size,
-                blocksparse_head_sliding_step,
-            )
+            if envs.COSPEC_CONSOLIDATED_ATTENTION:
+                ops.consolidated_paged_attention_v1(
+                    output,
+                    query,
+                    key_cache,
+                    value_cache,
+                    num_kv_heads,
+                    scale,
+                    block_tables,
+                    seq_lens,
+                    block_size,
+                    max_seq_len,
+                    alibi_slopes,
+                    kv_cache_dtype,
+                    k_scale,
+                    v_scale,
+                    tp_rank,
+                    blocksparse_local_blocks,
+                    blocksparse_vert_stride,
+                    blocksparse_block_size,
+                    blocksparse_head_sliding_step,
+                )
+            else:
+                ops.paged_attention_v1(
+                    output,
+                    query,
+                    key_cache,
+                    value_cache,
+                    num_kv_heads,
+                    scale,
+                    block_tables,
+                    seq_lens,
+                    block_size,
+                    max_seq_len,
+                    alibi_slopes,
+                    kv_cache_dtype,
+                    k_scale,
+                    v_scale,
+                    tp_rank,
+                    blocksparse_local_blocks,
+                    blocksparse_vert_stride,
+                    blocksparse_block_size,
+                    blocksparse_head_sliding_step,
+                )
         else:
             # Run PagedAttention V2.
             assert _PARTITION_SIZE % block_size == 0
@@ -165,30 +190,57 @@ class PagedAttention:
                 device=output.device,
             )
             max_logits = torch.empty_like(exp_sums)
-            ops.paged_attention_v2(
-                output,
-                exp_sums,
-                max_logits,
-                tmp_output,
-                query,
-                key_cache,
-                value_cache,
-                num_kv_heads,
-                scale,
-                block_tables,
-                seq_lens,
-                block_size,
-                max_seq_len,
-                alibi_slopes,
-                kv_cache_dtype,
-                k_scale,
-                v_scale,
-                tp_rank,
-                blocksparse_local_blocks,
-                blocksparse_vert_stride,
-                blocksparse_block_size,
-                blocksparse_head_sliding_step,
-            )
+
+            if envs.COSPEC_CONSOLIDATED_ATTENTION:
+                ops.consolidated_paged_attention_v2(
+                    output,
+                    exp_sums,
+                    max_logits,
+                    tmp_output,
+                    query,
+                    key_cache,
+                    value_cache,
+                    num_kv_heads,
+                    scale,
+                    block_tables,
+                    seq_lens,
+                    block_size,
+                    max_seq_len,
+                    alibi_slopes,
+                    kv_cache_dtype,
+                    k_scale,
+                    v_scale,
+                    tp_rank,
+                    blocksparse_local_blocks,
+                    blocksparse_vert_stride,
+                    blocksparse_block_size,
+                    blocksparse_head_sliding_step,
+                )
+            else:
+                ops.paged_attention_v2(
+                    output,
+                    exp_sums,
+                    max_logits,
+                    tmp_output,
+                    query,
+                    key_cache,
+                    value_cache,
+                    num_kv_heads,
+                    scale,
+                    block_tables,
+                    seq_lens,
+                    block_size,
+                    max_seq_len,
+                    alibi_slopes,
+                    kv_cache_dtype,
+                    k_scale,
+                    v_scale,
+                    tp_rank,
+                    blocksparse_local_blocks,
+                    blocksparse_vert_stride,
+                    blocksparse_block_size,
+                    blocksparse_head_sliding_step,
+                )
         return output
 
     @staticmethod

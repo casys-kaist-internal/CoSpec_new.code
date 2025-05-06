@@ -1191,8 +1191,8 @@ async def init_app_state_cospec(
     state.enable_server_load_tracking = args.enable_server_load_tracking
     state.server_load_metrics = 0
 
-    # Profile 
-    await state.openai_serving_completion.profile()
+    if envs.COSPEC_DYNAMIC_COLOCATION:
+        await state.openai_serving_completion.profile()
 
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET
