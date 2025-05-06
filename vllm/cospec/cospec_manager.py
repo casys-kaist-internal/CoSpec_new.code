@@ -2,13 +2,15 @@ import torch
 import time
 import os
 import fcntl
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from collections import deque
 
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
 from vllm.cospec.shm import SharedMemory
 from vllm.cospec.profiler import Profiler
-
-
+from vllm.cospec.selective_validator import SelectiveValidator
 
 logger = init_logger(__name__)
 
@@ -16,6 +18,7 @@ class CospecManager:
     def __init__(self, vllm_config: VllmConfig):
         self.shm = SharedMemory()
         self.profiler = Profiler(vllm_config)
+        self.selective_validator = SelectiveValidator()
         self.is_primary = vllm_config.speculative_config.is_primary
         self.start_time = None
         self.predicted_target_latency = None
@@ -51,3 +54,30 @@ class CospecManager:
     def predict_colocation_speedup_ratio(self) -> float:
         return self.profiler.predict_colocation_speedup_ratio(self.current_batch_size, 
                                                               self.current_mean_selective_validation_tokens)
+
+    def selective_validation(self, proposals):
+        """Perform selective validation on proposals.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            
+        Returns:
+            Tuple of (filtered_proposals, acceptance_probs) where:
+            - filtered_proposals: Proposals with acceptance probability >= threshold
+            - acceptance_probs: Predicted acceptance probabilities for all proposals
+        """
+        torch.cuda.nvtx.range_push("selective_validation")
+        filtered_proposals = self.selective_validator.selective_validation(proposals)
+        torch.cuda.nvtx.range_pop()
+        return filtered_proposals
+
+    def update_proposal_history(self, proposals, proposal_scores):
+        """Update the history of proposal acceptance data.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            proposal_scores: Tensor containing the actual acceptance scores
+        """
+        torch.cuda.nvtx.range_push("update_proposal_history")
+        self.selective_validator.update_proposal_history(proposals, proposal_scores)
+        torch.cuda.nvtx.range_pop()

@@ -152,7 +152,7 @@ def split_batch_by_proposal_len(
 
 def sampler_output_to_torch(
     sampler_output_list: Sequence[SamplerOutput], sampler_transposed: bool
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
     """Utility function which converts a list of SamplerOutput to tensors.
 
         sampler_transposed here is used as the indicator for whether
@@ -170,6 +170,14 @@ def sampler_output_to_torch(
     sampled_token_probs = torch.stack(
         [
             sampler_output.sampled_token_probs
+            for sampler_output in sampler_output_list
+        ],
+        dim=0,
+    )
+
+    sampled_pre_temperature_probs = torch.stack(
+        [
+            sampler_output.pre_temperature_probs
             for sampler_output in sampler_output_list
         ],
         dim=0,
@@ -194,7 +202,7 @@ def sampler_output_to_torch(
         sampled_token_probs = sampled_token_probs.transpose(0, 1)
         sampled_token_logprobs = sampled_token_logprobs.transpose(0, 1)
         sampled_token_ids = sampled_token_ids.transpose(0, 1)
-
+        sampled_pre_temperature_probs = sampled_pre_temperature_probs.transpose(0, 1)
     if sampler_output_list[0].hidden_states is not None:
         # shape: [batch_size, num_sampler_output, hidden_dim]
         sampled_hidden_states = torch.stack(
@@ -210,8 +218,8 @@ def sampler_output_to_torch(
     else:
         sampled_hidden_states = None
 
-    return (sampled_token_ids, sampled_token_probs, sampled_token_logprobs,
-            sampled_hidden_states)
+    return (sampled_token_ids, sampled_token_probs, sampled_pre_temperature_probs, 
+            sampled_token_logprobs, sampled_hidden_states)
 
 
 def maybe_mock_device_tensors(sampler_output: SamplerOutput, batch_size: int,

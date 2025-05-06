@@ -12,7 +12,6 @@ import torch.nn as nn
 
 from vllm.config import (ObservabilityConfig, VllmConfig,
                          set_current_vllm_config)
-from vllm.cospec.cospec_manager import CospecManager
 from vllm.distributed import broadcast_tensor_dict, get_pp_group, get_tp_group
 from vllm.logger import init_logger
 from vllm.lora.request import LoRARequest
@@ -78,7 +77,7 @@ class WorkerBase:
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager: Optional[CospecManager] = None,
+        cospec_manager = None,
         is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
@@ -170,7 +169,7 @@ class DelegateWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager: Optional[CospecManager] = None,
+        cospec_manager = None,
         is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
         return self.worker.execute_model(execute_model_req, cospec_manager, is_target)
@@ -391,7 +390,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager: Optional[CospecManager] = None,
+        cospec_manager = None,
         is_target: Optional[bool] = True
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
