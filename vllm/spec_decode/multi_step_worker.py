@@ -239,7 +239,11 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                 sampled_token_ids=(expanded_batch_output.
                                    sampled_token_ids[output_indices_to_retain]
                                    if expanded_batch_output.sampled_token_ids
-                                   is not None else None))
+                                   is not None else None),
+                pre_temperature_probs=(expanded_batch_output.
+                                       pre_temperature_probs[output_indices_to_retain]
+                                       if expanded_batch_output.pre_temperature_probs
+                                       is not None else None))
             for expanded_batch_output in expanded_batch_outputs
         ]
 

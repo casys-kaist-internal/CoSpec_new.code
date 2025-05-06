@@ -127,6 +127,9 @@ class SamplerOutput(
     # block/sync across workers, cpu-gpu sync time and sampling time.
     model_execute_time: Optional[float] = None
 
+    # Pre-temperature probs before applying temperature scaling
+    pre_temperature_probs: Optional[torch.Tensor] = None
+
     def __getitem__(self, idx: int) -> CompletionSequenceGroupOutput:
         return self.outputs[idx]
 
@@ -268,6 +271,7 @@ class Sampler(nn.Module):
         # Use float32 to apply temperature scaling.
         # Use in-place division to avoid creating a new tensor.
         logits = logits.to(torch.float)
+        pre_temperature_logits = logits.clone()
         logits.div_(sampling_tensors.temperatures.unsqueeze(dim=1))
 
         if do_top_p_top_k and flashinfer_top_k_top_p_sampling is None:
@@ -280,6 +284,7 @@ class Sampler(nn.Module):
         # We use float32 for probabilities and log probabilities.
         # Compute the probabilities.
         probs = torch.softmax(logits, dim=-1, dtype=torch.float)
+        pre_temperature_probs = torch.softmax(pre_temperature_logits, dim=-1, dtype=torch.float)
         # Compute the log probabilities.
         logprobs = torch.log_softmax(logits, dim=-1, dtype=torch.float)
 
@@ -320,7 +325,8 @@ class Sampler(nn.Module):
             prompt_logprobs,
             sample_logprobs,
             on_device_tensors=on_device_tensors,
-            skip_sampler_cpu_output=sampling_metadata.skip_sampler_cpu_output)
+            skip_sampler_cpu_output=sampling_metadata.skip_sampler_cpu_output,
+            pre_temperature_probs=pre_temperature_probs)
 
     @property
     def _should_modify_greedy_probs_inplace(self) -> bool:
@@ -1130,6 +1136,7 @@ def _build_sampler_output(
     on_device_tensors: Optional[Tuple[torch.Tensor, torch.Tensor,
                                       torch.Tensor]],
     skip_sampler_cpu_output: bool = False,
+    pre_temperature_probs: Optional[torch.Tensor] = None,
 ) -> SamplerOutput:
     """Construct Python objects with the output of sampling.
 
@@ -1138,6 +1145,7 @@ def _build_sampler_output(
             probabilities used in sampling and the sampled token ids. This
             allows post-processing without copies to CPU/serialization, e.g. in
             speculative decoding rejection sampling.
+        pre_temperature_probs: The probs before temperature scaling is applied.
     """
     sampler_output: List[CompletionSequenceGroupOutput] = []
 
@@ -1178,13 +1186,20 @@ def _build_sampler_output(
     else:
         sampled_token_probs, logprobs_tensor, sampled_token_ids = (None, None,
                                                                    None)
+    if pre_temperature_probs is not None:
+        pre_temperature_probs = torch.gather(
+            pre_temperature_probs,
+            dim=-1,
+            index=sampled_token_ids
+        ).squeeze(-1)
 
     return SamplerOutput(
         outputs=sampler_output,
         sampled_token_probs=sampled_token_probs,
         sampled_token_ids=sampled_token_ids,
         logprobs=logprobs_tensor,
-        deferred_sample_results_args=deferred_sample_results_args)
+        deferred_sample_results_args=deferred_sample_results_args,
+        pre_temperature_probs=pre_temperature_probs)
 
 
 def _get_next_prompt_tokens(

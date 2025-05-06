@@ -6,7 +6,6 @@ from typing import List, Optional, Set, Union
 
 import torch
 
-from vllm.cospec.cospec_manager import CospecManager
 from vllm.sequence import ExecuteModelRequest, PromptLogprobs
 from vllm.worker.worker_base import WorkerBase
 
@@ -26,6 +25,9 @@ class SpeculativeProposals:
     # The valid length of each proposal; can be zero.
     proposal_lens: torch.Tensor
 
+    # Pre-temperature logits before applying temperature scaling
+    pre_temperature_probs: Optional[torch.Tensor] = None
+
     # A flag to mark that there's no available proposals
     no_proposals: bool = False
 
@@ -33,7 +35,8 @@ class SpeculativeProposals:
         return (f"SpeculativeProposals("
                 f"proposal_token_ids={self.proposal_token_ids}, "
                 f"proposal_probs={self.proposal_probs.shape}, "
-                f"proposal_lens={self.proposal_lens})")
+                f"proposal_lens={self.proposal_lens}, "
+                f"pre_temperature_probs={self.pre_temperature_probs})")
 
 
 @dataclass
@@ -76,7 +79,7 @@ class SpeculativeProposer(ABC):
         # If set, this contains all sequence IDs that were assigned
         # bonus tokens in their last forward pass.
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        cospec_manager: Optional[CospecManager] = None,
+        cospec_manager = None,
         is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         raise NotImplementedError
@@ -97,7 +100,7 @@ class SpeculativeScorer(ABC):
         self,
         execute_model_req: ExecuteModelRequest,
         proposals: SpeculativeProposals,
-        cospec_manager: Optional[CospecManager] = None,
+        cospec_manager = None,
         is_target: Optional[bool] = True
     ) -> SpeculativeScores:
         raise NotImplementedError

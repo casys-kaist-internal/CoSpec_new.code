@@ -6,7 +6,7 @@ export PROFILE=${PROFILE:-0}
 export AR=${AR:-0}
 export TARGET_MODEL="facebook/opt-6.7b"
 export DRAFT_MODEL="facebook/opt-125m"
-export NUM_SPEC_TOKENS=1
+export NUM_SPEC_TOKENS=7
 export TENSOR_PARALLEL_SIZE=1
 
 # Base command
