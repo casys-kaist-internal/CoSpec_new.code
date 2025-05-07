@@ -8,10 +8,12 @@ import torch
 from vllm import _custom_ops as ops
 from vllm.triton_utils import HAS_TRITON
 import vllm.envs as envs
-
+from vllm.logger import init_logger
 
 if HAS_TRITON:
     from vllm.attention.ops.prefix_prefill import context_attention_fwd
+
+logger = init_logger(__name__)
 
 # Should be the same as PARTITION_SIZE in `paged_attention_v2_launcher`.
 _PARTITION_SIZE = 512
@@ -133,6 +135,7 @@ class PagedAttention:
         if use_v1:
             # Run PagedAttention V1.
             if envs.COSPEC_CONSOLIDATED_ATTENTION:
+                logger.info("Using consolidated paged attention v1")
                 ops.consolidated_paged_attention_v1(
                     output,
                     query,
@@ -192,6 +195,7 @@ class PagedAttention:
             max_logits = torch.empty_like(exp_sums)
 
             if envs.COSPEC_CONSOLIDATED_ATTENTION:
+                logger.info("Using consolidated paged attention v2")
                 ops.consolidated_paged_attention_v2(
                     output,
                     exp_sums,

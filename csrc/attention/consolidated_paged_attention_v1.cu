@@ -166,7 +166,7 @@ void paged_attention_v1_launcher(
       break;                                                      \
   }
 
-void paged_attention_v1(
+void consolidated_paged_attention_v1(
     torch::Tensor& out,    // [num_seqs, num_heads, head_size]
     torch::Tensor& query,  // [num_seqs, num_heads, head_size]
     torch::Tensor&
