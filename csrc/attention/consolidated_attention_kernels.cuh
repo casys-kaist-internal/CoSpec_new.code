@@ -771,6 +771,7 @@ __global__ void paged_attention_v1_kernel(
     const float scale,
     const int* __restrict__ block_tables,  // [num_seqs, max_num_blocks_per_seq]
     const int* __restrict__ seq_lens,      // [num_seqs]
+    const int* __restrict__ query_lens,    // [num_seqs]
     const int max_num_blocks_per_seq,
     const float* __restrict__ alibi_slopes,  // [num_heads]
     const int q_stride, const int kv_block_stride, const int kv_head_stride,
@@ -780,7 +781,7 @@ __global__ void paged_attention_v1_kernel(
   paged_attention_kernel<scalar_t, cache_t, HEAD_SIZE, BLOCK_SIZE, NUM_THREADS,
                          KV_DTYPE, IS_BLOCK_SPARSE>(
       /* exp_sums */ nullptr, /* max_logits */ nullptr, out, q, k_cache,
-      v_cache, num_kv_heads, scale, block_tables, seq_lens,
+      v_cache, num_kv_heads, scale, block_tables, seq_lens, query_lens,
       max_num_blocks_per_seq, alibi_slopes, q_stride, kv_block_stride,
       kv_head_stride, k_scale, v_scale, tp_rank, blocksparse_local_blocks,
       blocksparse_vert_stride, blocksparse_block_size,
@@ -807,6 +808,7 @@ __global__ void paged_attention_v2_kernel(
     const float scale,
     const int* __restrict__ block_tables,  // [num_seqs, max_num_blocks_per_seq]
     const int* __restrict__ seq_lens,      // [num_seqs]
+    const int* __restrict__ query_lens,    // [num_seqs]
     const int max_num_blocks_per_seq,
     const float* __restrict__ alibi_slopes,  // [num_heads]
     const int q_stride, const int kv_block_stride, const int kv_head_stride,
@@ -816,8 +818,8 @@ __global__ void paged_attention_v2_kernel(
   paged_attention_kernel<scalar_t, cache_t, HEAD_SIZE, BLOCK_SIZE, NUM_THREADS,
                          KV_DTYPE, IS_BLOCK_SPARSE, PARTITION_SIZE>(
       exp_sums, max_logits, tmp_out, q, k_cache, v_cache, num_kv_heads, scale,
-      block_tables, seq_lens, max_num_blocks_per_seq, alibi_slopes, q_stride,
-      kv_block_stride, kv_head_stride, k_scale, v_scale, tp_rank,
+      block_tables, seq_lens, query_lens, max_num_blocks_per_seq, alibi_slopes,
+      q_stride, kv_block_stride, kv_head_stride, k_scale, v_scale, tp_rank,
       blocksparse_local_blocks, blocksparse_vert_stride, blocksparse_block_size,
       blocksparse_head_sliding_step);
 }
