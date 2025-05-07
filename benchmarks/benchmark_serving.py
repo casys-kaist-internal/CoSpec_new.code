@@ -20,6 +20,15 @@ On the client side, run:
         --endpoint /generate_stream
     to the end of the command above.
 """
+"""
+python benchmarks/benchmark_serving.py \
+    --backend vllm \
+    --model facebook/opt-6.7b \
+    --dataset-name sharegpt \
+    --dataset-path ShareGPT_V3_unfiltered_cleaned_split.json \
+    --num-prompts 1000
+"""
+
 import argparse
 import asyncio
 import gc
