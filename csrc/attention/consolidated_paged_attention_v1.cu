@@ -185,7 +185,7 @@ void consolidated_paged_attention_v1(
     const int64_t blocksparse_vert_stride, const int64_t blocksparse_block_size,
     const int64_t blocksparse_head_sliding_step) {
   const bool is_block_sparse = (blocksparse_vert_stride > 1);
-
+  assert(!is_block_sparse); // block sparse is not supported in consolidated attention
   DISPATCH_BY_KV_CACHE_DTYPE(query.dtype(), kv_cache_dtype,
                              CALL_V1_LAUNCHER_BLOCK_SIZE)
 }
