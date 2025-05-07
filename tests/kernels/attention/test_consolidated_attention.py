@@ -47,6 +47,8 @@ CUDA_DEVICES = [
     f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)
 ]
 
+QUERY_SIZE = 8
+
 
 def ref_masked_attention(
     query: torch.Tensor,
@@ -162,11 +164,21 @@ def test_consolidated_paged_attention(
     if use_alibi:
         alibi_slopes = torch.randn(num_query_heads, dtype=torch.float)
 
-    seq_lens = [random.randint(1, MAX_SEQ_LEN) for _ in range(num_seqs)]
-    seq_lens[-1] = MAX_SEQ_LEN
+    seq_lens = []
+    query_lens = []
+    for seq_idx in range(num_seqs):
+        # start a random number of query between 1 and QUERY_SIZE - 1
+        query_len = random.randint(1, QUERY_SIZE - 1)
+        query_lens.append(query_len)
+        # choose a starting random number between 0 and MAX_SEQ_LEN - query_len
+        start = random.randint(0, MAX_SEQ_LEN - query_len)
+        for query_idx in range(query_len):
+            seq_lens.append(start + query_idx)
+
     max_seq_len = max(seq_lens)
     seq_lens = torch.tensor(seq_lens, dtype=torch.int)
-
+    query_lens = torch.tensor(query_lens, dtype=torch.int)
+    
     # Create the block tables.
     max_num_blocks_per_seq = (max_seq_len + block_size - 1) // block_size
     block_tables_lst: list[list[int]] = []
@@ -201,6 +213,7 @@ def test_consolidated_paged_attention(
             scale,
             block_tables,
             seq_lens,
+            query_lens,
             block_size,
             max_seq_len,
             alibi_slopes,
@@ -211,7 +224,7 @@ def test_consolidated_paged_attention(
 
         opcheck(torch.ops._C.consolidated_paged_attention_v1,
                 (output, query, key_cache, value_cache, num_kv_heads, scale,
-                 block_tables, seq_lens, block_size, max_seq_len, alibi_slopes,
+                 block_tables, seq_lens, query_lens, block_size, max_seq_len, alibi_slopes,
                  kv_cache_dtype, k_scale, v_scale, 0, 0, 0, 64, 0),
                 cond=(head_size == HEAD_SIZES[0]
                       and block_size == BLOCK_SIZES[0]))
@@ -242,6 +255,7 @@ def test_consolidated_paged_attention(
             scale,
             block_tables,
             seq_lens,
+            query_lens,
             block_size,
             max_seq_len,
             alibi_slopes,
@@ -253,7 +267,7 @@ def test_consolidated_paged_attention(
         opcheck(torch.ops._C.consolidated_paged_attention_v2,
                 (output, exp_sums, max_logits, tmp_output, query,
                     key_cache, value_cache, num_kv_heads, scale, block_tables,
-                    seq_lens, block_size, max_seq_len, alibi_slopes,
+                    seq_lens, query_lens, block_size, max_seq_len, alibi_slopes,
                     kv_cache_dtype, k_scale, v_scale, 0, 0, 0, 64, 0),
                 cond=(head_size == HEAD_SIZES[0]
                         and block_size == BLOCK_SIZES[0]))

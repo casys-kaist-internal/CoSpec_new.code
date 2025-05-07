@@ -12,7 +12,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR Coutputs_sizeONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -24,6 +24,8 @@
 #else
   #define WARP_SIZE warpSize
 #endif
+
+#define QUERY_SIZE 8
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -58,7 +60,8 @@ void paged_attention_v2_launcher(
     torch::Tensor& v_scale, const int tp_rank,
     const int blocksparse_local_blocks, const int blocksparse_vert_stride,
     const int blocksparse_block_size, const int blocksparse_head_sliding_step) {
-  int num_seqs = query.size(0);
+  // int num_seqs = query.size(0);
+  int num_seqs = query_lens.size(0);
   int num_heads = query.size(1);
   int head_size = query.size(2);
   int max_num_blocks_per_seq = block_tables.size(1);
@@ -90,15 +93,15 @@ void paged_attention_v2_launcher(
 
   constexpr int NUM_WARPS = NUM_THREADS / WARP_SIZE;
   int max_num_partitions = DIVIDE_ROUND_UP(max_seq_len, PARTITION_SIZE);
-  int logits_size = PARTITION_SIZE * sizeof(float);
-  int outputs_size = (NUM_WARPS / 2) * head_size * sizeof(float);
+  int logits_size = QUERY_SIZE * PARTITION_SIZE * sizeof(float);
+  int outputs_size = QUERY_SIZE * (NUM_WARPS / 2) * head_size * sizeof(float);
 
   // For paged attention v2 kernel.
   dim3 grid(num_heads, num_seqs, max_num_partitions);
   int shared_mem_size = std::max(logits_size, outputs_size);
   // For paged attention v2 reduce kernel.
   dim3 reduce_grid(num_heads, num_seqs);
-  int reduce_shared_mem_size = 2 * max_num_partitions * sizeof(float);
+  int reduce_shared_mem_size = QUERY_SIZE * 2 * max_num_partitions * sizeof(float);
 
   dim3 block(NUM_THREADS);
   const at::cuda::OptionalCUDAGuard device_guard(device_of(query));
@@ -207,3 +210,4 @@ void consolidated_paged_attention_v2(
 #undef MAX
 #undef MIN
 #undef DIVIDE_ROUND_UP
+#undef QUERY_SIZE

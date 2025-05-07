@@ -39,10 +39,11 @@ typedef __hip_bfloat16 __nv_bfloat16;
   #define WARP_SIZE warpSize
 #endif
 
+#define QUERY_SIZE 8
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define DIVIDE_ROUND_UP(a, b) (((a) + (b) - 1) / (b))
-#define QUERY_SIZE 8
 
 namespace vllm {
 
@@ -114,7 +115,6 @@ __device__ void paged_attention_kernel(
   const int partition_idx = blockIdx.z;
   const int max_num_partitions = gridDim.z;
   constexpr bool USE_PARTITIONING = PARTITION_SIZE > 0;
-  const int seq_len = seq_lens[seq_idx];
 
   int query_len = query_lens[seq_idx];
 
@@ -124,7 +124,7 @@ __device__ void paged_attention_kernel(
     cum_query_len += query_lens[i];
   }
   const int seq_len = seq_lens[cum_query_len]; // (hj) This is minimum. Add query_idx to get query-specific seq_len. 
-  const int max_seq_len = seq_len + queruy_len - 1; // (hj) This is maximum. 
+  const int max_seq_len = seq_len + query_len - 1; // (hj) This is maximum. 
 
   if (USE_PARTITIONING && partition_idx * PARTITION_SIZE >= max_seq_len) {
     // No work to do. Terminate the thread block.
