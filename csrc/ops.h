@@ -43,7 +43,7 @@ void paged_attention_v1(
 void consolidated_paged_attention_v1(
     torch::Tensor& out, torch::Tensor& query, torch::Tensor& key_cache,
     torch::Tensor& value_cache, int64_t num_kv_heads, double scale,
-    torch::Tensor& block_tables, torch::Tensor& seq_lens, int64_t block_size,
+    torch::Tensor& block_tables, torch::Tensor& seq_lens, torch::Tensor& query_lens, int64_t block_size,
     int64_t max_seq_len, const std::optional<torch::Tensor>& alibi_slopes,
     const std::string& kv_cache_dtype, torch::Tensor& k_scale,
     torch::Tensor& v_scale, const int64_t tp_rank,
@@ -67,7 +67,7 @@ void consolidated_paged_attention_v2(
     torch::Tensor& out, torch::Tensor& exp_sums, torch::Tensor& max_logits,
     torch::Tensor& tmp_out, torch::Tensor& query, torch::Tensor& key_cache,
     torch::Tensor& value_cache, int64_t num_kv_heads, double scale,
-    torch::Tensor& block_tables, torch::Tensor& seq_lens, int64_t block_size,
+    torch::Tensor& block_tables, torch::Tensor& seq_lens, torch::Tensor& query_lens, int64_t block_size,
     int64_t max_seq_len, const std::optional<torch::Tensor>& alibi_slopes,
     const std::string& kv_cache_dtype, torch::Tensor& k_scale,
     torch::Tensor& v_scale, const int64_t tp_rank,
