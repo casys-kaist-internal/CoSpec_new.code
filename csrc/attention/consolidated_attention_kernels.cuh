@@ -42,6 +42,7 @@ typedef __hip_bfloat16 __nv_bfloat16;
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define DIVIDE_ROUND_UP(a, b) (((a) + (b) - 1) / (b))
+#define QUERY_SIZE 8
 
 namespace vllm {
 
@@ -102,6 +103,7 @@ __device__ void paged_attention_kernel(
     const float scale,
     const int* __restrict__ block_tables,  // [num_seqs, max_num_blocks_per_seq]
     const int* __restrict__ seq_lens,      // [num_seqs]
+    const int* __restrict__ query_lens,    // [num_seqs]
     const int max_num_blocks_per_seq,
     const float* __restrict__ alibi_slopes,  // [num_heads]
     const int q_stride, const int kv_block_stride, const int kv_head_stride,
@@ -113,12 +115,23 @@ __device__ void paged_attention_kernel(
   const int max_num_partitions = gridDim.z;
   constexpr bool USE_PARTITIONING = PARTITION_SIZE > 0;
   const int seq_len = seq_lens[seq_idx];
-  if (USE_PARTITIONING && partition_idx * PARTITION_SIZE >= seq_len) {
+
+  int query_len = query_lens[seq_idx];
+
+  int cum_query_len = 0;
+  for (int i = 0; i < seq_idx; i++)
+  {
+    cum_query_len += query_lens[i];
+  }
+  const int seq_len = seq_lens[cum_query_len]; // (hj) This is minimum. Add query_idx to get query-specific seq_len. 
+  const int max_seq_len = seq_len + queruy_len - 1; // (hj) This is maximum. 
+
+  if (USE_PARTITIONING && partition_idx * PARTITION_SIZE >= max_seq_len) {
     // No work to do. Terminate the thread block.
     return;
   }
 
-  const int num_seq_blocks = DIVIDE_ROUND_UP(seq_len, BLOCK_SIZE);
+  const int num_seq_blocks = DIVIDE_ROUND_UP(max_seq_len, BLOCK_SIZE);
   const int num_blocks_per_partition =
       USE_PARTITIONING ? PARTITION_SIZE / BLOCK_SIZE : num_seq_blocks;
 
@@ -132,16 +145,27 @@ __device__ void paged_attention_kernel(
   // [start_token_idx, end_token_idx) is the range of tokens to process.
   const int start_token_idx = start_block_idx * BLOCK_SIZE;
   const int end_token_idx =
-      MIN(start_token_idx + num_blocks * BLOCK_SIZE, seq_len);
-  const int num_tokens = end_token_idx - start_token_idx;
+      MIN(start_token_idx + num_blocks * BLOCK_SIZE, max_seq_len);
+  const int max_num_tokens = end_token_idx - start_token_idx;
 
-  constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
+  // (hj) As logits is x QUERY_LEN, we need to pad to BLOCK_SIZE
+  // const int PAD_MAX_NUM_TOKENS = DIVIDE_ROUND_UP(max_num_tokens, BLOCK_SIZE)
+  // * BLOCK_SIZE;
+  constexpr int PAD_MAX_NUM_TOKENS = PARTITION_SIZE;
+
+  // constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
+  constexpr int THREAD_GROUP_SIZE = 1; // (hj) 1 thread per token
   constexpr int NUM_THREAD_GROUPS =
       NUM_THREADS / THREAD_GROUP_SIZE;  // Note: This assumes THREAD_GROUP_SIZE
                                         // divides NUM_THREADS
+  assert(WARP_SIZE % BLOCK_SIZE == 0);
+  assert(WARP_SIZE >= BLOCK_SIZE);
+  constexpr int NUM_BLOCKS_PER_WARP = WARP_SIZE / BLOCK_SIZE;
+
   assert(NUM_THREADS % THREAD_GROUP_SIZE == 0);
-  constexpr int NUM_TOKENS_PER_THREAD_GROUP =
-      DIVIDE_ROUND_UP(BLOCK_SIZE, WARP_SIZE);
+  // constexpr int NUM_TOKENS_PER_THREAD_GROUP =
+  //     DIVIDE_ROUND_UP(BLOCK_SIZE, WARP_SIZE);
+  constexpr int NUM_TOKENS_PER_THREAD_GROUP = 1;
   constexpr int NUM_WARPS = NUM_THREADS / WARP_SIZE;
   const int thread_idx = threadIdx.x;
   const int warp_idx = thread_idx / WARP_SIZE;
@@ -176,84 +200,78 @@ __device__ void paged_attention_kernel(
   // the group has 0, 4, 8, ... th vectors of the query, and the second thread
   // has 1, 5, 9, ... th vectors of the query, and so on. NOTE(woosuk): Because
   // q is split from a qkv tensor, it may not be contiguous.
-  const scalar_t* q_ptr = q + seq_idx * q_stride + head_idx * HEAD_SIZE;
-  __shared__ Q_vec q_vecs[THREAD_GROUP_SIZE][NUM_VECS_PER_THREAD];
+
+  __shared__ Q_vec q_vecs[QUERY_SIZE][THREAD_GROUP_SIZE][NUM_VECS_PER_THREAD];
 #pragma unroll
-  for (int i = thread_group_idx; i < NUM_VECS_PER_THREAD;
-       i += NUM_THREAD_GROUPS) {
-    const int vec_idx = thread_group_offset + i * THREAD_GROUP_SIZE;
-    q_vecs[thread_group_offset][i] =
-        *reinterpret_cast<const Q_vec*>(q_ptr + vec_idx * VEC_SIZE);
+  for (int query_idx = 0; query_idx < QUERY_SIZE; query_idx++)
+  {
+    if (query_idx >= query_len)
+      continue;
+    const scalar_t *q_ptr =
+        q + (cum_query_len + query_idx) * q_stride + head_idx * HEAD_SIZE;
+#pragma unroll
+    for (int i = thread_group_idx; i < NUM_VECS_PER_THREAD;
+          i += NUM_THREAD_GROUPS)
+    {
+      const int vec_idx = thread_group_offset + i * THREAD_GROUP_SIZE;
+      q_vecs[query_idx][thread_group_offset][i] =
+          *reinterpret_cast<const Q_vec *>(q_ptr + vec_idx * VEC_SIZE);
+    }
   }
   __syncthreads();  // TODO(naed90): possible speedup if this is replaced with a
                     // memory wall right before we use q_vecs
+  constexpr int QUERIES_PER_WARP_GROUP_QK = 4;
+  constexpr int NUM_WARPS_Y_QK = QUERY_SIZE / QUERIES_PER_WARP_GROUP_QK;
+  constexpr int NUM_WARPS_X_QK = NUM_WARPS / NUM_WARPS_Y_QK;
+
+  assert(NUM_WARPS_X_QK * NUM_WARPS_Y_QK == NUM_WARPS);
+
+  const int warp_idx_x_qk = warp_idx % NUM_WARPS_X_QK;
+  const int warp_idx_y_qk = warp_idx / NUM_WARPS_X_QK;
 
   // Memory planning.
   extern __shared__ char shared_mem[];
   // NOTE(woosuk): We use FP32 for the softmax logits for better accuracy.
   float* logits = reinterpret_cast<float*>(shared_mem);
+
+  // Zero-init logits
+  for (int i = thread_idx; i < PARTITION_SIZE * QUERY_SIZE; i += NUM_THREADS)
+  {
+    logits[i] = 0.f;
+  }
+  __syncthreads();
+
   // Workspace for reduction.
-  __shared__ float red_smem[2 * NUM_WARPS];
+  __shared__ float red_smem[QUERY_SIZE][2 * NUM_WARPS];
 
   // x == THREAD_GROUP_SIZE * VEC_SIZE
   // Each thread group fetches x elements from the key at a time.
   constexpr int x = 16 / sizeof(cache_t);
-  float qk_max = -FLT_MAX;
+  // float qk_max = -FLT_MAX;
+  float qk_max_reg[QUERIES_PER_WARP_GROUP_QK];
+  for (int i = 0; i < QUERIES_PER_WARP_GROUP_QK; i++)
+  {
+    qk_max_reg[i] = -FLT_MAX;
+  }
 
   // Iterate over the key blocks.
   // Each warp fetches a block of keys for each iteration.
   // Each thread group in a warp fetches a key from the block, and computes
   // dot product with the query.
-  const int* block_table = block_tables + seq_idx * max_num_blocks_per_seq;
+  const int *block_table =
+        block_tables + (cum_query_len + query_len - 1) * max_num_blocks_per_seq;
 
-  // blocksparse specific vars
-  int bs_block_offset;
-  int q_bs_block_id;
-  if constexpr (IS_BLOCK_SPARSE) {
-    // const int num_blocksparse_blocks = DIVIDE_ROUND_UP(seq_len,
-    // blocksparse_block_size);
-    q_bs_block_id = (seq_len - 1) / blocksparse_block_size;
-    if (blocksparse_head_sliding_step >= 0)
-      // sliding on q heads
-      bs_block_offset =
-          (tp_rank * num_heads + head_idx) * blocksparse_head_sliding_step + 1;
-    else
-      // sliding on kv heads
-      bs_block_offset = (tp_rank * num_kv_heads + kv_head_idx) *
-                            (-blocksparse_head_sliding_step) +
-                        1;
-  }
+  for (int warp_block_idx_start = start_block_idx + warp_idx_x_qk * NUM_BLOCKS_PER_WARP;
+         warp_block_idx_start < end_block_idx;
+         warp_block_idx_start += NUM_WARPS_X_QK * NUM_BLOCKS_PER_WARP) 
+  {
+    const int block_idx = warp_block_idx_start + lane / BLOCK_SIZE;
+    if (block_idx >= end_block_idx)
+        continue;
 
-  for (int block_idx = start_block_idx + warp_idx; block_idx < end_block_idx;
-       block_idx += NUM_WARPS) {
     // NOTE(woosuk): The block number is stored in int32. However, we cast it to
     // int64 because int32 can lead to overflow when this variable is multiplied
     // by large numbers (e.g., kv_block_stride).
-    // For blocksparse attention: skip computation on blocks that are not
-    // attended
-    if constexpr (IS_BLOCK_SPARSE) {
-      const int k_bs_block_id = block_idx * BLOCK_SIZE / blocksparse_block_size;
-      const bool is_remote =
-          ((k_bs_block_id + bs_block_offset) % blocksparse_vert_stride == 0);
-      const bool is_local =
-          (k_bs_block_id > q_bs_block_id - blocksparse_local_blocks);
-      if (!is_remote && !is_local) {
-        for (int i = 0; i < NUM_TOKENS_PER_THREAD_GROUP; i++) {
-          const int physical_block_offset =
-              (thread_group_idx + i * WARP_SIZE) % BLOCK_SIZE;
-          const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
-
-          if (thread_group_offset == 0) {
-            // NOTE(linxihui): assign very large number to skipped tokens to
-            // avoid contribution to the sumexp softmax normalizer. This will
-            // not be used at computing sum(softmax*v) as the blocks will be
-            // skipped.
-            logits[token_idx - start_token_idx] = -FLT_MAX;
-          }
-        }
-        continue;
-      }
-    }
     const int64_t physical_block_number =
         static_cast<int64_t>(block_table[block_idx]);
 
@@ -262,218 +280,446 @@ __device__ void paged_attention_kernel(
     // For example, if the the thread group size is 4, then the first thread in
     // the group has 0, 4, 8, ... th vectors of the key, and the second thread
     // has 1, 5, 9, ... th vectors of the key, and so on.
-    for (int i = 0; i < NUM_TOKENS_PER_THREAD_GROUP; i++) {
-      const int physical_block_offset =
-          (thread_group_idx + i * WARP_SIZE) % BLOCK_SIZE;
-      const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
-      K_vec k_vecs[NUM_VECS_PER_THREAD];
+    // for (int i = 0; i < NUM_TOKENS_PER_THREAD_GROUP; i++) {
+
+    constexpr int i = 0;
+    const int physical_block_offset =
+        (thread_group_idx + i * WARP_SIZE) % BLOCK_SIZE;
+
+    constexpr int V_TILE_SIZE = 8; // total 16 vectors for HEAD_SIZE=128
+
+    float logits_reg[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+    const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
+
+    if (token_idx >= max_seq_len)
+      continue;
+
+    for (int v_outer = 0; v_outer < NUM_VECS_PER_THREAD / V_TILE_SIZE;
+           ++v_outer)
+    { // Load the query to registers.
+      Q_vec q_vec_regs[QUERIES_PER_WARP_GROUP_QK][V_TILE_SIZE];
+      K_vec k_vecs[V_TILE_SIZE];
 
 #pragma unroll
-      for (int j = 0; j < NUM_VECS_PER_THREAD; j++) {
-        const cache_t* k_ptr =
+      for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+      {
+        int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+        if (query_idx >= query_len)
+          break;
+#pragma unroll
+        for (int j = 0; j < V_TILE_SIZE; ++j)
+        {
+          q_vec_regs[it][j] =
+              q_vecs[query_idx][thread_group_offset][v_outer * V_TILE_SIZE + j];
+        }
+      }
+#pragma unroll
+      for (int jt = 0; jt < V_TILE_SIZE; ++jt)
+      {
+        int j = v_outer * V_TILE_SIZE + jt;
+        const scalar_t *k_ptr =
             k_cache + physical_block_number * kv_block_stride +
             kv_head_idx * kv_head_stride + physical_block_offset * x;
         const int vec_idx = thread_group_offset + j * THREAD_GROUP_SIZE;
         const int offset1 = (vec_idx * VEC_SIZE) / x;
         const int offset2 = (vec_idx * VEC_SIZE) % x;
-
-        if constexpr (KV_DTYPE == Fp8KVCacheDataType::kAuto) {
-          k_vecs[j] = *reinterpret_cast<const K_vec*>(
-              k_ptr + offset1 * BLOCK_SIZE * x + offset2);
-        } else {
-          // Vector conversion from Quant_vec to K_vec.
-          Quant_vec k_vec_quant = *reinterpret_cast<const Quant_vec*>(
-              k_ptr + offset1 * BLOCK_SIZE * x + offset2);
-          k_vecs[j] = fp8::scaled_convert<K_vec, Quant_vec, KV_DTYPE>(
-              k_vec_quant, *k_scale);
-        }
+        k_vecs[jt] = *reinterpret_cast<const K_vec *>(
+            k_ptr + offset1 * BLOCK_SIZE * x + offset2);
       }
 
-      // Compute dot product.
-      // This includes a reduction across the threads in the same thread group.
-      float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot(
-                             q_vecs[thread_group_offset], k_vecs);
-      // Add the ALiBi bias if slopes are given.
-      qk += (alibi_slope != 0) ? alibi_slope * (token_idx - seq_len + 1) : 0;
+      for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+      {
+        int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+        if (query_idx >= query_len)
+          break;
+        int n_seq_len = seq_len + query_idx;
+        float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot_nosync(
+                                q_vec_regs[it], k_vecs);
+        qk += (alibi_slope != 0) ? alibi_slope * (token_idx - n_seq_len + 1)
+                                  : 0;
+        const bool mask = token_idx >= n_seq_len;
+        logits_reg[it] += mask ? 0.f : qk;
+      } // query_idx end
+    } // v_outer end
 
-      if (thread_group_offset == 0) {
-        // Store the partial reductions to shared memory.
-        // NOTE(woosuk): It is required to zero out the masked logits.
-        const bool mask = token_idx >= seq_len;
-        logits[token_idx - start_token_idx] = mask ? 0.f : qk;
-        // Update the max value.
-        qk_max = mask ? qk_max : fmaxf(qk_max, qk);
-      }
+    // Logit Regs -> Logits
+    const int tok_offset = token_idx - start_token_idx;
+#pragma unroll
+    for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+    {
+      int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+      if (query_idx >= query_len)
+        break;
+      int n_seq_len = seq_len + query_idx;
+      const bool mask = token_idx >= n_seq_len;
+      qk_max_reg[it] =
+          mask ? qk_max_reg[it] : fmaxf(qk_max_reg[it], logits_reg[it]);
+
+      float over_max = query_idx < query_len ? 1.0 : 0.0;
+
+      int logits_index = logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, tok_offset);
+      logits[logits_index] = logits_reg[it] * over_max;
     }
+  } // Seq-len iterator end
+
+  __shared__ float qk_max[QUERIES_PER_WARP_GROUP_QK][NUM_THREADS]; // ~2KB
+#pragma unroll
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    qk_max[it][thread_idx] = qk_max_reg[it];
   }
 
   // Perform reduction across the threads in the same warp to get the
   // max qk value for each "warp" (not across the thread block yet).
   // The 0-th thread of each thread group already has its max qk value.
 #pragma unroll
-  for (int mask = WARP_SIZE / 2; mask >= THREAD_GROUP_SIZE; mask /= 2) {
-    qk_max = fmaxf(qk_max, VLLM_SHFL_XOR_SYNC(qk_max, mask));
-  }
-  if (lane == 0) {
-    red_smem[warp_idx] = qk_max;
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; it++)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    float v = qk_max_reg[it];
+    if (query_idx >= query_len)
+      break;
+    for (int mask = WARP_SIZE / 2; mask >= THREAD_GROUP_SIZE; mask /= 2)
+    {
+      v = fmaxf(v, __shfl_xor_sync(uint32_t(-1), v, mask));
+    }
+    if (lane == 0)
+    {
+      red_smem[query_idx][warp_idx_x_qk] = v;
+    }
   }
   __syncthreads();
 
   // TODO(woosuk): Refactor this part.
   // Get the max qk value for the sequence.
-  qk_max = lane < NUM_WARPS ? red_smem[lane] : -FLT_MAX;
+  float exp_sum_arr[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+    float v = lane < NUM_WARPS_X_QK ? red_smem[query_idx][lane] : -FLT_MAX;
+    for (int mask = NUM_WARPS_X_QK / 2; mask >= 1; mask /= 2)
+    {
+      v = fmaxf(v, __shfl_xor_sync(uint32_t(-1), v, mask));
+    }
+    // Broadcast the max qk value to all threads.
+    v = __shfl_sync(uint32_t(-1), v, 0);
+    qk_max_reg[it] = v;
+  }
+
+  // 이게 bottleneck
+
+  int num_tokens_arr[QUERIES_PER_WARP_GROUP_QK];
+  float inv_sums_arr[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+    // Get the sum of the exp values.
+    int seq_len_for_query = seq_lens[cum_query_len + query_idx];
+    int partitions_needed =
+        DIVIDE_ROUND_UP(seq_len_for_query, PARTITION_SIZE);
+    // If last, subtract
+    int num_tokens;
+    if (partitions_needed > partition_idx + 1)
+      num_tokens = PARTITION_SIZE;
+    else if (partitions_needed == partition_idx + 1)
+      num_tokens = seq_len_for_query - partition_idx * PARTITION_SIZE;
+    else
+      num_tokens = 0;
+    num_tokens_arr[it] = num_tokens;
+  }
+
 #pragma unroll
-  for (int mask = NUM_WARPS / 2; mask >= 1; mask /= 2) {
-    qk_max = fmaxf(qk_max, VLLM_SHFL_XOR_SYNC(qk_max, mask));
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+      // Now, threads sharing same warp_idx_y_qk will compute softmax for the same
+      // query_idx
+#pragma unroll
+    for (int i = thread_idx - (warp_idx_y_qk * NUM_WARPS_X_QK * WARP_SIZE);
+          i < num_tokens_arr[it]; i += NUM_THREADS / NUM_WARPS_Y_QK)
+    {
+      float val = __expf(logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] -
+                          qk_max_reg[it]);
+      logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] = val;
+      exp_sum_arr[it] += val;
+    }
   }
-  // Broadcast the max qk value to all threads.
-  qk_max = VLLM_SHFL_SYNC(qk_max, 0);
-
-  // Get the sum of the exp values.
-  float exp_sum = 0.f;
-  for (int i = thread_idx; i < num_tokens; i += NUM_THREADS) {
-    float val = __expf(logits[i] - qk_max);
-    logits[i] = val;
-    exp_sum += val;
+#pragma unroll
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+    exp_sum_arr[it] = block_sum_query_group<NUM_WARPS_X_QK>(
+        &red_smem[query_idx][NUM_WARPS_X_QK], exp_sum_arr[it]);
   }
-  exp_sum = block_sum<NUM_WARPS>(&red_smem[NUM_WARPS], exp_sum);
 
-  // Compute softmax.
-  const float inv_sum = __fdividef(1.f, exp_sum + 1e-6f);
-  for (int i = thread_idx; i < num_tokens; i += NUM_THREADS) {
-    logits[i] *= inv_sum;
+#pragma unroll
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+    const float inv_sum = __fdividef(1.f, exp_sum_arr[it] + 1e-6f);
+    inv_sums_arr[it] = query_idx >= query_len ? 0 : inv_sum;
+  }
+
+#pragma unroll
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+  {
+    int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+    if (query_idx >= query_len)
+      break;
+    for (int i = thread_idx - (warp_idx_y_qk * NUM_WARPS_X_QK * WARP_SIZE);
+          i < num_tokens_arr[it]; i += NUM_THREADS / NUM_WARPS_Y_QK)
+    {
+      logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] *= inv_sums_arr[it];
+    }
   }
   __syncthreads();
 
   // If partitioning is enabled, store the max logit and exp_sum.
-  if (USE_PARTITIONING && thread_idx == 0) {
-    float* max_logits_ptr = max_logits +
-                            seq_idx * num_heads * max_num_partitions +
-                            head_idx * max_num_partitions + partition_idx;
-    *max_logits_ptr = qk_max;
-    float* exp_sums_ptr = exp_sums + seq_idx * num_heads * max_num_partitions +
-                          head_idx * max_num_partitions + partition_idx;
-    *exp_sums_ptr = exp_sum;
+  if (USE_PARTITIONING)
+  {
+    for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
+    {
+      int query_idx = warp_idx_y_qk + it * NUM_WARPS_Y_QK;
+      if (query_idx >= query_len)
+        continue;
+      float *max_logits_ptr =
+          max_logits +
+          (cum_query_len + query_idx) * num_heads * max_num_partitions +
+          head_idx * max_num_partitions + partition_idx;
+      *max_logits_ptr = qk_max_reg[it];
+      float *exp_sums_ptr =
+          exp_sums +
+          (cum_query_len + query_idx) * num_heads * max_num_partitions +
+          head_idx * max_num_partitions + partition_idx;
+      *exp_sums_ptr = exp_sum_arr[it];
+    }
   }
 
   // Each thread will fetch 16 bytes from the value cache at a time.
-  constexpr int V_VEC_SIZE = MIN(16 / sizeof(scalar_t), BLOCK_SIZE);
   using V_vec = typename Vec<scalar_t, V_VEC_SIZE>::Type;
   using L_vec = typename Vec<scalar_t, V_VEC_SIZE>::Type;
-  using V_quant_vec = typename Vec<cache_t, V_VEC_SIZE>::Type;
   using Float_L_vec = typename FloatVec<L_vec>::Type;
 
-  constexpr int NUM_V_VECS_PER_ROW = BLOCK_SIZE / V_VEC_SIZE;
-  constexpr int NUM_ROWS_PER_ITER = WARP_SIZE / NUM_V_VECS_PER_ROW;
-  constexpr int NUM_ROWS_PER_THREAD =
-      DIVIDE_ROUND_UP(HEAD_SIZE, NUM_ROWS_PER_ITER);
+  constexpr int QUERIES_PER_WARP_GROUP = 4; // QUERY_SIZE
+  constexpr int NUM_WARPS_PER_HEAD = 2;     // Tiling parameter for head_size
 
+  constexpr int NUM_WARPS_PER_QUERY_SIZE = QUERY_SIZE / QUERIES_PER_WARP_GROUP;
+
+  constexpr int NUM_WARPS_Z = NUM_WARPS_PER_QUERY_SIZE; // query_len tiling   2
+  constexpr int NUM_WARPS_Y = NUM_WARPS_PER_HEAD;       // head_size tiling   2
+  constexpr int NUM_WARPS_X =
+      NUM_WARPS / NUM_WARPS_Y / NUM_WARPS_Z; // seq_len tiling 2
+
+  constexpr int NUM_COLS_PER_WARP =
+      HEAD_SIZE / NUM_WARPS_PER_HEAD; // 128 / 1 = 128
+
+  constexpr int NUM_V_VECS_PER_ROW = BLOCK_SIZE / V_VEC_SIZE; // 32 / 8 = 4
+  constexpr int NUM_ROWS_PER_ITER =
+      WARP_SIZE / NUM_V_VECS_PER_ROW; // 32 / 4 = 8
+  constexpr int NUM_ROWS_PER_THREAD =
+      DIVIDE_ROUND_UP(NUM_COLS_PER_WARP, NUM_ROWS_PER_ITER); // 128 / 8 = 16
+
+  assert(NUM_WARPS_X * NUM_WARPS_Y * NUM_WARPS_Z == NUM_WARPS);
+
+  // TODO: may change w.r.t scheduling
+  int warp_idx_x = warp_idx % NUM_WARPS_X;                 // seq_len tiling
+  int warp_idx_y = (warp_idx / NUM_WARPS_X) % NUM_WARPS_Y; // head_size tiling
+  int warp_idx_z = warp_idx / NUM_WARPS_X / NUM_WARPS_Y;   // query_len tiling
+
+  // Row w.r.t head_size
+  const int start_row_idx = warp_idx_y * NUM_COLS_PER_WARP;
+  const int max_row_idx = start_row_idx + NUM_COLS_PER_WARP;
   // NOTE(woosuk): We use FP32 for the accumulator for better accuracy.
-  float accs[NUM_ROWS_PER_THREAD];
-#pragma unroll
-  for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-    accs[i] = 0.f;
-  }
+  // A_vec accs_vecs[QUERIES_PER_WARP_GROUP][NUM_ROWS_PER_THREAD] = {0.f};
+  float accs[QUERIES_PER_WARP_GROUP][NUM_ROWS_PER_THREAD] = {0.f};
 
   scalar_t zero_value;
   zero(zero_value);
-  for (int block_idx = start_block_idx + warp_idx; block_idx < end_block_idx;
-       block_idx += NUM_WARPS) {
+
+  V_vec v_vec_regs[NUM_ROWS_PER_THREAD] = {0.f};
+  L_vec logits_vec_regs[QUERIES_PER_WARP_GROUP] = {0.f};
+  V_vec zero_v_vec;
+  zero(zero_v_vec);
+  L_vec zero_l_vec;
+  zero(zero_l_vec);
+  constexpr int TM = 4;
+  constexpr int TN = 4;
+
+  assert(NUM_ROWS_PER_THREAD % TM == 0);
+  assert(QUERIES_PER_WARP_GROUP % TN == 0);
+
+  constexpr int NUM_ROWS_PER_THREAD_TM = NUM_ROWS_PER_THREAD / TM;
+  constexpr int QUERIES_PER_WARP_GROUP_TN = QUERIES_PER_WARP_GROUP / TN;
+
+  for (int block_idx = start_block_idx + warp_idx_x; block_idx < end_block_idx;
+        block_idx += NUM_WARPS_X) // equiv to dot_idx
+  {
     // NOTE(woosuk): The block number is stored in int32. However, we cast it to
     // int64 because int32 can lead to overflow when this variable is multiplied
     // by large numbers (e.g., kv_block_stride).
-    // For blocksparse attention: skip computation on blocks that are not
-    // attended
-    if constexpr (IS_BLOCK_SPARSE) {
-      int v_bs_block_id = block_idx * BLOCK_SIZE / blocksparse_block_size;
-      if (!((v_bs_block_id + bs_block_offset) % blocksparse_vert_stride == 0) &&
-          !((v_bs_block_id > q_bs_block_id - blocksparse_local_blocks))) {
-        continue;
-      }
-    }
     const int64_t physical_block_number =
         static_cast<int64_t>(block_table[block_idx]);
     const int physical_block_offset = (lane % NUM_V_VECS_PER_ROW) * V_VEC_SIZE;
     const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
-    L_vec logits_vec;
-    from_float(logits_vec, *reinterpret_cast<Float_L_vec*>(logits + token_idx -
-                                                           start_token_idx));
+    const scalar_t *v_ptr = v_cache + physical_block_number * kv_block_stride +
+                            kv_head_idx * kv_head_stride;
 
-    const cache_t* v_ptr = v_cache + physical_block_number * kv_block_stride +
-                           kv_head_idx * kv_head_stride;
+    if (token_idx >= max_seq_len)
+      continue;
+// Populate registers for whole warptiling
 #pragma unroll
-    for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-      const int row_idx = lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
-      if (row_idx < HEAD_SIZE) {
+    for (int i = 0; i < NUM_ROWS_PER_THREAD;
+          ++i) // equiv to WNTiling.. head_size warptiling
+    {
+      v_vec_regs[i] = zero_v_vec;
+      const int row_idx =
+          start_row_idx + lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
+      if (row_idx < max_row_idx)
+      {
         const int offset = row_idx * BLOCK_SIZE + physical_block_offset;
-        V_vec v_vec;
-
-        if constexpr (KV_DTYPE == Fp8KVCacheDataType::kAuto) {
-          v_vec = *reinterpret_cast<const V_vec*>(v_ptr + offset);
-        } else {
-          V_quant_vec v_quant_vec =
-              *reinterpret_cast<const V_quant_vec*>(v_ptr + offset);
-          // Vector conversion from V_quant_vec to V_vec.
-          v_vec = fp8::scaled_convert<V_vec, V_quant_vec, KV_DTYPE>(v_quant_vec,
-                                                                    *v_scale);
-        }
-        if (block_idx == num_seq_blocks - 1) {
-          // NOTE(woosuk): When v_vec contains the tokens that are out of the
-          // context, we should explicitly zero out the values since they may
-          // contain NaNs. See
-          // https://github.com/vllm-project/vllm/issues/641#issuecomment-1682544472
-          scalar_t* v_vec_ptr = reinterpret_cast<scalar_t*>(&v_vec);
+        V_vec v_vec = *reinterpret_cast<const V_vec *>(v_ptr + offset);
+        v_vec_regs[i] = v_vec;
+      }
+    }
 #pragma unroll
-          for (int j = 0; j < V_VEC_SIZE; j++) {
-            v_vec_ptr[j] = token_idx + j < seq_len ? v_vec_ptr[j] : zero_value;
+    for (int it = 0; it < QUERIES_PER_WARP_GROUP;
+          ++it) // equiv to WMTiling.. query_len warptiling
+    {
+      int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
+      if (query_idx < 0)
+        continue;
+      L_vec logits_vec = zero_l_vec;
+      int idx = logits_idx<PAD_MAX_NUM_TOKENS>(query_idx,
+                                                token_idx - start_token_idx);
+      from_float(logits_vec, *reinterpret_cast<Float_L_vec *>(&logits[idx]));
+      logits_vec_regs[it] = logits_vec;
+    }
+
+#pragma unroll
+    for (int it_tn = 0; it_tn < QUERIES_PER_WARP_GROUP_TN;
+          ++it_tn) // equiv to WMTiling.. query_len warptiling
+    {
+#pragma unroll
+      for (int i_tm = 0; i_tm < NUM_ROWS_PER_THREAD_TM;
+            ++i_tm) // equiv to WNTiling.. head_size warptiling
+      {
+#pragma unroll
+        for (int j = 0; j < TN; ++j)
+        {
+#pragma unroll
+          for (int i = 0; i < TM; ++i)
+          {
+            const L_vec logits_vec = logits_vec_regs[it_tn * TN + j];
+            const V_vec v_vec = v_vec_regs[i_tm * TM + i];
+            accs[it_tn * TN + j][i_tm * TM + i] += dot(logits_vec, v_vec);
           }
         }
-        accs[i] += dot(logits_vec, v_vec);
       }
     }
   }
 
   // Perform reduction within each warp.
 #pragma unroll
-  for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-    float acc = accs[i];
-#pragma unroll
-    for (int mask = NUM_V_VECS_PER_ROW / 2; mask >= 1; mask /= 2) {
-      acc += VLLM_SHFL_XOR_SYNC(acc, mask);
+  for (int it = 0; it < QUERIES_PER_WARP_GROUP; it++)
+  {
+    int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
+    if (query_idx < 0)
+      break;
+    // Reduce within the warp.
+    // #pragma unroll
+    for (int i = 0; i < NUM_ROWS_PER_THREAD; i++)
+    {
+      int acc_idx = query_idx / NUM_WARPS_Z;
+      // float acc = sum(accs_vecs[it][i]);
+      float acc = accs[it][i];
+      // #pragma unroll
+      for (int mask = NUM_V_VECS_PER_ROW / 2; mask >= 1; mask /= 2)
+      {
+        acc += __shfl_xor_sync(uint32_t(-1), acc, mask);
+      }
+      accs[it][i] = acc;
     }
-    accs[i] = acc;
   }
-
   // NOTE(woosuk): A barrier is required because the shared memory space for
   // logits is reused for the output.
   __syncthreads();
 
   // Perform reduction across warps.
-  float* out_smem = reinterpret_cast<float*>(shared_mem);
+  float *out_smem = reinterpret_cast<float *>(
+      shared_mem); // TODO 배열 정하기
+                    // Before : out_smem : [QUERY_SIZE, NUM_WARPS / 2, HEAD_SIZE]
+                    // After : out_smem : [QUERY_SIZE, NUM_WARPS / 2,
+                    // NUM_WARPS_Y, HEAD_SIZE]
+
 #pragma unroll
-  for (int i = NUM_WARPS; i > 1; i /= 2) {
+  for (int i = NUM_WARPS_X; i > 1; i /= 2)
+  {
     int mid = i / 2;
     // Upper warps write to shared memory.
-    if (warp_idx >= mid && warp_idx < i) {
-      float* dst = &out_smem[(warp_idx - mid) * HEAD_SIZE];
+    if (warp_idx_x >= mid && warp_idx_x < i)
+    {
 #pragma unroll
-      for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-        const int row_idx = lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
-        if (row_idx < HEAD_SIZE && lane % NUM_V_VECS_PER_ROW == 0) {
-          dst[row_idx] = accs[i];
+      for (int it = 0; it < QUERIES_PER_WARP_GROUP; it++)
+      {
+        int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
+        if (query_idx < 0)
+          break;
+        // float *dst = &out_smem[query_idx * NUM_WARPS_X * HEAD_SIZE +
+        // (warp_idx_x - mid) * HEAD_SIZE]; // TODO
+        float *dst =
+            &out_smem[query_idx * NUM_WARPS_X * NUM_WARPS_Y / 2 * HEAD_SIZE +
+                      (warp_idx_x - mid) * NUM_WARPS_Y * HEAD_SIZE +
+                      warp_idx_y * HEAD_SIZE];
+#pragma unroll
+        for (int i = 0; i < NUM_ROWS_PER_THREAD; i++)
+        {
+          const int row_idx =
+              start_row_idx + lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
+          if (row_idx < max_row_idx && lane % NUM_V_VECS_PER_ROW == 0)
+          {
+            dst[row_idx] = accs[it][i];
+          }
         }
       }
     }
     __syncthreads();
 
     // Lower warps update the output.
-    if (warp_idx < mid) {
-      const float* src = &out_smem[warp_idx * HEAD_SIZE];
+    if (warp_idx_x < mid)
+    {
 #pragma unroll
-      for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-        const int row_idx = lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
-        if (row_idx < HEAD_SIZE && lane % NUM_V_VECS_PER_ROW == 0) {
-          accs[i] += src[row_idx];
+      for (int it = 0; it < QUERIES_PER_WARP_GROUP; it++)
+      {
+        int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
+        if (query_idx < 0)
+          break;
+        // const float *src = &out_smem[query_idx * NUM_WARPS_X * HEAD_SIZE +
+        // warp_idx_x * HEAD_SIZE];
+        const float *src =
+            &out_smem[query_idx * NUM_WARPS_X * NUM_WARPS_Y / 2 * HEAD_SIZE +
+                      warp_idx_x * NUM_WARPS_Y * HEAD_SIZE +
+                      warp_idx_y * HEAD_SIZE];
+#pragma unroll
+        for (int i = 0; i < NUM_ROWS_PER_THREAD; i++)
+        {
+          const int row_idx =
+              start_row_idx + lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
+          if (row_idx < max_row_idx && lane % NUM_V_VECS_PER_ROW == 0)
+          {
+            accs[it][i] += src[row_idx];
+          }
         }
       }
     }
@@ -481,15 +727,30 @@ __device__ void paged_attention_kernel(
   }
 
   // Write the final output.
-  if (warp_idx == 0) {
-    scalar_t* out_ptr =
-        out + seq_idx * num_heads * max_num_partitions * HEAD_SIZE +
-        head_idx * max_num_partitions * HEAD_SIZE + partition_idx * HEAD_SIZE;
+  if (warp_idx_x == 0)
+  {
 #pragma unroll
-    for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
-      const int row_idx = lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
-      if (row_idx < HEAD_SIZE && lane % NUM_V_VECS_PER_ROW == 0) {
-        from_float(*(out_ptr + row_idx), accs[i]);
+    for (int it = 0; it < QUERIES_PER_WARP_GROUP; it++)
+    {
+      int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
+      if (query_idx < 0)
+        break;
+      scalar_t *out_ptr = out +
+                          (cum_query_len + query_idx) * num_heads *
+                              max_num_partitions * HEAD_SIZE +
+                          head_idx * max_num_partitions * HEAD_SIZE +
+                          partition_idx * HEAD_SIZE;
+      // 원래 [num_seqs, num_heads, head_size]
+      // Now [num_seqs x query_lens, num_heads, head_size]
+#pragma unroll
+      for (int i = 0; i < NUM_ROWS_PER_THREAD; i++)
+      {
+        const int row_idx =
+            start_row_idx + lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
+        if (row_idx < max_row_idx && lane % NUM_V_VECS_PER_ROW == 0)
+        {
+          from_float(*(out_ptr + row_idx), accs[it][i]);
+        }
       }
     }
   }
@@ -573,21 +834,37 @@ __global__ void paged_attention_v2_reduce_kernel(
     const scalar_t* __restrict__ tmp_out,  // [num_seqs, num_heads,
                                            // max_num_partitions, head_size]
     const int* __restrict__ seq_lens,      // [num_seqs]
+    const int* __restrict__ query_lens,    // [num_seqs]
     const int max_num_partitions) {
   const int num_heads = gridDim.x;
   const int head_idx = blockIdx.x;
   const int seq_idx = blockIdx.y;
-  const int seq_len = seq_lens[seq_idx];
-  const int num_partitions = DIVIDE_ROUND_UP(seq_len, PARTITION_SIZE);
+
+  int cum_query_len = 0;
+  for (int i = 0; i < seq_idx; i++)
+  {
+    cum_query_len += query_lens[i];
+  }
+  const int query_len = query_lens[seq_idx];
+  const int seq_len = seq_lens[cum_query_len];
+  const int max_seq_len = seq_len + query_len - 1;
+  const int num_partitions = DIVIDE_ROUND_UP(max_seq_len, PARTITION_SIZE);
+
   if (num_partitions == 1) {
-    // No need to reduce. Only copy tmp_out to out.
-    scalar_t* out_ptr =
-        out + seq_idx * num_heads * HEAD_SIZE + head_idx * HEAD_SIZE;
-    const scalar_t* tmp_out_ptr =
-        tmp_out + seq_idx * num_heads * max_num_partitions * HEAD_SIZE +
-        head_idx * max_num_partitions * HEAD_SIZE;
-    for (int i = threadIdx.x; i < HEAD_SIZE; i += blockDim.x) {
-      out_ptr[i] = tmp_out_ptr[i];
+    for (int query_idx = 0; query_idx < query_len; query_idx++)
+    {
+      // No need to reduce. Only copy tmp_out to out.
+      scalar_t *out_ptr = out +
+                          (cum_query_len + query_idx) * num_heads * HEAD_SIZE +
+                          head_idx * HEAD_SIZE;
+      const scalar_t *tmp_out_ptr = tmp_out +
+                                    (cum_query_len + query_idx) * num_heads *
+                                        max_num_partitions * HEAD_SIZE +
+                                    head_idx * max_num_partitions * HEAD_SIZE;
+      for (int i = threadIdx.x; i < HEAD_SIZE; i += blockDim.x)
+      {
+        out_ptr[i] = tmp_out_ptr[i];
+      }
     }
     // Terminate the thread block.
     return;
@@ -600,71 +877,112 @@ __global__ void paged_attention_v2_reduce_kernel(
   // Size: 2 * num_partitions.
   extern __shared__ char shared_mem[];
   // Workspace for reduction.
-  __shared__ float red_smem[2 * NUM_WARPS];
+  __shared__ float red_smem[QUERY_SIZE][2 * NUM_WARPS];
 
   // Load max logits to shared memory.
   float* shared_max_logits = reinterpret_cast<float*>(shared_mem);
-  const float* max_logits_ptr = max_logits +
-                                seq_idx * num_heads * max_num_partitions +
-                                head_idx * max_num_partitions;
-  float max_logit = -FLT_MAX;
-  for (int i = threadIdx.x; i < num_partitions; i += blockDim.x) {
-    const float l = max_logits_ptr[i];
-    shared_max_logits[i] = l;
-    max_logit = fmaxf(max_logit, l);
+  float max_logit[QUERY_SIZE];
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    max_logit[query_idx] = -FLT_MAX;
   }
-  __syncthreads();
 
-  // Get the global max logit.
-  // Reduce within the warp.
-#pragma unroll
-  for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2) {
-    max_logit = fmaxf(max_logit, VLLM_SHFL_XOR_SYNC(max_logit, mask));
-  }
-  if (lane == 0) {
-    red_smem[warp_idx] = max_logit;
-  }
-  __syncthreads();
-  // Reduce across warps.
-  max_logit = lane < NUM_WARPS ? red_smem[lane] : -FLT_MAX;
-#pragma unroll
-  for (int mask = NUM_WARPS / 2; mask >= 1; mask /= 2) {
-    max_logit = fmaxf(max_logit, VLLM_SHFL_XOR_SYNC(max_logit, mask));
-  }
-  // Broadcast the max value to all threads.
-  max_logit = VLLM_SHFL_SYNC(max_logit, 0);
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    const float *max_logits_ptr =
+        max_logits +
+        (cum_query_len + query_idx) * num_heads * max_num_partitions +
+        head_idx * max_num_partitions;
 
-  // Load rescaled exp sums to shared memory.
-  float* shared_exp_sums =
-      reinterpret_cast<float*>(shared_mem + sizeof(float) * num_partitions);
-  const float* exp_sums_ptr = exp_sums +
-                              seq_idx * num_heads * max_num_partitions +
-                              head_idx * max_num_partitions;
-  float global_exp_sum = 0.0f;
-  for (int i = threadIdx.x; i < num_partitions; i += blockDim.x) {
-    float l = shared_max_logits[i];
-    float rescaled_exp_sum = exp_sums_ptr[i] * expf(l - max_logit);
-    global_exp_sum += rescaled_exp_sum;
-    shared_exp_sums[i] = rescaled_exp_sum;
-  }
-  __syncthreads();
-  global_exp_sum = block_sum<NUM_WARPS>(&red_smem[NUM_WARPS], global_exp_sum);
-  const float inv_global_exp_sum = __fdividef(1.0f, global_exp_sum + 1e-6f);
-
-  // Aggregate tmp_out to out.
-  const scalar_t* tmp_out_ptr =
-      tmp_out + seq_idx * num_heads * max_num_partitions * HEAD_SIZE +
-      head_idx * max_num_partitions * HEAD_SIZE;
-  scalar_t* out_ptr =
-      out + seq_idx * num_heads * HEAD_SIZE + head_idx * HEAD_SIZE;
-#pragma unroll
-  for (int i = threadIdx.x; i < HEAD_SIZE; i += NUM_THREADS) {
-    float acc = 0.0f;
-    for (int j = 0; j < num_partitions; ++j) {
-      acc += to_float(tmp_out_ptr[j * HEAD_SIZE + i]) * shared_exp_sums[j] *
-             inv_global_exp_sum;
+    for (int i = threadIdx.x; i < num_partitions; i += blockDim.x)
+    {
+      const float l = max_logits_ptr[i];
+      shared_max_logits[query_idx * num_partitions + i] = l;
+      max_logit[query_idx] = fmaxf(max_logit[query_idx], l);
     }
-    from_float(out_ptr[i], acc);
+  }
+  __syncthreads();
+
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    // Get the global max logit.
+    // Reduce within the warp.
+#pragma unroll
+    for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2)
+    {
+      max_logit[query_idx] = fmaxf(max_logit[query_idx], __shfl_xor_sync(uint32_t(-1), max_logit[query_idx], mask));
+    }
+    if (lane == 0)
+    {
+      red_smem[query_idx][warp_idx] = max_logit[query_idx];
+    }
+  }
+  __syncthreads();
+
+  float global_exp_sum[QUERY_SIZE];
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    global_exp_sum[query_idx] = 0.0f;
+  }
+
+  float *shared_exp_sums = reinterpret_cast<float *>(
+      shared_mem + sizeof(float) * num_partitions * QUERY_SIZE);
+
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    // Reduce across warps.
+    max_logit[query_idx] =
+        lane < NUM_WARPS ? red_smem[query_idx][lane] : -FLT_MAX;
+#pragma unroll
+    for (int mask = NUM_WARPS / 2; mask >= 1; mask /= 2)
+    {
+      max_logit[query_idx] = fmaxf(max_logit[query_idx], __shfl_xor_sync(uint32_t(-1), max_logit[query_idx], mask));
+    }
+    // Broadcast the max value to all threads.
+    max_logit[query_idx] = __shfl_sync(uint32_t(-1), max_logit[query_idx], 0);
+
+    // Load rescaled exp sums to shared memory.
+    const float *exp_sums_ptr =
+        exp_sums +
+        (cum_query_len + query_idx) * num_heads * max_num_partitions +
+        head_idx * max_num_partitions;
+    for (int i = threadIdx.x; i < num_partitions; i += blockDim.x)
+    {
+      float l = shared_max_logits[query_idx * num_partitions + i];
+      float rescaled_exp_sum = exp_sums_ptr[i] * expf(l - max_logit[query_idx]);
+      global_exp_sum[query_idx] += rescaled_exp_sum;
+      shared_exp_sums[query_idx * num_partitions + i] = rescaled_exp_sum;
+    }
+  }
+  __syncthreads();
+
+  for (int query_idx = 0; query_idx < query_len; query_idx++)
+  {
+    global_exp_sum[query_idx] = block_sum<NUM_WARPS>(
+        &red_smem[query_idx][NUM_WARPS], global_exp_sum[query_idx]);
+    const float inv_global_exp_sum =
+        __fdividef(1.0f, global_exp_sum[query_idx] + 1e-6f);
+
+    // Aggregate tmp_out to out.
+    const scalar_t *tmp_out_ptr = tmp_out +
+                                  (cum_query_len + query_idx) * num_heads *
+                                      max_num_partitions * HEAD_SIZE +
+                                  head_idx * max_num_partitions * HEAD_SIZE;
+    scalar_t *out_ptr = out +
+                        (cum_query_len + query_idx) * num_heads * HEAD_SIZE +
+                        head_idx * HEAD_SIZE;
+#pragma unroll
+    for (int i = threadIdx.x; i < HEAD_SIZE; i += NUM_THREADS)
+    {
+      float acc = 0.0f;
+      for (int j = 0; j < num_partitions; ++j)
+      {
+        acc += to_float(tmp_out_ptr[j * HEAD_SIZE + i]) *
+                shared_exp_sums[query_idx * num_partitions + j] *
+                inv_global_exp_sum;
+      }
+      from_float(out_ptr[i], acc);
+    }
   }
 }
 
@@ -674,3 +992,4 @@ __global__ void paged_attention_v2_reduce_kernel(
 #undef MAX
 #undef MIN
 #undef DIVIDE_ROUND_UP
+#undef QUERY_SIZE

@@ -135,7 +135,6 @@ class PagedAttention:
         if use_v1:
             # Run PagedAttention V1.
             if envs.COSPEC_CONSOLIDATED_ATTENTION:
-                logger.info("Using consolidated paged attention v1")
                 ops.consolidated_paged_attention_v1(
                     output,
                     query,
@@ -195,7 +194,6 @@ class PagedAttention:
             max_logits = torch.empty_like(exp_sums)
 
             if envs.COSPEC_CONSOLIDATED_ATTENTION:
-                logger.info("Using consolidated paged attention v2")
                 ops.consolidated_paged_attention_v2(
                     output,
                     exp_sums,
