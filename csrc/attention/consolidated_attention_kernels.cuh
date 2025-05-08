@@ -49,19 +49,22 @@ namespace vllm {
 
 // Utility function for attention softmax.
 template <int NUM_WARPS>
-inline __device__ float block_sum(float* red_smem, float sum) {
+inline __device__ float block_sum(float *red_smem, float sum)
+{
   // Decompose the thread index into warp / lane.
   int warp = threadIdx.x / WARP_SIZE;
   int lane = threadIdx.x % WARP_SIZE;
 
   // Compute the sum per warp.
 #pragma unroll
-  for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2) {
-    sum += VLLM_SHFL_XOR_SYNC(sum, mask);
+  for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2)
+  {
+    sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
   }
 
   // Warp leaders store the data to shared memory.
-  if (lane == 0) {
+  if (lane == 0)
+  {
     red_smem[warp] = sum;
   }
 
@@ -69,18 +72,59 @@ inline __device__ float block_sum(float* red_smem, float sum) {
   __syncthreads();
 
   // The warps compute the final sums.
-  if (lane < NUM_WARPS) {
+  if (lane < NUM_WARPS)
+  {
     sum = red_smem[lane];
   }
 
   // Parallel reduction inside the warp.
 #pragma unroll
-  for (int mask = NUM_WARPS / 2; mask >= 1; mask /= 2) {
-    sum += VLLM_SHFL_XOR_SYNC(sum, mask);
+  for (int mask = NUM_WARPS / 2; mask >= 1; mask /= 2)
+  {
+    sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
   }
 
   // Broadcast to other threads.
-  return VLLM_SHFL_SYNC(sum, 0);
+  return __shfl_sync(uint32_t(-1), sum, 0);
+}
+
+
+template <int NUM_WARPS_X_QK>
+inline __device__ float block_sum_query_group(float *red_smem, float sum)
+{
+  // Decompose the thread index into warp / lane.
+  int warp = threadIdx.x / WARP_SIZE;
+  int lane = threadIdx.x % WARP_SIZE;
+
+  int warp_idx_y = warp / NUM_WARPS_X_QK;
+  int warp_idx_x = warp % NUM_WARPS_X_QK;
+
+  // Compute the sum per warp.
+#pragma unroll
+  for (int mask = WARP_SIZE / 2; mask >= 1; mask /= 2)
+  {
+    sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
+  }
+  // Warp leaders store the data to shared memory.
+  if (lane == 0)
+  {
+    red_smem[warp] = sum;
+  }
+  // Make sure the data is in shared memory.
+  __syncthreads();
+  // The warps compute the final sums.
+  if (lane < NUM_WARPS_X_QK)
+  {
+    int idx = warp_idx_y * NUM_WARPS_X_QK + lane;
+    sum = red_smem[idx];
+  }
+  // Parallel reduction inside the warp.
+#pragma unroll
+  for (int mask = NUM_WARPS_X_QK / 2; mask >= 1; mask /= 2)
+  {
+    sum += __shfl_xor_sync(uint32_t(-1), sum, mask);
+  }
+  return __shfl_sync(uint32_t(-1), sum, 0);
 }
 
 // TODO(woosuk): Merge the last two dimensions of the grid.
@@ -149,14 +193,13 @@ __device__ void paged_attention_kernel(
   const int max_num_tokens = end_token_idx - start_token_idx;
 
   // (hj) As logits is x QUERY_LEN, we need to pad to BLOCK_SIZE
-  // const int PAD_MAX_NUM_TOKENS = DIVIDE_ROUND_UP(max_num_tokens, BLOCK_SIZE)
-  // * BLOCK_SIZE;
-  constexpr int PAD_MAX_NUM_TOKENS = PARTITION_SIZE;
+  // const int PAD_MAX_NUM_TOKENS = DIVIDE_ROUND_UP(max_num_tokens, BLOCK_SIZE) * BLOCK_SIZE;
+  const int PAD_MAX_NUM_TOKENS = num_seq_blocks * BLOCK_SIZE;
 
   // constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
   constexpr int THREAD_GROUP_SIZE = 1; // (hj) 1 thread per token
-  constexpr int NUM_THREAD_GROUPS =
-      NUM_THREADS / THREAD_GROUP_SIZE;  // Note: This assumes THREAD_GROUP_SIZE
+  constexpr int NUM_THREAD_GROUPS = NUM_THREADS / THREAD_GROUP_SIZE;  
+  // Note: This assumes THREAD_GROUP_SIZE
                                         // divides NUM_THREADS
   assert(WARP_SIZE % BLOCK_SIZE == 0);
   assert(WARP_SIZE >= BLOCK_SIZE);
@@ -164,7 +207,7 @@ __device__ void paged_attention_kernel(
 
   assert(NUM_THREADS % THREAD_GROUP_SIZE == 0);
   // constexpr int NUM_TOKENS_PER_THREAD_GROUP =
-  //     DIVIDE_ROUND_UP(BLOCK_SIZE, WARP_SIZE);
+      // DIVIDE_ROUND_UP(BLOCK_SIZE, WARP_SIZE);
   constexpr int NUM_TOKENS_PER_THREAD_GROUP = 1;
   constexpr int NUM_WARPS = NUM_THREADS / WARP_SIZE;
   const int thread_idx = threadIdx.x;
@@ -186,7 +229,6 @@ __device__ void paged_attention_kernel(
   constexpr int VEC_SIZE = MAX(16 / (THREAD_GROUP_SIZE * sizeof(scalar_t)), 1);
   using K_vec = typename Vec<scalar_t, VEC_SIZE>::Type;
   using Q_vec = typename Vec<scalar_t, VEC_SIZE>::Type;
-  using Quant_vec = typename Vec<cache_t, VEC_SIZE>::Type;
 
   constexpr int NUM_ELEMS_PER_THREAD = HEAD_SIZE / THREAD_GROUP_SIZE;
   constexpr int NUM_VECS_PER_THREAD = NUM_ELEMS_PER_THREAD / VEC_SIZE;
@@ -210,8 +252,7 @@ __device__ void paged_attention_kernel(
     const scalar_t *q_ptr =
         q + (cum_query_len + query_idx) * q_stride + head_idx * HEAD_SIZE;
 #pragma unroll
-    for (int i = thread_group_idx; i < NUM_VECS_PER_THREAD;
-          i += NUM_THREAD_GROUPS)
+    for (int i = thread_group_idx; i < NUM_VECS_PER_THREAD; i += NUM_THREAD_GROUPS)
     {
       const int vec_idx = thread_group_offset + i * THREAD_GROUP_SIZE;
       q_vecs[query_idx][thread_group_offset][i] =
@@ -220,6 +261,21 @@ __device__ void paged_attention_kernel(
   }
   __syncthreads();  // TODO(naed90): possible speedup if this is replaced with a
                     // memory wall right before we use q_vecs
+
+  //print q_vecs
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   int query_idx = 0;
+  //   for (int i = 0; i < NUM_VECS_PER_THREAD; i++) {
+  //     Q_vec vec = q_vecs[query_idx][thread_group_offset][i];
+  //     scalar_t* vec_ptr = reinterpret_cast<scalar_t*>(&vec);
+  //     for(int j = 0; j < VEC_SIZE; j++) {
+  //         unsigned int* p = (unsigned int*)&vec_ptr[j];
+  //         printf("Q_vecs[%d][%d][%d] = %08x\n", query_idx, thread_group_offset, i, *p);
+  //     }
+  //   }
+  // }
+
+
   constexpr int QUERIES_PER_WARP_GROUP_QK = 4;
   constexpr int NUM_WARPS_Y_QK = QUERY_SIZE / QUERIES_PER_WARP_GROUP_QK;
   constexpr int NUM_WARPS_X_QK = NUM_WARPS / NUM_WARPS_Y_QK;
@@ -235,7 +291,7 @@ __device__ void paged_attention_kernel(
   float* logits = reinterpret_cast<float*>(shared_mem);
 
   // Zero-init logits
-  for (int i = thread_idx; i < PARTITION_SIZE * QUERY_SIZE; i += NUM_THREADS)
+  for (int i = thread_idx; i < PAD_MAX_NUM_TOKENS * QUERY_SIZE; i += NUM_THREADS)
   {
     logits[i] = 0.f;
   }
@@ -286,16 +342,16 @@ __device__ void paged_attention_kernel(
     const int physical_block_offset =
         (thread_group_idx + i * WARP_SIZE) % BLOCK_SIZE;
 
-    constexpr int V_TILE_SIZE = 8; // total 16 vectors for HEAD_SIZE=128
+    constexpr int DEFAULT_V_TILE_SIZE = 8; // total 16 vectors for HEAD_SIZE=128
+    constexpr int V_TILE_SIZE = (DEFAULT_V_TILE_SIZE > NUM_VECS_PER_THREAD) ? NUM_VECS_PER_THREAD : DEFAULT_V_TILE_SIZE;
 
-    float logits_reg[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+    float logits_reg[QUERIES_PER_WARP_GROUP_QK] = {static_cast<float>(0)};
     const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
 
     if (token_idx >= max_seq_len)
       continue;
 
-    for (int v_outer = 0; v_outer < NUM_VECS_PER_THREAD / V_TILE_SIZE;
-           ++v_outer)
+    for (int v_outer = 0; v_outer < NUM_VECS_PER_THREAD / V_TILE_SIZE; ++v_outer)
     { // Load the query to registers.
       Q_vec q_vec_regs[QUERIES_PER_WARP_GROUP_QK][V_TILE_SIZE];
       K_vec k_vecs[V_TILE_SIZE];
@@ -313,11 +369,12 @@ __device__ void paged_attention_kernel(
               q_vecs[query_idx][thread_group_offset][v_outer * V_TILE_SIZE + j];
         }
       }
+
 #pragma unroll
       for (int jt = 0; jt < V_TILE_SIZE; ++jt)
       {
         int j = v_outer * V_TILE_SIZE + jt;
-        const scalar_t *k_ptr =
+        const cache_t *k_ptr =
             k_cache + physical_block_number * kv_block_stride +
             kv_head_idx * kv_head_stride + physical_block_offset * x;
         const int vec_idx = thread_group_offset + j * THREAD_GROUP_SIZE;
@@ -337,6 +394,11 @@ __device__ void paged_attention_kernel(
                                 q_vec_regs[it], k_vecs);
         qk += (alibi_slope != 0) ? alibi_slope * (token_idx - n_seq_len + 1)
                                   : 0;
+
+        // // print qk for head_idx == 0, seq_idx == 0, thread_idx == 0
+        // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0 && token_idx < 10) {
+        //   printf("qk[%d] = %f\n", token_idx, qk);
+        // }
         const bool mask = token_idx >= n_seq_len;
         logits_reg[it] += mask ? 0.f : qk;
       } // query_idx end
@@ -357,7 +419,7 @@ __device__ void paged_attention_kernel(
 
       float over_max = query_idx < query_len ? 1.0 : 0.0;
 
-      int logits_index = logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, tok_offset);
+      int logits_index = query_idx * PAD_MAX_NUM_TOKENS + tok_offset;      
       logits[logits_index] = logits_reg[it] * over_max;
     }
   } // Seq-len iterator end
@@ -390,9 +452,16 @@ __device__ void paged_attention_kernel(
   }
   __syncthreads();
 
+  // print logits for head_idx == 0, seq_idx == 0, thread_idx == 0 
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("logits[%d] = %f\n", i, logits[i]);
+  //   }
+  // }
+
   // TODO(woosuk): Refactor this part.
   // Get the max qk value for the sequence.
-  float exp_sum_arr[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+  float exp_sum_arr[QUERIES_PER_WARP_GROUP_QK] = {static_cast<float>(0)};
 
   for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
   {
@@ -412,7 +481,7 @@ __device__ void paged_attention_kernel(
   // 이게 bottleneck
 
   int num_tokens_arr[QUERIES_PER_WARP_GROUP_QK];
-  float inv_sums_arr[QUERIES_PER_WARP_GROUP_QK] = {0.f};
+  float inv_sums_arr[QUERIES_PER_WARP_GROUP_QK] = {static_cast<float>(0)};
 
   for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
   {
@@ -421,8 +490,7 @@ __device__ void paged_attention_kernel(
       break;
     // Get the sum of the exp values.
     int seq_len_for_query = seq_lens[cum_query_len + query_idx];
-    int partitions_needed =
-        DIVIDE_ROUND_UP(seq_len_for_query, PARTITION_SIZE);
+    int partitions_needed = PARTITION_SIZE > 0 ? DIVIDE_ROUND_UP(seq_len_for_query, PARTITION_SIZE) : 1;
     // If last, subtract
     int num_tokens;
     if (partitions_needed > partition_idx + 1)
@@ -446,9 +514,9 @@ __device__ void paged_attention_kernel(
     for (int i = thread_idx - (warp_idx_y_qk * NUM_WARPS_X_QK * WARP_SIZE);
           i < num_tokens_arr[it]; i += NUM_THREADS / NUM_WARPS_Y_QK)
     {
-      float val = __expf(logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] -
+      float val = __expf(logits[query_idx * PAD_MAX_NUM_TOKENS + i] -
                           qk_max_reg[it]);
-      logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] = val;
+      logits[query_idx * PAD_MAX_NUM_TOKENS + i] = val;
       exp_sum_arr[it] += val;
     }
   }
@@ -481,10 +549,16 @@ __device__ void paged_attention_kernel(
     for (int i = thread_idx - (warp_idx_y_qk * NUM_WARPS_X_QK * WARP_SIZE);
           i < num_tokens_arr[it]; i += NUM_THREADS / NUM_WARPS_Y_QK)
     {
-      logits[logits_idx<PAD_MAX_NUM_TOKENS>(query_idx, i)] *= inv_sums_arr[it];
+      logits[query_idx * PAD_MAX_NUM_TOKENS + i] *= inv_sums_arr[it];
     }
   }
   __syncthreads();
+
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("logits[%d] = %f\n", i, logits[i]);
+  //   }
+  // }
 
   // If partitioning is enabled, store the max logit and exp_sum.
   if (USE_PARTITIONING)
@@ -506,6 +580,8 @@ __device__ void paged_attention_kernel(
       *exp_sums_ptr = exp_sum_arr[it];
     }
   }
+
+  constexpr int V_VEC_SIZE = MIN(16 / sizeof(scalar_t), BLOCK_SIZE);
 
   // Each thread will fetch 16 bytes from the value cache at a time.
   using V_vec = typename Vec<scalar_t, V_VEC_SIZE>::Type;
@@ -533,6 +609,7 @@ __device__ void paged_attention_kernel(
 
   assert(NUM_WARPS_X * NUM_WARPS_Y * NUM_WARPS_Z == NUM_WARPS);
 
+
   // TODO: may change w.r.t scheduling
   int warp_idx_x = warp_idx % NUM_WARPS_X;                 // seq_len tiling
   int warp_idx_y = (warp_idx / NUM_WARPS_X) % NUM_WARPS_Y; // head_size tiling
@@ -543,19 +620,31 @@ __device__ void paged_attention_kernel(
   const int max_row_idx = start_row_idx + NUM_COLS_PER_WARP;
   // NOTE(woosuk): We use FP32 for the accumulator for better accuracy.
   // A_vec accs_vecs[QUERIES_PER_WARP_GROUP][NUM_ROWS_PER_THREAD] = {0.f};
-  float accs[QUERIES_PER_WARP_GROUP][NUM_ROWS_PER_THREAD] = {0.f};
+  float accs[QUERIES_PER_WARP_GROUP][NUM_ROWS_PER_THREAD] = {static_cast<float>(0)};
 
   scalar_t zero_value;
   zero(zero_value);
 
-  V_vec v_vec_regs[NUM_ROWS_PER_THREAD] = {0.f};
-  L_vec logits_vec_regs[QUERIES_PER_WARP_GROUP] = {0.f};
+  V_vec v_vec_regs[NUM_ROWS_PER_THREAD];
+  L_vec logits_vec_regs[QUERIES_PER_WARP_GROUP];
   V_vec zero_v_vec;
   zero(zero_v_vec);
   L_vec zero_l_vec;
   zero(zero_l_vec);
-  constexpr int TM = 4;
-  constexpr int TN = 4;
+
+#pragma unroll
+  for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
+    zero(v_vec_regs[i]);
+  }
+#pragma unroll
+  for (int i = 0; i < QUERIES_PER_WARP_GROUP; i++) {
+    zero(logits_vec_regs[i]);
+  }
+
+  constexpr int DEFAULT_TM = 4;
+  constexpr int DEFAULT_TN = 4;
+  constexpr int TM = (DEFAULT_TM > NUM_ROWS_PER_THREAD) ? NUM_ROWS_PER_THREAD : DEFAULT_TM;
+  constexpr int TN = (DEFAULT_TN > QUERIES_PER_WARP_GROUP) ? QUERIES_PER_WARP_GROUP : DEFAULT_TN;
 
   assert(NUM_ROWS_PER_THREAD % TM == 0);
   assert(QUERIES_PER_WARP_GROUP % TN == 0);
@@ -573,15 +662,14 @@ __device__ void paged_attention_kernel(
         static_cast<int64_t>(block_table[block_idx]);
     const int physical_block_offset = (lane % NUM_V_VECS_PER_ROW) * V_VEC_SIZE;
     const int token_idx = block_idx * BLOCK_SIZE + physical_block_offset;
-    const scalar_t *v_ptr = v_cache + physical_block_number * kv_block_stride +
+    const cache_t *v_ptr = v_cache + physical_block_number * kv_block_stride +
                             kv_head_idx * kv_head_stride;
 
     if (token_idx >= max_seq_len)
       continue;
 // Populate registers for whole warptiling
 #pragma unroll
-    for (int i = 0; i < NUM_ROWS_PER_THREAD;
-          ++i) // equiv to WNTiling.. head_size warptiling
+    for (int i = 0; i < NUM_ROWS_PER_THREAD; ++i) // equiv to WNTiling.. head_size warptiling
     {
       v_vec_regs[i] = zero_v_vec;
       const int row_idx =
@@ -594,26 +682,22 @@ __device__ void paged_attention_kernel(
       }
     }
 #pragma unroll
-    for (int it = 0; it < QUERIES_PER_WARP_GROUP;
-          ++it) // equiv to WMTiling.. query_len warptiling
+    for (int it = 0; it < QUERIES_PER_WARP_GROUP; ++it) // equiv to WMTiling.. query_len warptiling
     {
       int query_idx = query_len - 1 - warp_idx_z - it * NUM_WARPS_Z;
       if (query_idx < 0)
         continue;
       L_vec logits_vec = zero_l_vec;
-      int idx = logits_idx<PAD_MAX_NUM_TOKENS>(query_idx,
-                                                token_idx - start_token_idx);
+      int idx = query_idx * PAD_MAX_NUM_TOKENS + token_idx - start_token_idx;
       from_float(logits_vec, *reinterpret_cast<Float_L_vec *>(&logits[idx]));
       logits_vec_regs[it] = logits_vec;
     }
 
 #pragma unroll
-    for (int it_tn = 0; it_tn < QUERIES_PER_WARP_GROUP_TN;
-          ++it_tn) // equiv to WMTiling.. query_len warptiling
+    for (int it_tn = 0; it_tn < QUERIES_PER_WARP_GROUP_TN; ++it_tn) // equiv to WMTiling.. query_len warptiling
     {
 #pragma unroll
-      for (int i_tm = 0; i_tm < NUM_ROWS_PER_THREAD_TM;
-            ++i_tm) // equiv to WNTiling.. head_size warptiling
+      for (int i_tm = 0; i_tm < NUM_ROWS_PER_THREAD_TM; ++i_tm) // equiv to WNTiling.. head_size warptiling
       {
 #pragma unroll
         for (int j = 0; j < TN; ++j)
@@ -656,9 +740,18 @@ __device__ void paged_attention_kernel(
   // logits is reused for the output.
   __syncthreads();
 
+  // print accs for head_idx == 0, seq_idx == 0, thread_idx == 0
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int it = 0; it < QUERIES_PER_WARP_GROUP; it++) {
+  //     for (int i = 0; i < 10; i++) {
+  //       printf("accs[%d][%d] = %f\n", it, i, accs[it][i]);
+  //     }
+  //   }
+  // }
+
   // Perform reduction across warps.
-  float *out_smem = reinterpret_cast<float *>(
-      shared_mem); // TODO 배열 정하기
+  float *out_smem = reinterpret_cast<float *>(shared_mem); 
+                    // TODO 배열 정하기
                     // Before : out_smem : [QUERY_SIZE, NUM_WARPS / 2, HEAD_SIZE]
                     // After : out_smem : [QUERY_SIZE, NUM_WARPS / 2,
                     // NUM_WARPS_Y, HEAD_SIZE]

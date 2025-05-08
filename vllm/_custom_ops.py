@@ -74,6 +74,7 @@ def consolidated_paged_attention_v1(
     scale: float,
     block_tables: torch.Tensor,
     seq_lens: torch.Tensor,
+    query_lens: torch.Tensor,
     block_size: int,
     max_seq_len: int,
     alibi_slopes: Optional[torch.Tensor],
@@ -88,8 +89,8 @@ def consolidated_paged_attention_v1(
 ) -> None:
     torch.ops._C.consolidated_paged_attention_v1(
         out, query, key_cache, value_cache, num_kv_heads, scale, block_tables,
-        seq_lens, block_size, max_seq_len, alibi_slopes, kv_cache_dtype,
-        k_scale, v_scale, tp_rank, blocksparse_local_blocks,
+        seq_lens, query_lens, block_size, max_seq_len, alibi_slopes,
+        kv_cache_dtype, k_scale, v_scale, tp_rank, blocksparse_local_blocks,
         blocksparse_vert_stride, blocksparse_block_size,
         blocksparse_head_sliding_step)
 
@@ -137,6 +138,7 @@ def consolidated_paged_attention_v2(
     scale: float,
     block_tables: torch.Tensor,
     seq_lens: torch.Tensor,
+    query_lens: torch.Tensor,
     block_size: int,
     max_seq_len: int,
     alibi_slopes: Optional[torch.Tensor],
@@ -151,8 +153,8 @@ def consolidated_paged_attention_v2(
 ) -> None:
     torch.ops._C.consolidated_paged_attention_v2(
         out, exp_sums, max_logits, tmp_out, query, key_cache, value_cache,
-        num_kv_heads, scale, block_tables, seq_lens, block_size, max_seq_len,
-        alibi_slopes, kv_cache_dtype, k_scale, v_scale, tp_rank,
+        num_kv_heads, scale, block_tables, seq_lens, query_lens, block_size,
+        max_seq_len, alibi_slopes, kv_cache_dtype, k_scale, v_scale, tp_rank,
         blocksparse_local_blocks, blocksparse_vert_stride,
         blocksparse_block_size, blocksparse_head_sliding_step)
 

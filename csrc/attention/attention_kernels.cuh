@@ -188,6 +188,18 @@ __device__ void paged_attention_kernel(
   __syncthreads();  // TODO(naed90): possible speedup if this is replaced with a
                     // memory wall right before we use q_vecs
 
+  //print q_vecs
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < NUM_VECS_PER_THREAD; i++) {
+  //     Q_vec vec = q_vecs[thread_group_offset][i];
+  //     scalar_t* vec_ptr = reinterpret_cast<scalar_t*>(&vec);
+  //     for(int j = 0; j < VEC_SIZE; j++) {
+  //         unsigned int* p = (unsigned int*)&vec_ptr[j];
+  //         printf("Q_vecs[%d][%d] = %08x\n", thread_group_offset, i, *p);
+  //     }
+  //   }
+  // }
+
   // Memory planning.
   extern __shared__ char shared_mem[];
   // NOTE(woosuk): We use FP32 for the softmax logits for better accuracy.
@@ -293,8 +305,14 @@ __device__ void paged_attention_kernel(
       // This includes a reduction across the threads in the same thread group.
       float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot(
                              q_vecs[thread_group_offset], k_vecs);
+      
       // Add the ALiBi bias if slopes are given.
       qk += (alibi_slope != 0) ? alibi_slope * (token_idx - seq_len + 1) : 0;
+
+      // // print qk for head_idx == 0, seq_idx == 0, thread_idx == 0
+      // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0 && token_idx < 10) {
+      //   printf("qk[%d] = %f\n", token_idx, qk);
+      // }
 
       if (thread_group_offset == 0) {
         // Store the partial reductions to shared memory.
@@ -318,6 +336,13 @@ __device__ void paged_attention_kernel(
     red_smem[warp_idx] = qk_max;
   }
   __syncthreads();
+
+  // Print logits for head_idx == 0, seq_idx == 0, thread_idx == 0
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("logits[%d] = %f\n", i, logits[i]);
+  //   }
+  // }
 
   // TODO(woosuk): Refactor this part.
   // Get the max qk value for the sequence.
@@ -344,6 +369,12 @@ __device__ void paged_attention_kernel(
     logits[i] *= inv_sum;
   }
   __syncthreads();
+
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("logits[%d] = %f\n", i, logits[i]);
+  //   }
+  // }
 
   // If partitioning is enabled, store the max logit and exp_sum.
   if (USE_PARTITIONING && thread_idx == 0) {
@@ -447,6 +478,13 @@ __device__ void paged_attention_kernel(
   // NOTE(woosuk): A barrier is required because the shared memory space for
   // logits is reused for the output.
   __syncthreads();
+
+  // print accs for head_idx == 0, seq_idx == 0, thread_idx == 0
+  // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0) {
+  //   for (int i = 0; i < 10; i++) {
+  //     printf("accs[%d] = %f\n", i, accs[i]);
+  //   }
+  // }
 
   // Perform reduction across warps.
   float* out_smem = reinterpret_cast<float*>(shared_mem);
