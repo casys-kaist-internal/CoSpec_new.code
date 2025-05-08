@@ -194,10 +194,10 @@ __device__ void paged_attention_kernel(
 
   // (hj) As logits is x QUERY_LEN, we need to pad to BLOCK_SIZE
   // const int PAD_MAX_NUM_TOKENS = DIVIDE_ROUND_UP(max_num_tokens, BLOCK_SIZE) * BLOCK_SIZE;
-  const int PAD_MAX_NUM_TOKENS = num_seq_blocks * BLOCK_SIZE;
+  const int PAD_MAX_NUM_TOKENS = USE_PARTITIONING ? PARTITION_SIZE : num_seq_blocks * BLOCK_SIZE;
 
-  // constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
-  constexpr int THREAD_GROUP_SIZE = 1; // (hj) 1 thread per token
+  constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
+  // constexpr int THREAD_GROUP_SIZE = 1; // (hj) 1 thread per token
   constexpr int NUM_THREAD_GROUPS = NUM_THREADS / THREAD_GROUP_SIZE;  
   // Note: This assumes THREAD_GROUP_SIZE
                                         // divides NUM_THREADS
@@ -229,6 +229,7 @@ __device__ void paged_attention_kernel(
   constexpr int VEC_SIZE = MAX(16 / (THREAD_GROUP_SIZE * sizeof(scalar_t)), 1);
   using K_vec = typename Vec<scalar_t, VEC_SIZE>::Type;
   using Q_vec = typename Vec<scalar_t, VEC_SIZE>::Type;
+  using Quant_vec = typename Vec<cache_t, VEC_SIZE>::Type;
 
   constexpr int NUM_ELEMS_PER_THREAD = HEAD_SIZE / THREAD_GROUP_SIZE;
   constexpr int NUM_VECS_PER_THREAD = NUM_ELEMS_PER_THREAD / VEC_SIZE;
@@ -274,7 +275,6 @@ __device__ void paged_attention_kernel(
   //     }
   //   }
   // }
-
 
   constexpr int QUERIES_PER_WARP_GROUP_QK = 4;
   constexpr int NUM_WARPS_Y_QK = QUERY_SIZE / QUERIES_PER_WARP_GROUP_QK;
@@ -351,7 +351,9 @@ __device__ void paged_attention_kernel(
     if (token_idx >= max_seq_len)
       continue;
 
-    for (int v_outer = 0; v_outer < NUM_VECS_PER_THREAD / V_TILE_SIZE; ++v_outer)
+    assert(NUM_VECS_PER_THREAD % V_TILE_SIZE == 0);
+
+    for (int v_outer = 0; v_outer < DIVIDE_ROUND_UP(NUM_VECS_PER_THREAD / V_TILE_SIZE); ++v_outer)
     { // Load the query to registers.
       Q_vec q_vec_regs[QUERIES_PER_WARP_GROUP_QK][V_TILE_SIZE];
       K_vec k_vecs[V_TILE_SIZE];
@@ -380,8 +382,16 @@ __device__ void paged_attention_kernel(
         const int vec_idx = thread_group_offset + j * THREAD_GROUP_SIZE;
         const int offset1 = (vec_idx * VEC_SIZE) / x;
         const int offset2 = (vec_idx * VEC_SIZE) % x;
-        k_vecs[jt] = *reinterpret_cast<const K_vec *>(
-            k_ptr + offset1 * BLOCK_SIZE * x + offset2);
+        if constexpr (KV_DTYPE == Fp8KVCacheDataType::kAuto) {
+          k_vecs[jt] = *reinterpret_cast<const K_vec *>(
+              k_ptr + offset1 * BLOCK_SIZE * x + offset2);
+        } else {
+          // Vector conversion from Quant_vec to K_vec.
+          Quant_vec k_vec_quant = *reinterpret_cast<const Quant_vec*>(
+              k_ptr + offset1 * BLOCK_SIZE * x + offset2);
+          k_vecs[jt] = fp8::scaled_convert<K_vec, Quant_vec, KV_DTYPE>(
+              k_vec_quant, *k_scale);
+        }
       }
 
       for (int it = 0; it < QUERIES_PER_WARP_GROUP_QK; ++it)
@@ -390,10 +400,10 @@ __device__ void paged_attention_kernel(
         if (query_idx >= query_len)
           break;
         int n_seq_len = seq_len + query_idx;
-        float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot_nosync(
+        // float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot_nosync(
+        float qk = scale * Qk_dot<scalar_t, THREAD_GROUP_SIZE>::dot(
                                 q_vec_regs[it], k_vecs);
-        qk += (alibi_slope != 0) ? alibi_slope * (token_idx - n_seq_len + 1)
-                                  : 0;
+        qk += (alibi_slope != 0) ? alibi_slope * (token_idx - n_seq_len + 1) : 0;
 
         // // print qk for head_idx == 0, seq_idx == 0, thread_idx == 0
         // if (head_idx == 0 && seq_idx == 0 && thread_idx == 0 && token_idx < 10) {
@@ -586,6 +596,7 @@ __device__ void paged_attention_kernel(
   // Each thread will fetch 16 bytes from the value cache at a time.
   using V_vec = typename Vec<scalar_t, V_VEC_SIZE>::Type;
   using L_vec = typename Vec<scalar_t, V_VEC_SIZE>::Type;
+  using V_quant_vec = typename Vec<cache_t, V_VEC_SIZE>::Type;
   using Float_L_vec = typename FloatVec<L_vec>::Type;
 
   constexpr int QUERIES_PER_WARP_GROUP = 4; // QUERY_SIZE
@@ -599,13 +610,13 @@ __device__ void paged_attention_kernel(
       NUM_WARPS / NUM_WARPS_Y / NUM_WARPS_Z; // seq_len tiling 2
 
   constexpr int NUM_COLS_PER_WARP =
-      HEAD_SIZE / NUM_WARPS_PER_HEAD; // 128 / 1 = 128
+      HEAD_SIZE / NUM_WARPS_PER_HEAD; // 112 / 1 = 112
 
   constexpr int NUM_V_VECS_PER_ROW = BLOCK_SIZE / V_VEC_SIZE; // 32 / 8 = 4
   constexpr int NUM_ROWS_PER_ITER =
       WARP_SIZE / NUM_V_VECS_PER_ROW; // 32 / 4 = 8
   constexpr int NUM_ROWS_PER_THREAD =
-      DIVIDE_ROUND_UP(NUM_COLS_PER_WARP, NUM_ROWS_PER_ITER); // 128 / 8 = 16
+      DIVIDE_ROUND_UP(NUM_COLS_PER_WARP, NUM_ROWS_PER_ITER); // 112 / 8 = 14
 
   assert(NUM_WARPS_X * NUM_WARPS_Y * NUM_WARPS_Z == NUM_WARPS);
 
@@ -649,8 +660,8 @@ __device__ void paged_attention_kernel(
   assert(NUM_ROWS_PER_THREAD % TM == 0);
   assert(QUERIES_PER_WARP_GROUP % TN == 0);
 
-  constexpr int NUM_ROWS_PER_THREAD_TM = NUM_ROWS_PER_THREAD / TM;
-  constexpr int QUERIES_PER_WARP_GROUP_TN = QUERIES_PER_WARP_GROUP / TN;
+  constexpr int NUM_ROWS_PER_THREAD_TM = DIVIDE_ROUND_UP(NUM_ROWS_PER_THREAD / TM);
+  constexpr int QUERIES_PER_WARP_GROUP_TN = DIVIDE_ROUND_UP(QUERIES_PER_WARP_GROUP / TN);
 
   for (int block_idx = start_block_idx + warp_idx_x; block_idx < end_block_idx;
         block_idx += NUM_WARPS_X) // equiv to dot_idx
@@ -677,8 +688,15 @@ __device__ void paged_attention_kernel(
       if (row_idx < max_row_idx)
       {
         const int offset = row_idx * BLOCK_SIZE + physical_block_offset;
-        V_vec v_vec = *reinterpret_cast<const V_vec *>(v_ptr + offset);
-        v_vec_regs[i] = v_vec;
+        if constexpr (KV_DTYPE == Fp8KVCacheDataType::kAuto) {
+          V_vec v_vec = *reinterpret_cast<const V_vec *>(v_ptr + offset);
+          v_vec_regs[i] = v_vec;
+        } else {
+          V_quant_vec v_quant_vec = *reinterpret_cast<const V_quant_vec*>(
+              v_ptr + offset);
+          v_vec_regs[i] = fp8::scaled_convert<V_vec, V_quant_vec, KV_DTYPE>(
+              v_quant_vec, *v_scale);
+        }
       }
     }
 #pragma unroll

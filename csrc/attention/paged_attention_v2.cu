@@ -109,30 +109,30 @@ void paged_attention_v2_launcher(
     case 32:
       LAUNCH_PAGED_ATTENTION_V2(32);
       break;
-    // case 64:
-    //   LAUNCH_PAGED_ATTENTION_V2(64);
-    //   break;
-    // case 80:
-    //   LAUNCH_PAGED_ATTENTION_V2(80);
-    //   break;
-    // case 96:
-    //   LAUNCH_PAGED_ATTENTION_V2(96);
-    //   break;
-    // case 112:
-    //   LAUNCH_PAGED_ATTENTION_V2(112);
-    //   break;
-    // case 120:
-    //   LAUNCH_PAGED_ATTENTION_V2(120);
-    //   break;
-    // case 128:
-    //   LAUNCH_PAGED_ATTENTION_V2(128);
-    //   break;
-    // case 192:
-    //   LAUNCH_PAGED_ATTENTION_V2(192);
-    //   break;
-    // case 256:
-    //   LAUNCH_PAGED_ATTENTION_V2(256);
-    //   break;
+    case 64:
+      LAUNCH_PAGED_ATTENTION_V2(64);
+      break;
+    case 80:
+      LAUNCH_PAGED_ATTENTION_V2(80);
+      break;
+    case 96:
+      LAUNCH_PAGED_ATTENTION_V2(96);
+      break;
+    case 112:
+      LAUNCH_PAGED_ATTENTION_V2(112);
+      break;
+    case 120:
+      LAUNCH_PAGED_ATTENTION_V2(120);
+      break;
+    case 128:
+      LAUNCH_PAGED_ATTENTION_V2(128);
+      break;
+    case 192:
+      LAUNCH_PAGED_ATTENTION_V2(192);
+      break;
+    case 256:
+      LAUNCH_PAGED_ATTENTION_V2(256);
+      break;
     default:
       TORCH_CHECK(false, "Unsupported head size: ", head_size);
       break;
@@ -157,31 +157,31 @@ void paged_attention_v2_launcher(
 
 // NOTE(woosuk): To reduce the compilation time, we omitted block sizes
 // 1, 2, 4, 64, 128, 256.
-// #define CALL_V2_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
-//   switch (block_size) {                                           \
-//     case 8:                                                       \
-//       CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
-//       break;                                                      \
-//     case 16:                                                      \
-//       CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
-//       break;                                                      \
-//     case 32:                                                      \
-//       CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
-//       break;                                                      \
-//     default:                                                      \
-//       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
-//       break;                                                      \
-//   }
-
 #define CALL_V2_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
   switch (block_size) {                                           \
+    case 8:                                                       \
+      CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
+      break;                                                      \
     case 16:                                                      \
       CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
+      break;                                                      \
+    case 32:                                                      \
+      CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
       break;                                                      \
     default:                                                      \
       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
       break;                                                      \
   }
+
+// #define CALL_V2_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
+//   switch (block_size) {                                           \
+//     case 16:                                                      \
+//       CALL_V2_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
+//       break;                                                      \
+//     default:                                                      \
+//       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
+//       break;                                                      \
+//   }
 
 void paged_attention_v2(
     torch::Tensor& out,         // [num_seqs, num_heads, head_size]

@@ -15,6 +15,7 @@ KV_CACHE_DTYPE = "auto"
 SEED = 0
 DEVICE = "cuda:0"
 QUERY_SIZE = 8
+VERSION = "v2"
 
 def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size, 
                     kv_cache_dtype, dtype, seed, device):
@@ -110,44 +111,113 @@ def main():
     output = torch.empty_like(query)
     ref_output = torch.empty_like(query)
     
-    # Run consolidated attention
-    ops.consolidated_paged_attention_v1(
-        output,
-        query,
-        key_cache,
-        value_cache,
-        num_kv_heads,
-        scale,
-        block_tables,
-        seq_lens,
-        query_lens,
-        BLOCK_SIZE,
-        max_seq_len,
-        None,  # alibi_slopes
-        KV_CACHE_DTYPE,
-        k_scale,
-        v_scale,
-    )
+    if VERSION == "v1":
+        # Run consolidated attention
+        ops.consolidated_paged_attention_v1(
+            output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            query_lens,
+            BLOCK_SIZE,
+            max_seq_len,
+            None,  # alibi_slopes
+            KV_CACHE_DTYPE,
+            k_scale,
+            v_scale,
+        )
 
-    ops.paged_attention_v1(
-        ref_output,
-        query,
-        key_cache,
-        value_cache,
-        num_kv_heads,
-        scale,
-        block_tables,
-        seq_lens,
-        BLOCK_SIZE,
-        max_seq_len,
-        None,  # alibi_slopes
-        KV_CACHE_DTYPE,
-        k_scale,
-        v_scale,
-    )
-    
+        ops.paged_attention_v1(
+            ref_output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            BLOCK_SIZE,
+            max_seq_len,
+            None,  # alibi_slopes
+            KV_CACHE_DTYPE,
+            k_scale,
+            v_scale,
+        )
+        
+    elif VERSION == "v2":
+        num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
+        num_seqs, num_heads, head_size = output.shape
+        tmp_output = torch.empty(
+            size=(num_seqs, num_heads, num_partitions, head_size),
+            dtype=output.dtype,
+        )
+        exp_sums = torch.empty(
+            size=(num_seqs, num_heads, num_partitions),
+            dtype=torch.float32,
+        )
+        max_logits = torch.empty_like(exp_sums)
+
+        ops.paged_attention_v2(
+            ref_output,
+            exp_sums,
+            max_logits,
+            tmp_output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            BLOCK_SIZE,
+            max_seq_len,
+            None,
+            KV_CACHE_DTYPE,
+            k_scale,
+            v_scale,
+        )
+
+        tmp_output = torch.empty(
+            size=(num_seqs, num_heads, num_partitions, head_size),
+            dtype=output.dtype,
+        )
+        exp_sums = torch.empty(
+            size=(num_seqs, num_heads, num_partitions),
+            dtype=torch.float32,
+        )
+        max_logits = torch.empty_like(exp_sums)
+
+        ops.consolidated_paged_attention_v2(
+            output,
+            exp_sums,
+            max_logits,
+            tmp_output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            query_lens,
+            BLOCK_SIZE,
+            max_seq_len,
+            None,
+            KV_CACHE_DTYPE,
+            k_scale,
+            v_scale,
+        )
+
+    else:
+        raise ValueError(f"Unsupported version: {VERSION}")
+
     # all_close 
     assert torch.allclose(output, ref_output, atol=1e-3)
-    
+    print("Consolidated attention test passed!")
+
 if __name__ == "__main__":
     main()

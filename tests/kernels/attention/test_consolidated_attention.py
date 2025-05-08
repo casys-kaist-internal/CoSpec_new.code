@@ -32,29 +32,27 @@ PARTITION_SIZE_ROCM = 256
 #     torch.half, torch.bfloat16, torch.float
 # ] if not current_platform.is_rocm() else [torch.half, torch.bfloat16]
 DTYPES = [
-    torch.half
+    torch.half, torch.bfloat16
 ] if not current_platform.is_rocm() else [torch.half, torch.bfloat16]
 NUM_GEN_SEQS = [7]  # Arbitrary values for testing
 NUM_PREFILL_SEQS = [3]  # Arbitrary values for testing
-# NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
-NUM_HEADS = [(40, 40)]  # Arbitrary values for testing
+NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
 
 # This should be sync with get_supported_head_sizes() in
 # vllm.attention.ops.paged_attn.PagedAttention
 # HEAD_SIZES = [32, 64, 80, 96, 112, 120, 128, 192, 256]
-HEAD_SIZES = [32]
+HEAD_SIZES = [112]
 
 # BLOCK_SIZES = [16, 32]
 BLOCK_SIZES = [16]
 
-USE_ALIBI = [False]
+USE_ALIBI = [False, True]
 # KV_CACHE_DTYPE = ["auto", "fp8"]
 KV_CACHE_DTYPE = ["auto"]
 SEEDS = [0]
-# CUDA_DEVICES = [
-#     f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)
-# ]
-CUDA_DEVICES = ["cuda:0"]
+CUDA_DEVICES = [
+    f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)
+]
 
 QUERY_SIZE = 8
 
@@ -130,7 +128,7 @@ def ref_single_query_cached_kv_attention(
 
 @pytest.mark.parametrize(
     "version",
-    ["v1"])
+    ["v1", "v2"])
 @pytest.mark.parametrize("num_seqs", NUM_GEN_SEQS)
 @pytest.mark.parametrize("num_heads", NUM_HEADS)
 @pytest.mark.parametrize("head_size", HEAD_SIZES)
