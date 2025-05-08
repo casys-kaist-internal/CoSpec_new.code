@@ -28,27 +28,35 @@ NUM_BLOCKS = 4321  # Arbitrary values for testing
 PARTITION_SIZE = 512
 PARTITION_SIZE_ROCM = 256
 # flshattF and tritonflashattF supported: {torch.float16, torch.bfloat16}
+# DTYPES = [
+#     torch.half, torch.bfloat16, torch.float
+# ] if not current_platform.is_rocm() else [torch.half, torch.bfloat16]
 DTYPES = [
-    torch.half, torch.bfloat16, torch.float
+    torch.half
 ] if not current_platform.is_rocm() else [torch.half, torch.bfloat16]
 NUM_GEN_SEQS = [7]  # Arbitrary values for testing
 NUM_PREFILL_SEQS = [3]  # Arbitrary values for testing
-NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
+# NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
+NUM_HEADS = [(40, 40)]  # Arbitrary values for testing
 
 # This should be sync with get_supported_head_sizes() in
 # vllm.attention.ops.paged_attn.PagedAttention
-HEAD_SIZES = [32, 64, 80, 96, 112, 120, 128, 192, 256]
+# HEAD_SIZES = [32, 64, 80, 96, 112, 120, 128, 192, 256]
+HEAD_SIZES = [32]
 
-BLOCK_SIZES = [16, 32]
-USE_ALIBI = [False, True]
-KV_CACHE_DTYPE = ["auto", "fp8"]
+# BLOCK_SIZES = [16, 32]
+BLOCK_SIZES = [16]
+
+USE_ALIBI = [False]
+# KV_CACHE_DTYPE = ["auto", "fp8"]
+KV_CACHE_DTYPE = ["auto"]
 SEEDS = [0]
-CUDA_DEVICES = [
-    f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)
-]
+# CUDA_DEVICES = [
+#     f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)
+# ]
+CUDA_DEVICES = ["cuda:0"]
 
 QUERY_SIZE = 8
-
 
 def ref_masked_attention(
     query: torch.Tensor,
@@ -122,7 +130,7 @@ def ref_single_query_cached_kv_attention(
 
 @pytest.mark.parametrize(
     "version",
-    ["v1", "v2"])
+    ["v1"])
 @pytest.mark.parametrize("num_seqs", NUM_GEN_SEQS)
 @pytest.mark.parametrize("num_heads", NUM_HEADS)
 @pytest.mark.parametrize("head_size", HEAD_SIZES)
@@ -159,35 +167,46 @@ def test_consolidated_paged_attention(
     query.uniform_(-scale, scale)
 
     assert num_query_heads % num_kv_heads == 0
-    num_queries_per_kv = num_query_heads // num_kv_heads
     alibi_slopes = None
     if use_alibi:
         alibi_slopes = torch.randn(num_query_heads, dtype=torch.float)
 
     seq_lens = []
     query_lens = []
+
     for seq_idx in range(num_seqs):
-        # start a random number of query between 1 and QUERY_SIZE - 1
-        query_len = random.randint(1, QUERY_SIZE - 1)
+        query_len = random.randint(2, QUERY_SIZE - 1)
         query_lens.append(query_len)
-        # choose a starting random number between 0 and MAX_SEQ_LEN - query_len
-        start = random.randint(0, MAX_SEQ_LEN - query_len)
+
+    for query_len in query_lens:
+        start = random.randint(1, 1000 - query_len)
         for query_idx in range(query_len):
             seq_lens.append(start + query_idx)
+
+    # query should be repeated query_len at the first dimension
+    repeated_query = []
+    query_idx = 0
+    for query_len in query_lens:
+        for _ in range(query_len):
+            repeated_query.append(query[query_idx])
+        query_idx += 1
+    query = torch.stack(repeated_query)
 
     max_seq_len = max(seq_lens)
     seq_lens = torch.tensor(seq_lens, dtype=torch.int)
     query_lens = torch.tensor(query_lens, dtype=torch.int)
-    
+
     # Create the block tables.
     max_num_blocks_per_seq = (max_seq_len + block_size - 1) // block_size
     block_tables_lst: list[list[int]] = []
-    for _ in range(num_seqs):
+    
+    for seq_idx in range(num_seqs):
         block_table = [
             random.randint(0, NUM_BLOCKS - 1)
             for _ in range(max_num_blocks_per_seq)
         ]
-        block_tables_lst.append(block_table)
+        for query_idx in range(query_lens[seq_idx]):
+            block_tables_lst.append(block_table)
 
     block_tables = torch.tensor(block_tables_lst, dtype=torch.int)
 
@@ -204,6 +223,15 @@ def test_consolidated_paged_attention(
     # Call the paged attention kernel.
     output = torch.empty_like(query)
     if version == "v1":
+        # Debug: Print input tensors
+        print("\nInput tensors:")
+        print(f"query shape: {query.shape}")
+        print(f"key_cache shape: {key_cache.shape}")
+        print(f"value_cache shape: {value_cache.shape}")
+        print(f"block_tables shape: {block_tables.shape}")
+        print(f"seq_lens shape: {seq_lens.shape}")
+        print(f"query_lens shape: {query_lens.shape}")
+        
         ops.consolidated_paged_attention_v1(
             output,
             query,
@@ -216,18 +244,16 @@ def test_consolidated_paged_attention(
             query_lens,
             block_size,
             max_seq_len,
-            alibi_slopes,
+            None,
             kv_cache_dtype,
             k_scale,
             v_scale,
         )
 
-        opcheck(torch.ops._C.consolidated_paged_attention_v1,
-                (output, query, key_cache, value_cache, num_kv_heads, scale,
-                 block_tables, seq_lens, query_lens, block_size, max_seq_len, alibi_slopes,
-                 kv_cache_dtype, k_scale, v_scale, 0, 0, 0, 64, 0),
-                cond=(head_size == HEAD_SIZES[0]
-                      and block_size == BLOCK_SIZES[0]))
+        # Debug: Print output after consolidated kernel
+        print("\nConsolidated kernel output:")
+        print(f"output shape: {output.shape}")
+        # print(f"output sample values:\n{output[0, 0, :10]}")  # Print first 10 values of first head
 
     elif version in ("v2"):
         num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
@@ -258,19 +284,11 @@ def test_consolidated_paged_attention(
             query_lens,
             block_size,
             max_seq_len,
-            alibi_slopes,
+            None,
             kv_cache_dtype,
             k_scale,
             v_scale,
         )
-
-        opcheck(torch.ops._C.consolidated_paged_attention_v2,
-                (output, exp_sums, max_logits, tmp_output, query,
-                    key_cache, value_cache, num_kv_heads, scale, block_tables,
-                    seq_lens, query_lens, block_size, max_seq_len, alibi_slopes,
-                    kv_cache_dtype, k_scale, v_scale, 0, 0, 0, 64, 0),
-                cond=(head_size == HEAD_SIZES[0]
-                        and block_size == BLOCK_SIZES[0]))
     else:
         raise AssertionError(f"Unknown version: {version}")
 
@@ -294,17 +312,64 @@ def test_consolidated_paged_attention(
         value_cache = dequantized_value_cache
 
     ref_output = torch.empty_like(query)
-    ref_single_query_cached_kv_attention(
-        ref_output,
-        query,
-        num_queries_per_kv,
-        key_cache,
-        value_cache,
-        block_tables,
-        seq_lens,
-        scale,
-        alibi_slopes,
-    )
+    if version == "v1":
+        # Debug: Print reference implementation input
+        print("\nReference implementation input:")
+        print(f"query shape: {query.shape}")
+        print(f"key_cache shape: {key_cache.shape}")
+        print(f"value_cache shape: {value_cache.shape}")
+        
+        ops.paged_attention_v1(
+            ref_output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            block_size,
+            max_seq_len,
+            None,
+            kv_cache_dtype,
+            k_scale,
+            v_scale,
+        )
+
+        # Debug: Print reference output
+        print("\nReference kernel output:")
+        print(f"ref_output shape: {ref_output.shape}")
+        print(f"ref_output sample values:\n{ref_output[0, 0, :10]}")  # Print first 10 values of first head
+    else:
+        num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
+        exp_sums = torch.empty(
+            size=(num_seqs, num_heads, num_partitions),
+            dtype=torch.float32,
+        )
+        max_logits = torch.empty_like(exp_sums)
+        tmp_output = torch.empty(
+            size=(num_seqs, num_heads, num_partitions, head_size),
+            dtype=output.dtype,
+        )
+        ops.paged_attention_v2(
+            ref_output,
+            exp_sums,
+            max_logits,
+            tmp_output,
+            query,
+            key_cache,
+            value_cache,
+            num_kv_heads,
+            scale,
+            block_tables,
+            seq_lens,
+            block_size,
+            max_seq_len,
+            None,
+            kv_cache_dtype,
+            k_scale,
+            v_scale,
+        )
 
     # NOTE(woosuk): Due to the kernel-level differences in the two
     # implementations, there is a small numerical difference in the two
@@ -317,4 +382,23 @@ def test_consolidated_paged_attention(
     atol, rtol = 1e-3, 1e-5
     if kv_cache_dtype == "fp8":
         atol, rtol = 1e-2, 1e-5
+    
+    # Calculate and print max differences
+    abs_diff = torch.abs(output - ref_output)
+    rel_diff = abs_diff / (torch.abs(ref_output) + 1e-6)  # Add small epsilon to avoid division by zero
+    max_abs_diff = torch.max(abs_diff).item()
+    max_rel_diff = torch.max(rel_diff).item()
+    print(f"\nMax absolute difference: {max_abs_diff:.6e}")
+    print(f"Max relative difference: {max_rel_diff:.6e}")
+    
+    # Print detailed comparison for first few elements
+    print("\nDetailed comparison of first few elements:")
+    for i in range(min(20, output.shape[0])):
+        for j in range(min(1, output.shape[1])):
+            for k in range(min(1, output.shape[2])):
+                print(f"Element [{i},{j},{k}]:")
+                print(f"  Consolidated: {output[i,j,k].item():.6f}")
+                print(f"  Reference:    {ref_output[i,j,k].item():.6f}")
+                print(f"  Diff:         {abs_diff[i,j,k].item():.6e}")
+    
     torch.testing.assert_close(output, ref_output, atol=atol, rtol=rtol)

@@ -92,6 +92,7 @@ void paged_attention_v1_launcher(
       DIVIDE_ROUND_UP(max_seq_len, BLOCK_SIZE) * BLOCK_SIZE;
   int logits_size = QUERY_SIZE * padded_max_seq_len * sizeof(float);
   int outputs_size = QUERY_SIZE * (NUM_WARPS / 2) * head_size * sizeof(float);
+  // int outputs_size = QUERY_SIZE * NUM_WARPS * head_size * sizeof(float);
   // Python-side check in vllm.worker.worker._check_if_can_support_max_seq_len
   // Keep that in sync with the logic here!
   int shared_mem_size = std::max(logits_size, outputs_size);
@@ -107,30 +108,30 @@ void paged_attention_v1_launcher(
     case 32:
       LAUNCH_PAGED_ATTENTION_V1(32);
       break;
-    case 64:
-      LAUNCH_PAGED_ATTENTION_V1(64);
-      break;
-    case 80:
-      LAUNCH_PAGED_ATTENTION_V1(80);
-      break;
-    case 96:
-      LAUNCH_PAGED_ATTENTION_V1(96);
-      break;
-    case 112:
-      LAUNCH_PAGED_ATTENTION_V1(112);
-      break;
-    case 120:
-      LAUNCH_PAGED_ATTENTION_V1(120);
-      break;
-    case 128:
-      LAUNCH_PAGED_ATTENTION_V1(128);
-      break;
-    case 192:
-      LAUNCH_PAGED_ATTENTION_V1(192);
-      break;
-    case 256:
-      LAUNCH_PAGED_ATTENTION_V1(256);
-      break;
+    // case 64:
+    //   LAUNCH_PAGED_ATTENTION_V1(64);
+    //   break;
+    // case 80:
+    //   LAUNCH_PAGED_ATTENTION_V1(80);
+    //   break;
+    // case 96:
+    //   LAUNCH_PAGED_ATTENTION_V1(96);
+    //   break;
+    // case 112:
+    //   LAUNCH_PAGED_ATTENTION_V1(112);
+    //   break;
+    // case 120:
+    //   LAUNCH_PAGED_ATTENTION_V1(120);
+    //   break;
+    // case 128:
+    //   LAUNCH_PAGED_ATTENTION_V1(128);
+    //   break;
+    // case 192:
+    //   LAUNCH_PAGED_ATTENTION_V1(192);
+    //   break;
+    // case 256:
+    //   LAUNCH_PAGED_ATTENTION_V1(256);
+    //   break;
     default:
       TORCH_CHECK(false, "Unsupported head size: ", head_size);
       break;
@@ -154,16 +155,26 @@ void paged_attention_v1_launcher(
 
 // NOTE(woosuk): To reduce the compilation time, we omitted block sizes
 // 1, 2, 4, 64, 128, 256.
+// #define CALL_V1_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
+//   switch (block_size) {                                           \
+//     case 8:                                                       \
+//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
+//       break;                                                      \
+//     case 16:                                                      \
+//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
+//       break;                                                      \
+//     case 32:                                                      \
+//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
+//       break;                                                      \
+//     default:                                                      \
+//       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
+//       break;                                                      \
+//   }
+
 #define CALL_V1_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
   switch (block_size) {                                           \
-    case 8:                                                       \
-      CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
-      break;                                                      \
     case 16:                                                      \
       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
-      break;                                                      \
-    case 32:                                                      \
-      CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
       break;                                                      \
     default:                                                      \
       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
