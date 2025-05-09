@@ -615,9 +615,9 @@ __device__ void paged_attention_kernel(
   constexpr int NUM_ROWS_PER_THREAD =
       DIVIDE_ROUND_UP(NUM_COLS_PER_WARP, NUM_ROWS_PER_ITER); // 96 / 8 = 12
 
-  if (thread_idx ==0 && head_idx == 0 && seq_idx == 0) {
-    printf("NUM_WARPS_X = %d, NUM_WARPS_Y = %d, NUM_WARPS_Z = %d\n", NUM_WARPS_X, NUM_WARPS_Y, NUM_WARPS_Z);
-  }
+  // if (thread_idx ==0 && head_idx == 0 && seq_idx == 0) {
+  //   printf("NUM_WARPS_X = %d, NUM_WARPS_Y = %d, NUM_WARPS_Z = %d\n", NUM_WARPS_X, NUM_WARPS_Y, NUM_WARPS_Z);
+  // }
 
   assert(NUM_WARPS_X * NUM_WARPS_Y * NUM_WARPS_Z == NUM_WARPS);
 
