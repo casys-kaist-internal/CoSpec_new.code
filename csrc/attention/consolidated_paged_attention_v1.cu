@@ -105,33 +105,33 @@ void paged_attention_v1_launcher(
     // NOTE(woosuk): To reduce the compilation time, we only compile for the
     // head sizes that we use in the model. However, we can easily extend this
     // to support any head size which is a multiple of 16.
-    // case 32:
-    //   LAUNCH_PAGED_ATTENTION_V1(32);
-    //   break;
-    // case 64:
-    //   LAUNCH_PAGED_ATTENTION_V1(64);
-    //   break;
-    // case 80:
-    //   LAUNCH_PAGED_ATTENTION_V1(80);
-    //   break;
-    // case 96:
-    //   LAUNCH_PAGED_ATTENTION_V1(96);
-    //   break;
+    case 32:
+      LAUNCH_PAGED_ATTENTION_V1(32);
+      break;
+    case 64:
+      LAUNCH_PAGED_ATTENTION_V1(64);
+      break;
+    case 80:
+      LAUNCH_PAGED_ATTENTION_V1(80);
+      break;
+    case 96:
+      LAUNCH_PAGED_ATTENTION_V1(96);
+      break;
     case 112:
       LAUNCH_PAGED_ATTENTION_V1(112);
       break;
-    // case 120:
-    //   LAUNCH_PAGED_ATTENTION_V1(120);
-    //   break;
-    // case 128:
-    //   LAUNCH_PAGED_ATTENTION_V1(128);
-    //   break;
-    // case 192:
-    //   LAUNCH_PAGED_ATTENTION_V1(192);
-    //   break;
-    // case 256:
-    //   LAUNCH_PAGED_ATTENTION_V1(256);
-    //   break;
+    case 120:
+      LAUNCH_PAGED_ATTENTION_V1(120);
+      break;
+    case 128:
+      LAUNCH_PAGED_ATTENTION_V1(128);
+      break;
+    case 192:
+      LAUNCH_PAGED_ATTENTION_V1(192);
+      break;
+    case 256:
+      LAUNCH_PAGED_ATTENTION_V1(256);
+      break;
     default:
       TORCH_CHECK(false, "Unsupported head size: ", head_size);
       break;
@@ -155,31 +155,31 @@ void paged_attention_v1_launcher(
 
 // NOTE(woosuk): To reduce the compilation time, we omitted block sizes
 // 1, 2, 4, 64, 128, 256.
-// #define CALL_V1_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
-//   switch (block_size) {                                           \
-//     case 8:                                                       \
-//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
-//       break;                                                      \
-//     case 16:                                                      \
-//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
-//       break;                                                      \
-//     case 32:                                                      \
-//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
-//       break;                                                      \
-//     default:                                                      \
-//       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
-//       break;                                                      \
-//   }
-
 #define CALL_V1_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
   switch (block_size) {                                           \
+    case 8:                                                       \
+      CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 8, KV_DTYPE);         \
+      break;                                                      \
     case 16:                                                      \
       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
+      break;                                                      \
+    case 32:                                                      \
+      CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 32, KV_DTYPE);        \
       break;                                                      \
     default:                                                      \
       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
       break;                                                      \
   }
+
+// #define CALL_V1_LAUNCHER_BLOCK_SIZE(T, CACHE_T, KV_DTYPE)         \
+//   switch (block_size) {                                           \
+//     case 16:                                                      \
+//       CALL_V1_LAUNCHER_SPARSITY(T, CACHE_T, 16, KV_DTYPE);        \
+//       break;                                                      \
+//     default:                                                      \
+//       TORCH_CHECK(false, "Unsupported block size: ", block_size); \
+//       break;                                                      \
+//   }
 
 void consolidated_paged_attention_v1(
     torch::Tensor& out,    // [num_seqs, num_heads, head_size]
@@ -201,7 +201,12 @@ void consolidated_paged_attention_v1(
     const int64_t blocksparse_vert_stride, const int64_t blocksparse_block_size,
     const int64_t blocksparse_head_sliding_step) {
   const bool is_block_sparse = (blocksparse_vert_stride > 1);
-  assert(!is_block_sparse); // block sparse is not supported in consolidated attention
+  if (is_block_sparse) {
+    TORCH_CHECK(false, "Block sparse is not supported in consolidated attention");
+  }
+  if (kv_cache_dtype == "fp8") {
+    TORCH_CHECK(false, "fp8 is not supported in consolidated attention");
+  }
   DISPATCH_BY_KV_CACHE_DTYPE(query.dtype(), kv_cache_dtype,
                              CALL_V1_LAUNCHER_BLOCK_SIZE)
 }

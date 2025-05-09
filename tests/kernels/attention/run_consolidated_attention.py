@@ -8,14 +8,14 @@ NUM_BLOCKS = 4321
 PARTITION_SIZE = 512
 NUM_GEN_SEQS = 7
 NUM_HEADS = (40, 40)
-HEAD_SIZE = 32
+HEAD_SIZE = 192
 BLOCK_SIZE = 16
 DTYPE = torch.half
 KV_CACHE_DTYPE = "auto"
 SEED = 0
 DEVICE = "cuda:0"
 QUERY_SIZE = 8
-VERSION = "v2"
+VERSION = "v1"
 
 def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size, 
                     kv_cache_dtype, dtype, seed, device):
