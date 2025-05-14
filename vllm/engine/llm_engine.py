@@ -1953,9 +1953,12 @@ class LLMEngine:
 
     def maybe_load_cached_cospec_profile(self) -> bool:
         return self.model_executor.maybe_load_cached_cospec_profile()[0]
+    
+    def is_selective_validator_trained(self) -> bool:
+        return self.model_executor.is_selective_validator_trained()[0]
 
-    def predict_colocation_speedup_ratio(self) -> float:
-        return self.model_executor.predict_colocation_speedup_ratio()[0]
+    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+        return self.model_executor.predict_colocation_speedup_ratio(total_requests)[0]
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens

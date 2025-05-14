@@ -24,7 +24,6 @@ class CospecManager:
         self.predicted_target_latency = None
         self.target_lock_fd = os.open("/tmp/cospec_target.lock", os.O_CREAT | os.O_RDWR)
         self.current_batch_size = 0
-        self.current_mean_selective_validation_tokens = 0
 
     def target_start(self):
         torch.cuda.synchronize()
@@ -48,12 +47,9 @@ class CospecManager:
     def set_current_batch_size(self, batch_size: int):
         self.current_batch_size = batch_size
 
-    def set_current_mean_selective_validation_tokens(self, mean_selective_validation_tokens: float):
-        self.current_mean_selective_validation_tokens = mean_selective_validation_tokens
-
-    def predict_colocation_speedup_ratio(self) -> float:
-        return self.profiler.predict_colocation_speedup_ratio(self.current_batch_size, 
-                                                              self.current_mean_selective_validation_tokens)
+    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+        return self.profiler.predict_colocation_speedup_ratio(total_requests, 
+                                                              self.selective_validator.moving_avg_mean_tokens)
 
     def selective_validation(self, proposals):
         """Perform selective validation on proposals.
@@ -69,6 +65,12 @@ class CospecManager:
         torch.cuda.nvtx.range_push("selective_validation")
         filtered_proposals = self.selective_validator.selective_validation(proposals)
         torch.cuda.nvtx.range_pop()
+        return filtered_proposals
+    
+    def selective_validation_correctness_test(self, proposals):
+        """Perform random drop for testing purpose"""
+        logger.info("Random drop for selective validation correctness test")
+        filtered_proposals = self.selective_validator.random_drop(proposals)
         return filtered_proposals
 
     def update_proposal_history(self, proposals, proposal_scores):

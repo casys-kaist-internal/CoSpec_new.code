@@ -4,7 +4,8 @@
 export COSPEC=${COSPEC:-0} 
 export PROFILE=${PROFILE:-0}
 export AR=${AR:-0}
-export TARGET_MODEL="facebook/opt-6.7b"
+#export TARGET_MODEL="facebook/opt-6.7b"
+export TARGET_MODEL="facebook/opt-125m"
 export DRAFT_MODEL="facebook/opt-125m"
 export NUM_SPEC_TOKENS=7
 export TENSOR_PARALLEL_SIZE=1
@@ -12,11 +13,12 @@ export TENSOR_PARALLEL_SIZE=1
 # Base command
 CMD="python -m vllm.entrypoints.openai.api_server \
     --host 0.0.0.0 \
-    --port 8000 \
+    --port 8001 \
     --model $TARGET_MODEL \
     --seed 42 \
     -tp $TENSOR_PARALLEL_SIZE \
     --gpu_memory_utilization 0.85 \
+    --enforce-eager \
     --disable-log-requests"
 
 # Speculative config

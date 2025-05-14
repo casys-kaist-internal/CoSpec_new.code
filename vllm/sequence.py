@@ -1330,6 +1330,9 @@ class ExecuteModelRequest(
     # Async callback
     async_callback: Optional[Callable] = None
 
+    # Consolidated attention.
+    consolidated_lens_tensor: Optional[torch.Tensor] = None
+
     @property
     def is_first_multi_step(self) -> bool:
         # TODO(will) make this be able to handle batches with variable number of
@@ -1375,7 +1378,8 @@ class ExecuteModelRequest(
             finished_requests_ids=self.finished_requests_ids,
             last_sampled_token_ids=self.last_sampled_token_ids.clone()
             if self.last_sampled_token_ids is not None else None,
-            async_callback=self.async_callback)
+            async_callback=self.async_callback,
+            consolidated_lens_tensor=self.consolidated_lens_tensor)
 
 
 @dataclass

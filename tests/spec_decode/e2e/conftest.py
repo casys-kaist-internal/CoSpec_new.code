@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 import pytest
 import torch
+import os
 
 from vllm import LLM, SamplingParams
 from vllm.distributed import cleanup_dist_env_and_memory
@@ -180,7 +181,12 @@ def run_equality_correctness_test(
         logprobs: Optional[int] = None,
         prompt_logprobs: Optional[int] = None,
         disable_logprobs: bool = False):
-
+    """General function to run equality correctness tests with environment variable configuration.
+    
+    Args:
+        env_vars: Dictionary of environment variables to set for the test. 
+                 Key is the environment variable name, value is the value to set.
+    """
     org_args = {
         **common_llm_kwargs,
         **per_test_common_llm_kwargs,
@@ -241,6 +247,94 @@ def run_equality_correctness_test(
     if logprobs is not None or prompt_logprobs is not None:
         check_logprobs_correctness(sd_outputs, org_outputs, disable_logprobs)
 
+def run_equality_correctness_test_with_env(
+        vllm_runner,
+        common_llm_kwargs,
+        per_test_common_llm_kwargs,
+        baseline_llm_kwargs,
+        test_llm_kwargs,
+        batch_size: int,
+        max_output_len: int,
+        seed: Optional[int] = 0,
+        temperature: float = 0.0,
+        disable_seed: bool = False,
+        ignore_eos: bool = True,
+        ensure_all_accepted: bool = False,
+        expected_acceptance_rate: Optional[float] = None,
+        logprobs: Optional[int] = None,
+        prompt_logprobs: Optional[int] = None,
+        disable_logprobs: bool = False,
+        env_vars: Optional[dict[str, str]] = None):
+    """General function to run equality correctness tests with environment variable configuration.
+    
+    Args:
+        env_vars: Dictionary of environment variables to set for the test. 
+                 Key is the environment variable name, value is the value to set.
+    """
+    org_args = {
+        **common_llm_kwargs,
+        **per_test_common_llm_kwargs,
+        **baseline_llm_kwargs,
+    }
+
+    sd_args = {
+        **common_llm_kwargs,
+        **per_test_common_llm_kwargs,
+        **test_llm_kwargs,
+    }
+
+    prompts = [prompt for prompt, _ in zip(cycle(PROMPTS), range(batch_size))]
+
+    if disable_seed:
+        seed = None
+
+    sampling_params = SamplingParams(temperature=temperature,
+                                     max_tokens=max_output_len,
+                                     seed=seed,
+                                     ignore_eos=ignore_eos,
+                                     logprobs=logprobs,
+                                     prompt_logprobs=prompt_logprobs)
+
+    with vllm_runner(**org_args) as vllm_model:
+        org_outputs = vllm_model.generate_w_logprobs(prompts, sampling_params)
+
+    # Set environment variables if provided
+    if env_vars:
+        for key, value in env_vars.items():
+            os.environ[key] = value
+
+    with vllm_runner(**sd_args) as vllm_model:
+        if ensure_all_accepted or expected_acceptance_rate is not None:
+            # Force log interval to be 0 to catch all metrics.
+            stat_logger = vllm_model.model.llm_engine.stat_loggers[
+                'prometheus']
+            stat_logger.local_interval = -100
+
+        sd_outputs = vllm_model.generate_w_logprobs(prompts, sampling_params)
+
+        if ensure_all_accepted or expected_acceptance_rate is not None:
+            acceptance_rate = (stat_logger.metrics.
+                               gauge_spec_decode_draft_acceptance_rate.labels(
+                                   **stat_logger.labels)._value.get())
+
+            if ensure_all_accepted:
+                assert True
+                # FIXME: ci fails to log acceptance rate.
+                # It works locally.
+                # assert acceptance_rate == 1.0
+
+            if expected_acceptance_rate is not None:
+                assert acceptance_rate >= expected_acceptance_rate - 1e-2
+
+    # Only pass token entries, not the logprobs
+    check_outputs_equal(outputs_0_lst=[out[0:2] for out in org_outputs],
+                        outputs_1_lst=[out[0:2] for out in sd_outputs],
+                        name_0="org",
+                        name_1="sd")
+
+    # Check logprobs if requested
+    if logprobs is not None or prompt_logprobs is not None:
+        check_logprobs_correctness(sd_outputs, org_outputs, disable_logprobs)
 
 def run_equality_correctness_test_tp(model,
                                      common_llm_kwargs,

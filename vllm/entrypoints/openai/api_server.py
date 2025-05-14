@@ -869,7 +869,6 @@ if envs.VLLM_TORCH_PROFILER_DIR:
         logger.info("Profiler stopped.")
         return Response(status_code=200)
 
-
 if envs.VLLM_ALLOW_RUNTIME_LORA_UPDATING:
     logger.warning(
         "LoRA dynamic loading & unloading is enabled in the API server. "
@@ -1288,6 +1287,13 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
     
+    # Stop the already running MPS daemon
+    try:
+        subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
+        logger.info("NVIDIA MPS daemon stopped successfully. Rerun the command to start it again.")
+    except Exception as e:
+        logger.error("No running MPS daemon found")
+
     try:
         logger.info("Initializing NVIDIA MPS...")
         
@@ -1305,12 +1311,6 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         
     except Exception as e:
         logger.error("Failed to initialize NVIDIA MPS: %s", str(e))
-        # Stop the already running MPS daemon
-        try:
-            subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
-            logger.info("NVIDIA MPS daemon stopped successfully. Rerun the command to start it again.")
-        except Exception as e:
-            logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
         raise
 
     if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:

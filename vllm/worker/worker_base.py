@@ -78,7 +78,7 @@ class WorkerBase:
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
         cospec_manager = None,
-        is_target: Optional[bool] = True
+        is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
 
@@ -170,7 +170,7 @@ class DelegateWorkerBase(WorkerBase):
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
         cospec_manager = None,
-        is_target: Optional[bool] = True
+        is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         return self.worker.execute_model(execute_model_req, cospec_manager, is_target)
 
@@ -333,6 +333,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
 
         return model_input, worker_input, kwargs
 
+    # important
     def _get_driver_input_and_broadcast(
         self, execute_model_req: ExecuteModelRequest
     ) -> Tuple[BroadcastableModelInput, WorkerInput, Dict[str, torch.Tensor]]:
@@ -345,7 +346,8 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             self.model_runner.prepare_model_input(
                 execute_model_req.seq_group_metadata_list,
                 execute_model_req.virtual_engine,
-                execute_model_req.finished_requests_ids))
+                execute_model_req.finished_requests_ids,
+                execute_model_req.consolidated_lens_tensor))
 
         kwargs = extract_previous_hidden_states(execute_model_req)
 
@@ -391,7 +393,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
         cospec_manager = None,
-        is_target: Optional[bool] = True
+        is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
         sequences are provided."""

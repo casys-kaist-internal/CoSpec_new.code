@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List, Optional
+import torch 
 
 from vllm.sequence import SequenceGroupMetadata
 from vllm.worker.model_runner_base import (ModelRunnerBase,
@@ -31,10 +32,11 @@ class TargetModelRunner(ModelRunnerWrapperBase):
         seq_group_metadata_list: List[SequenceGroupMetadata],
         virtual_engine: int = 0,
         finished_requests_ids: Optional[List[str]] = None,
+        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> ModelRunnerInputBase:
         model_input: ModelRunnerInputBase =\
             self.model_runner.prepare_model_input(
-            seq_group_metadata_list, virtual_engine, finished_requests_ids)
+            seq_group_metadata_list, virtual_engine, finished_requests_ids, consolidated_lens_tensor)
         # If token log probabilities is disabled then skip generating sampler
         # CPU output. We directly serialize the GPU sampled_token_id tensors
         # as needed. If log probabilities is enabled then synchronize all the

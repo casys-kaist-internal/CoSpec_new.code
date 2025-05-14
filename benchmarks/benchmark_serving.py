@@ -14,7 +14,6 @@ On the client side, run:
         --dataset-name sharegpt \
         --dataset-path <path to dataset> \
         --request-rate <request_rate> \ # By default <request_rate> is inf
-        --num-prompts <num_prompts> # By default <num_prompts> is 1000
 
     when using tgi backend, add
         --endpoint /generate_stream
@@ -26,7 +25,6 @@ python benchmarks/benchmark_serving.py \
     --model facebook/opt-6.7b \
     --dataset-name sharegpt \
     --dataset-path ShareGPT_V3_unfiltered_cleaned_split.json \
-    --num-prompts 1000
 """
 
 import argparse
@@ -42,12 +40,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
+import aiohttp
 import numpy as np
 from backend_request_func import (ASYNC_REQUEST_FUNCS,
                                   OPENAI_COMPATIBLE_BACKENDS, RequestFuncInput,
                                   RequestFuncOutput)
 from tqdm.asyncio import tqdm
 from transformers import PreTrainedTokenizerBase
+import itertools
 
 try:
     from vllm.transformers_utils.tokenizer import get_tokenizer
@@ -62,8 +62,8 @@ except ImportError:
 from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                ConversationDataset, HuggingFaceDataset,
                                InstructCoderDataset, RandomDataset,
-                               SampleRequest, ShareGPTDataset, SonnetDataset,
-                               VisionArenaDataset)
+                                SampleRequest, ShareGPTDataset, SonnetDataset,
+                                VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset)
 from benchmark_utils import convert_to_pytorch_benchmark_format, write_to_json
 
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
@@ -167,6 +167,8 @@ def calculate_metrics(
     ttfts: list[float] = []
     e2els: list[float] = []
     token_latencies: list[float] = []
+    
+    # Use outputs length instead of input_requests length since we might be cycling through requests
     for i in range(len(outputs)):
         if outputs[i].success:
             output_len = outputs[i].output_tokens
@@ -181,7 +183,8 @@ def calculate_metrics(
                     tokenizer(outputs[i].generated_text,
                               add_special_tokens=False).input_ids)
             actual_output_lens.append(output_len)
-            total_input += input_requests[i].prompt_len
+            # Use the prompt length from the output since we might be cycling through requests
+            total_input += outputs[i].prompt_len
             tpot = 0
             if output_len > 1:
                 latency_minus_ttft = outputs[i].latency - outputs[i].ttft
@@ -263,6 +266,20 @@ def calculate_metrics(
     return metrics, actual_output_lens
 
 
+async def wait_for_server(base_url: str, retry_interval: float = 10.0) -> bool:
+    """Wait for server to be ready by checking the health endpoint."""
+    while True:
+        try:
+            print(f"Checking server health at {base_url}/health")
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/health") as response:
+                    if response.status == 200:
+                        print("Server is ready!")
+                        return True
+        except Exception as e:
+            print(f"Waiting for server to start...")
+        await asyncio.sleep(retry_interval)
+
 async def benchmark(
     backend: str,
     api_url: str,
@@ -283,11 +300,16 @@ async def benchmark(
     max_concurrency: Optional[int],
     lora_modules: Optional[Iterable[str]],
     extra_body: Optional[dict],
+    duration_minutes: Optional[float] = None,
 ):
     if backend in ASYNC_REQUEST_FUNCS:
         request_func = ASYNC_REQUEST_FUNCS[backend]
     else:
         raise ValueError(f"Unknown backend: {backend}")
+
+    # Wait for server to be ready
+    if not await wait_for_server(base_url):
+        raise RuntimeError("Server failed to start within the timeout period")
 
     print("Starting initial single prompt test run...")
     test_prompt, test_prompt_len, test_output_len, test_mm_content = \
@@ -347,6 +369,8 @@ async def benchmark(
     print(f"Traffic request rate: {request_rate}")
     print(f"Burstiness factor: {burstiness} ({distribution})")
     print(f"Maximum request concurrency: {max_concurrency}")
+    if duration_minutes:
+        print(f"Benchmark duration: {duration_minutes} minutes")
 
     pbar = None if disable_tqdm else tqdm(total=len(input_requests))
 
@@ -367,7 +391,20 @@ async def benchmark(
 
     benchmark_start_time = time.perf_counter()
     tasks: list[asyncio.Task] = []
-    async for request in get_request(input_requests, request_rate, burstiness):
+    
+    # Create an infinite iterator of requests if duration is specified
+    if duration_minutes:
+        request_iterator = itertools.cycle(input_requests)
+        end_time = benchmark_start_time + (duration_minutes * 60)
+    else:
+        request_iterator = input_requests
+        end_time = None
+    
+    async for request in get_request(request_iterator, request_rate, burstiness):
+        # Check if we've reached the duration limit
+        if end_time and time.perf_counter() >= end_time:
+            break
+            
         prompt, prompt_len, output_len, mm_content = request.prompt, \
             request.prompt_len, request.expected_output_len, \
                 request.multi_modal_data
@@ -390,7 +427,27 @@ async def benchmark(
             asyncio.create_task(
                 limited_request_func(request_func_input=request_func_input,
                                      pbar=pbar)))
-    outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
+
+    # If we have a duration limit, cancel any pending tasks
+    if end_time:
+        # Wait for a short time to allow some tasks to complete
+        await asyncio.sleep(0.1)
+        # Cancel all pending tasks
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        
+        # Gather only completed tasks
+        outputs = []
+        for task in tasks:
+            try:
+                output = await task
+                outputs.append(output)
+            except asyncio.CancelledError:
+                continue
+    else:
+        # If no duration limit, gather all tasks as before
+        outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
 
     if profile:
         print("Stopping profiler...")
@@ -586,103 +643,24 @@ def main(args: argparse.Namespace):
             "Please specify '--dataset-name' and the corresponding "
             "'--dataset-path' if required.")
 
-    if args.dataset_name == "sonnet":
-        dataset = SonnetDataset(dataset_path=args.dataset_path)
-        # For the "sonnet" dataset, formatting depends on the backend.
-        if args.backend == "openai-chat":
-            input_requests = dataset.sample(num_requests=args.num_prompts,
-                                            input_len=args.sonnet_input_len,
-                                            output_len=args.sonnet_output_len,
-                                            prefix_len=args.sonnet_prefix_len,
-                                            tokenizer=tokenizer,
-                                            return_prompt_formatted=False)
-        else:
-            assert tokenizer.chat_template or tokenizer.default_chat_template, (
-                "Tokenizer/model must have chat template for sonnet dataset.")
-            input_requests = dataset.sample(num_requests=args.num_prompts,
-                                            input_len=args.sonnet_input_len,
-                                            output_len=args.sonnet_output_len,
-                                            prefix_len=args.sonnet_prefix_len,
-                                            tokenizer=tokenizer,
-                                            return_prompt_formatted=True)
-
-    elif args.dataset_name == "hf":
-        # all following datasets are implemented from the
-        # HuggingFaceDataset base class
-        if args.dataset_path in VisionArenaDataset.SUPPORTED_DATASET_PATHS:
-            dataset_class = VisionArenaDataset
-            args.hf_split = "train"
-            args.hf_subset = None
-        elif args.dataset_path in InstructCoderDataset.SUPPORTED_DATASET_PATHS:
-            dataset_class = InstructCoderDataset
-            args.hf_split = "train"
-        elif args.dataset_path in ConversationDataset.SUPPORTED_DATASET_PATHS:
-            dataset_class = ConversationDataset
-        elif args.dataset_path in AIMODataset.SUPPORTED_DATASET_PATHS:
-            dataset_class = AIMODataset
-            args.hf_split = "train"
-        elif args.dataset_path in ASRDataset.SUPPORTED_DATASET_PATHS:
-            dataset_class = ASRDataset
-            args.hf_split = "train"
-        else:
-            supported_datasets = set([
-                dataset_name for cls in HuggingFaceDataset.__subclasses__()
-                for dataset_name in cls.SUPPORTED_DATASET_PATHS
-            ])
-            raise ValueError(
-                f"Unsupported dataset path: {args.dataset_path}. "
-                "Huggingface dataset only supports dataset_path"
-                f" from one of following: {supported_datasets}. "
-                "Please consider contributing if you would "
-                "like to add support for additional dataset formats.")
-
-        if (dataset_class.IS_MULTIMODAL and backend not in \
-            ["openai-chat", "openai-audio"]):
-            # multi-modal benchmark is only available on OpenAI Chat backend.
-            raise ValueError(
-                "Multi-modal content is only supported on 'openai-chat' and " \
-                "'openai-audio' backend.")
-        input_requests = dataset_class(
-            dataset_path=args.dataset_path,
-            dataset_subset=args.hf_subset,
-            dataset_split=args.hf_split,
-            random_seed=args.seed,
-        ).sample(
-            num_requests=args.num_prompts,
-            tokenizer=tokenizer,
-            output_len=args.hf_output_len,
-        )
-
+    if args.dataset_name == "sharegpt":
+        input_requests = ShareGPTDataset(random_seed=args.seed,
+                    dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "gsm8k":
+        input_requests = GSM8KDataset(random_seed=args.seed,
+                    dataset_path="openai/gsm8k", 
+                    dataset_subset="main", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "natural-questions":
+        input_requests = NaturalQuestionsDataset(random_seed=args.seed,
+                    dataset_path="sentence-transformers/natural-questions", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
     else:
-        # For datasets that follow a similar structure, use a mapping.
-        dataset_mapping = {
-            "sharegpt":
-            lambda: ShareGPTDataset(random_seed=args.seed,
-                                    dataset_path=args.dataset_path).sample(
-                                        tokenizer=tokenizer,
-                                        num_requests=args.num_prompts,
-                                        output_len=args.sharegpt_output_len,
-                                    ),
-            "burstgpt":
-            lambda: BurstGPTDataset(random_seed=args.seed,
-                                    dataset_path=args.dataset_path).
-            sample(tokenizer=tokenizer, num_requests=args.num_prompts),
-            "random":
-            lambda: RandomDataset(dataset_path=args.dataset_path).sample(
-                tokenizer=tokenizer,
-                num_requests=args.num_prompts,
-                prefix_len=args.random_prefix_len,
-                input_len=args.random_input_len,
-                output_len=args.random_output_len,
-                range_ratio=args.random_range_ratio,
-            )
-        }
+        raise ValueError(f"Dataset {args.dataset_name} not supported")
 
-        try:
-            input_requests = dataset_mapping[args.dataset_name]()
-        except KeyError as err:
-            raise ValueError(f"Unknown dataset: {args.dataset_name}") from err
     goodput_config_dict = check_goodput_args(args)
+
+    print("Temperature: ", args.temperature)
 
     # Collect the sampling parameters.
     sampling_params = {
@@ -731,6 +709,7 @@ def main(args: argparse.Namespace):
             max_concurrency=args.max_concurrency,
             lora_modules=args.lora_modules,
             extra_body=sampling_params,
+            duration_minutes=args.duration_minutes,
         ))
 
     # Save config and results to json
@@ -743,7 +722,6 @@ def main(args: argparse.Namespace):
         result_json["backend"] = backend
         result_json["model_id"] = model_id
         result_json["tokenizer_id"] = tokenizer_id
-        result_json["num_prompts"] = args.num_prompts
 
         # Metadata
         if args.metadata:
@@ -820,7 +798,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "burstgpt", "sonnet", "random", "hf"],
+        choices=["sharegpt", "gsm8k", "natural-questions"],
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",
@@ -855,10 +833,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-beam-search", action="store_true")
     parser.add_argument(
-        "--num-prompts",
-        type=int,
-        default=1000,
-        help="Number of prompts to process.",
+        "--duration-minutes",
+        type=float,
+        default=None,
+        help="Duration to run the benchmark in minutes",
     )
     parser.add_argument(
         "--logprobs",

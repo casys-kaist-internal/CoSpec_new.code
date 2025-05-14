@@ -39,7 +39,9 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCMaybeLoadCachedCospecProfileResponse,
                                          RPCMaybeLoadCachedCospecProfileRequest,
                                          RPCPredictColocationSpeedupRatioRequest,
-                                         RPCPredictColocationSpeedupRatioResponse)
+                                         RPCPredictColocationSpeedupRatioResponse,
+                                         RPCIsSelectiveValidatorTrainedRequest,
+                                         RPCIsSelectiveValidatorTrainedResponse)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -734,10 +736,27 @@ class MQLLMEngineClient(EngineClient):
         if isinstance(request_output, BaseException):
             raise request_output
         return request_output.loaded
+    
+    async def is_selective_validator_trained(self) -> bool:
+        """Check if the selective validation model has completed training"""
+        request = RPCIsSelectiveValidatorTrainedRequest()
+
+        queue: asyncio.Queue[Union[BaseException,
+                                   RPCIsSelectiveValidatorTrainedResponse]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
         
-    async def predict_colocation_speedup_ratio(self) -> float:
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        if isinstance(request_output, BaseException):
+            raise request_output
+        
+    async def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
         """Predict the speedup ratio for colocation"""
-        request = RPCPredictColocationSpeedupRatioRequest()
+        request = RPCPredictColocationSpeedupRatioRequest(total_requests=total_requests)
 
         queue: asyncio.Queue[Union[BaseException,
                                    RPCPredictColocationSpeedupRatioResponse]] = asyncio.Queue()
@@ -745,6 +764,13 @@ class MQLLMEngineClient(EngineClient):
 
         request_bytes = pickle.dumps(request)
         await self.input_socket.send_multipart((request_bytes, ), copy=False)
+
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        if isinstance(request_output, BaseException):
+            raise request_output
+        return request_output.speedup_ratio
         
     async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         """Set the number of speculative tokens"""

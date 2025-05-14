@@ -39,12 +39,11 @@ NUM_HEADS = [(40, 40), (64, 8)]  # Arbitrary values for testing
 # vllm.attention.ops.paged_attn.PagedAttention
 HEAD_SIZES = [32, 64, 80, 96, 112, 120, 128, 192, 256]
 
-
 BLOCK_SIZES = [16, 32]
 
 USE_ALIBI = [False, True]
 # KV_CACHE_DTYPE = ["auto", "fp8"]
-KV_CACHE_DTYPE = ["fp8"]
+KV_CACHE_DTYPE = ["auto"] # fp8 not supported
 SEEDS = [0]
 CUDA_DEVICES = [
     f"cuda:{i}" for i in range(1 if torch.cuda.device_count() == 1 else 2)

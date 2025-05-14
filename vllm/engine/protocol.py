@@ -306,7 +306,12 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
-    async def predict_colocation_speedup_ratio(self) -> float:
+    async def is_selective_validator_trained(self) -> bool:
+        """Check if the selective validation model has completed training"""
+        ...
+
+    @abstractmethod
+    async def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
         """Predict the speedup ratio for colocation"""
         ...
 
