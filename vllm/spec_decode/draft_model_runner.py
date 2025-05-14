@@ -181,7 +181,6 @@ class TP1DraftModelRunner(ModelRunnerWrapperBase):
             3. Reuses sampling tensors (since we run only decodes and they have
                 a repeating sampling logic)
         """
-
         # When num_steps == 1, we execute the fallback here for the GPU
         # advance_step, which runs prepare_inputs on CPU and for each spec
         # iteration invokes this function only once

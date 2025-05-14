@@ -54,6 +54,7 @@ class WorkerBase:
         self.compilation_config = vllm_config.compilation_config
         from vllm.platforms import current_platform
         self.current_platform = current_platform
+        self.cospec_manager = None
 
     def init_device(self) -> None:
         """Initialize device state, such as loading the model or other on-device
@@ -77,7 +78,6 @@ class WorkerBase:
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager = None,
         is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
@@ -169,10 +169,9 @@ class DelegateWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager = None,
         is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
-        return self.worker.execute_model(execute_model_req, cospec_manager, is_target)
+        return self.worker.execute_model(execute_model_req, is_target)
 
     def get_cache_block_size_bytes(self) -> int:
         return self.worker.get_cache_block_size_bytes()
@@ -392,7 +391,6 @@ class LocalOrDistributedWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        cospec_manager = None,
         is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
@@ -425,9 +423,9 @@ class LocalOrDistributedWorkerBase(WorkerBase):
                 orig_model_execute_time = intermediate_tensors.tensors.get(
                     "model_execute_time", torch.tensor(0)).item()
 
-        if cospec_manager is not None:
+        if self.cospec_manager is not None:
             if is_target:
-                cospec_manager.target_start()
+                self.cospec_manager.target_start()
         
         torch.cuda.nvtx.range_push(f"execute_model_{'target' if is_target else 'draft'}")
         output = self.model_runner.execute_model(
@@ -439,9 +437,9 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             **kwargs,
         )
         torch.cuda.nvtx.range_pop()
-        if cospec_manager is not None:
+        if self.cospec_manager is not None:
             if is_target:
-                cospec_manager.target_finish()
+                self.cospec_manager.target_finish()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:

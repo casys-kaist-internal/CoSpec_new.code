@@ -346,7 +346,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self.cospec_manager = None
         if envs.COSPEC:
             self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
-        
+            self.scorer_worker.cospec_manager = self.cospec_manager
+            self.proposer_worker.cospec_manager = self.cospec_manager
+
         logger.info("SpecDecodeWorker initialized")
 
     def init_device(self) -> None:
@@ -685,7 +687,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         updated, so they cannot enable spec decode in the rest decoding.
         """
         sampler_output = self.scorer_worker.execute_model(execute_model_req, 
-                                                          cospec_manager=self.cospec_manager,
                                                           is_target=True)
 
         assert len(sampler_output) == 1
@@ -723,7 +724,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             for i in range(self._num_spec_prefill_steps):
                 execute_model_req.spec_step_idx = i
                 self.proposer_worker.execute_model(execute_model_req, 
-                                                   cospec_manager=self.cospec_manager, 
                                                    is_target=False)
 
         sampler_output_to_return = (self._serialize_sampler_output_no_logprobs(
@@ -803,7 +803,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             torch.cuda.nvtx.range_push("get_spec_proposals")
             proposals = self.proposer_worker.get_spec_proposals(
                 execute_model_req, self._seq_with_bonus_token_in_last_step,
-                cospec_manager=self.cospec_manager,
                 is_target=False
             )
             torch.cuda.nvtx.range_pop()
@@ -828,7 +827,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             proposal_scores = self.scorer.score_proposals(
                 execute_model_req,
                 proposals,
-                cospec_manager=self.cospec_manager
             )
             torch.cuda.nvtx.range_pop()
 

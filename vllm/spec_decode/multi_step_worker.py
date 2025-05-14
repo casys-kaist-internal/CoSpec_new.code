@@ -64,7 +64,6 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         execute_model_req: ExecuteModelRequest,
         sample_len: int,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        cospec_manager: Optional[CospecManager] = None,
         is_target: Optional[bool] = False
     ) -> Tuple[List[SamplerOutput], bool]:
         """Run the model forward pass sample_len times. Returns the list of
@@ -104,7 +103,7 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                 self.worker.model_runner.return_hidden_states = True
             for i in range(sample_len):
                 model_output: List[SamplerOutput] = self.worker.execute_model(
-                    execute_model_req=expanded_request, cospec_manager=cospec_manager, is_target=is_target)
+                    execute_model_req=expanded_request, is_target=is_target)
                 assert (len(model_output) == 1
                         ), "composing multistep workers not supported"
                 model_output = model_output[0]
@@ -116,8 +115,8 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                     indices_of_seq_with_bonus_tokens)
                 model_outputs.append(model_output)
 
-                if cospec_manager is not None:
-                    if cospec_manager.check_early_exit_draft():
+                if self.worker.cospec_manager is not None:
+                    if self.worker.cospec_manager.check_early_exit_draft():
                         break
 
         # move indices to device to avoid stream sync
@@ -251,14 +250,13 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: set,
-        cospec_manager: Optional[CospecManager] = None,
         is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Produce speculations given an input batch of sequences. The number of
         speculative tokens per sequence is determined by max_proposal_len.
         """
         return self._proposer.get_spec_proposals(
-            execute_model_req, seq_ids_with_bonus_token_in_last_step, cospec_manager=cospec_manager, is_target=is_target)
+            execute_model_req, seq_ids_with_bonus_token_in_last_step, is_target=is_target)
 
     @staticmethod
     def _append_new_tokens(

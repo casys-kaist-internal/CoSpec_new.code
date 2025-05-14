@@ -1,0 +1,2153 @@
+INFO 05-14 14:37:23 [__init__.py:239] Automatically detected platform cuda.
+INFO 05-14 14:37:28 [api_server.py:1417] Cleaned up 10 shared memory files from previous runs
+INFO 05-14 14:37:28 [api_server.py:1287] vLLM API server version 0.1.dev6059+g0e6dd89.d20250509
+INFO 05-14 14:37:28 [api_server.py:1288] args: Namespace(host='0.0.0.0', port=8001, uvicorn_log_level='info', disable_uvicorn_access_log=False, allow_credentials=False, allowed_origins=['*'], allowed_methods=['*'], allowed_headers=['*'], api_key=None, lora_modules=None, prompt_adapters=None, chat_template=None, chat_template_content_format='auto', response_role='assistant', ssl_keyfile=None, ssl_certfile=None, ssl_ca_certs=None, enable_ssl_refresh=False, ssl_cert_reqs=0, root_path=None, middleware=[], return_tokens_as_token_ids=False, disable_frontend_multiprocessing=False, enable_request_id_headers=False, enable_auto_tool_choice=False, tool_call_parser=None, tool_parser_plugin='', model='facebook/opt-6.7b', task='auto', tokenizer=None, hf_config_path=None, skip_tokenizer_init=False, revision=None, code_revision=None, tokenizer_revision=None, tokenizer_mode='auto', trust_remote_code=False, allowed_local_media_path=None, load_format='auto', download_dir=None, model_loader_extra_config={}, use_tqdm_on_load=True, config_format=<ConfigFormat.AUTO: 'auto'>, dtype='auto', max_model_len=None, guided_decoding_backend='auto', reasoning_parser=None, logits_processor_pattern=None, model_impl='auto', distributed_executor_backend=None, pipeline_parallel_size=1, tensor_parallel_size=2, data_parallel_size=1, enable_expert_parallel=False, max_parallel_loading_workers=None, ray_workers_use_nsight=False, disable_custom_all_reduce=False, block_size=None, gpu_memory_utilization=0.8, swap_space=4, kv_cache_dtype='auto', num_gpu_blocks_override=None, enable_prefix_caching=None, prefix_caching_hash_algo='builtin', cpu_offload_gb=0, calculate_kv_scales=False, disable_sliding_window=False, use_v2_block_manager=True, seed=42, max_logprobs=20, disable_log_stats=False, quantization=None, rope_scaling=None, rope_theta=None, hf_token=None, hf_overrides=None, enforce_eager=True, max_seq_len_to_capture=8192, tokenizer_pool_size=0, tokenizer_pool_type='ray', tokenizer_pool_extra_config={}, limit_mm_per_prompt={}, mm_processor_kwargs=None, disable_mm_preprocessor_cache=False, enable_lora=None, enable_lora_bias=False, max_loras=1, max_lora_rank=16, lora_extra_vocab_size=256, lora_dtype='auto', long_lora_scaling_factors=None, max_cpu_loras=None, fully_sharded_loras=False, enable_prompt_adapter=None, max_prompt_adapters=1, max_prompt_adapter_token=0, device='auto', speculative_config={'model': 'facebook/opt-125m', 'num_speculative_tokens': 7, 'draft_tensor_parallel_size': 2}, ignore_patterns=[], served_model_name=None, qlora_adapter_name_or_path=None, show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, disable_async_output_proc=False, max_num_batched_tokens=None, max_num_seqs=None, max_num_partial_prefills=1, max_long_partial_prefills=1, long_prefill_token_threshold=0, num_lookahead_slots=0, scheduler_delay_factor=0.0, preemption_mode=None, num_scheduler_steps=1, multi_step_stream_outputs=True, scheduling_policy='fcfs', enable_chunked_prefill=None, disable_chunked_mm_input=False, scheduler_cls='vllm.core.scheduler.Scheduler', override_neuron_config=None, override_pooler_config=None, compilation_config=None, kv_transfer_config=None, worker_cls='auto', worker_extension_cls='', generation_config='auto', override_generation_config=None, enable_sleep_mode=False, additional_config=None, enable_reasoning=False, disable_cascade_attn=False, disable_log_requests=True, max_log_len=None, disable_fastapi_docs=False, enable_prompt_tokens_details=False, enable_server_load_tracking=False)
+ERROR 05-14 14:37:28 [api_server.py:1295] No running MPS daemon found
+INFO 05-14 14:37:28 [api_server.py:1298] Initializing NVIDIA MPS...
+INFO 05-14 14:37:28 [api_server.py:1310] NVIDIA MPS daemon started successfully as a background process
+INFO 05-14 14:37:42 [config.py:716] This model supports multiple tasks: {'reward', 'generate', 'classify', 'score', 'embed'}. Defaulting to 'generate'.
+WARNING 05-14 14:37:51 [arg_utils.py:1678] Speculative Decoding is not supported by the V1 Engine. Falling back to V0. 
+INFO 05-14 14:37:54 [config.py:1737] Defaulting to use mp for distributed inference
+INFO 05-14 14:37:54 [config.py:458] Overriding HF config with <function SpeculativeConfig.hf_config_override at 0x7f4e3c98a200>
+INFO 05-14 14:37:55 [arg_utils.py:1043] For CoSpec, using shared memory to load models
+WARNING 05-14 14:37:55 [cuda.py:96] To see benefits of async output processing, enable CUDA graph. Since, enforce-eager is enabled, async output processor cannot be used
+INFO 05-14 14:37:55 [api_server.py:172] Using CoSpec.
+INFO 05-14 14:37:55 [api_server.py:212] Started engine process with PID 575535
+INFO 05-14 14:37:58 [__init__.py:239] Automatically detected platform cuda.
+INFO 05-14 14:38:00 [llm_engine.py:246] Initializing a V0 LLM engine (v0.1.dev6059+g0e6dd89.d20250509) with config: model='facebook/opt-6.7b', speculative_config=SpeculativeConfig(method='draft_model', model='facebook/opt-125m', num_spec_tokens=7), tokenizer='facebook/opt-6.7b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=2048, download_dir=None, load_format=LoadFormat.SHARED_MEMORY, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=42, served_model_name=facebook/opt-6.7b, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=False, use_async_output_proc=False, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"splitting_ops":[],"compile_sizes":[],"cudagraph_capture_sizes":[],"max_capture_size":0}, use_cached_outputs=True, 
+WARNING 05-14 14:38:00 [multiproc_worker_utils.py:306] Reducing Torch parallelism from 32 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+INFO 05-14 14:38:02 [cuda.py:231] Using XFormers backend.
+INFO 05-14 14:38:02 [cuda.py:231] Using XFormers backend.
+INFO 05-14 14:38:02 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+INFO 05-14 14:38:02 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+INFO 05-14 14:38:02 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+INFO 05-14 14:38:02 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+INFO 05-14 14:38:02 [profiler.py:60] Profile file: profile/NVIDIA_RTX_A6000_opt-6.7b_opt-125m/results.csv
+cospec manager with rank 0
+SpecDecodeWorker initialized with rank 0
+INFO 05-14 14:38:02 [spec_decode_worker.py:351] SpecDecodeWorker initialized
+INFO 05-14 14:38:04 [__init__.py:239] Automatically detected platform cuda.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:05 [multiproc_worker_utils.py:225] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:06 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [profiler.py:60] Profile file: profile/NVIDIA_RTX_A6000_opt-6.7b_opt-125m/results.csv
+[1;36m(VllmWorkerProcess pid=575716)[0;0m cospec manager with rank 1
+[1;36m(VllmWorkerProcess pid=575716)[0;0m SpecDecodeWorker initialized with rank 1
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [spec_decode_worker.py:351] SpecDecodeWorker initialized
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [utils.py:1048] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 05-14 14:38:07 [utils.py:1048] Found nccl from library libnccl.so.2
+INFO 05-14 14:38:07 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 05-14 14:38:07 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 05-14 14:38:07 [shm_broadcast.py:266] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_2362bcd9'), local_subscribe_addr='ipc:///tmp/4fc5cea7-1114-461e-afe1-54301ec61944', remote_subscribe_addr=None, remote_addr_ipv6=False)
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:07 [parallel_state.py:946] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1
+INFO 05-14 14:38:07 [parallel_state.py:946] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:08 [model_runner.py:1126] Starting to load model facebook/opt-6.7b...
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:08 [loader.py:1544] Using model identifier: facebook_opt-6_7b
+INFO 05-14 14:38:08 [model_runner.py:1126] Starting to load model facebook/opt-6.7b...
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:08 [loader.py:1588] Primary process - initializing model
+INFO 05-14 14:38:08 [loader.py:1544] Using model identifier: facebook_opt-6_7b
+INFO 05-14 14:38:08 [loader.py:1588] Primary process - initializing model
+INFO 05-14 14:38:08 [weight_utils.py:265] Using model weights format ['*.bin']
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:08 [weight_utils.py:265] Using model weights format ['*.bin']
+INFO 05-14 14:38:16 [model_runner.py:1162] Model loading took 6.2100 GiB and 8.307324 seconds
+INFO 05-14 14:38:16 [model_runner.py:1126] Starting to load model facebook/opt-125m...
+INFO 05-14 14:38:16 [loader.py:1544] Using model identifier: facebook_opt-125m
+INFO 05-14 14:38:16 [loader.py:1588] Primary process - initializing model
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:16 [model_runner.py:1162] Model loading took 6.2100 GiB and 8.491062 seconds
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:16 [model_runner.py:1126] Starting to load model facebook/opt-125m...
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:16 [loader.py:1544] Using model identifier: facebook_opt-125m
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:16 [loader.py:1588] Primary process - initializing model
+INFO 05-14 14:38:17 [weight_utils.py:265] Using model weights format ['*.bin']
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:17 [weight_utils.py:265] Using model weights format ['*.bin']
+INFO 05-14 14:38:17 [model_runner.py:1162] Model loading took 0.1191 GiB and 0.820304 seconds
+INFO 05-14 14:38:17 [spec_decode_worker.py:387] [Speculative Decoding] Use batch expansion for scoring proposals.
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:18 [model_runner.py:1162] Model loading took 0.1191 GiB and 0.961673 seconds
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:18 [spec_decode_worker.py:387] [Speculative Decoding] Use batch expansion for scoring proposals.
+INFO 05-14 14:38:18 [llm_engine.py:432] Using CoSpec for KV cache allocation
+INFO 05-14 14:38:18 [llm_engine.py:434] Primary process, determining num of blocks
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:19 [worker.py:265] Memory profiling takes 1.74 seconds
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:19 [worker.py:265] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.80) = 38.03GiB
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:38:19 [worker.py:265] model weights take 6.21GiB; non_torch_memory takes 0.38GiB; PyTorch activation peak memory takes 0.13GiB; the rest of the memory reserved for KV Cache is 31.31GiB.
+INFO 05-14 14:38:20 [worker.py:265] Memory profiling takes 1.79 seconds
+INFO 05-14 14:38:20 [worker.py:265] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.80) = 38.03GiB
+INFO 05-14 14:38:20 [worker.py:265] model weights take 6.21GiB; non_torch_memory takes 0.41GiB; PyTorch activation peak memory takes 0.53GiB; the rest of the memory reserved for KV Cache is 30.88GiB.
+INFO 05-14 14:38:20 [executor_base.py:112] # cuda blocks: 3692, # CPU blocks: 512
+INFO 05-14 14:38:20 [executor_base.py:117] Maximum concurrency for 2048 tokens per request: 28.84x
+INFO 05-14 14:38:21 [llm_engine.py:461] init engine (profile, create kv cache, warmup model) took 3.18 seconds
+INFO 05-14 14:38:22 [config.py:716] This model supports multiple tasks: {'reward', 'generate', 'classify', 'score', 'embed'}. Defaulting to 'generate'.
+INFO 05-14 14:38:22 [config.py:1737] Defaulting to use mp for distributed inference
+INFO 05-14 14:38:22 [config.py:458] Overriding HF config with <function SpeculativeConfig.hf_config_override at 0x7f4e3c98a200>
+INFO 05-14 14:38:22 [arg_utils.py:1043] For CoSpec, using shared memory to load models
+WARNING 05-14 14:38:22 [cuda.py:96] To see benefits of async output processing, enable CUDA graph. Since, enforce-eager is enabled, async output processor cannot be used
+INFO 05-14 14:38:22 [api_server.py:172] Using CoSpec.
+WARNING 05-14 14:38:22 [api_server.py:181] Found PROMETHEUS_MULTIPROC_DIR was set by user. This directory must be wiped between vLLM runs or you will find inaccurate metrics. Unset the variable and vLLM will properly handle cleanup.
+INFO 05-14 14:38:22 [api_server.py:212] Started engine process with PID 576010
+INFO 05-14 14:38:26 [__init__.py:239] Automatically detected platform cuda.
+INFO 05-14 14:38:28 [llm_engine.py:246] Initializing a V0 LLM engine (v0.1.dev6059+g0e6dd89.d20250509) with config: model='facebook/opt-6.7b', speculative_config=SpeculativeConfig(method='draft_model', model='facebook/opt-125m', num_spec_tokens=7), tokenizer='facebook/opt-6.7b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=2048, download_dir=None, load_format=LoadFormat.SHARED_MEMORY, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=True, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=42, served_model_name=facebook/opt-6.7b, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=False, use_async_output_proc=False, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"splitting_ops":[],"compile_sizes":[],"cudagraph_capture_sizes":[],"max_capture_size":0}, use_cached_outputs=True, 
+WARNING 05-14 14:38:28 [multiproc_worker_utils.py:306] Reducing Torch parallelism from 32 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+INFO 05-14 14:38:29 [cuda.py:231] Using XFormers backend.
+INFO 05-14 14:38:30 [cuda.py:231] Using XFormers backend.
+INFO 05-14 14:38:30 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+INFO 05-14 14:38:30 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+INFO 05-14 14:38:30 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+INFO 05-14 14:38:30 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+cospec manager with rank 0
+SpecDecodeWorker initialized with rank 0
+INFO 05-14 14:38:30 [spec_decode_worker.py:351] SpecDecodeWorker initialized
+INFO 05-14 14:38:31 [__init__.py:239] Automatically detected platform cuda.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:33 [multiproc_worker_utils.py:225] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m cospec manager with rank 1
+[1;36m(VllmWorkerProcess pid=576190)[0;0m SpecDecodeWorker initialized with rank 1
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:34 [spec_decode_worker.py:351] SpecDecodeWorker initialized
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [utils.py:1048] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 05-14 14:38:35 [utils.py:1048] Found nccl from library libnccl.so.2
+INFO 05-14 14:38:35 [pynccl.py:69] vLLM is using nccl==2.21.5
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 05-14 14:38:35 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 05-14 14:38:35 [shm_broadcast.py:266] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_51db8c83'), local_subscribe_addr='ipc:///tmp/9bc05870-4491-4527-8006-de1f6bf431aa', remote_subscribe_addr=None, remote_addr_ipv6=False)
+INFO 05-14 14:38:35 [parallel_state.py:946] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [parallel_state.py:946] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1
+INFO 05-14 14:38:35 [model_runner.py:1126] Starting to load model facebook/opt-6.7b...
+INFO 05-14 14:38:35 [loader.py:1544] Using model identifier: facebook_opt-6_7b
+INFO 05-14 14:38:35 [loader.py:1568] Secondary process - loading model from shared memory
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [model_runner.py:1126] Starting to load model facebook/opt-6.7b...
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [loader.py:1544] Using model identifier: facebook_opt-6_7b
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:35 [loader.py:1568] Secondary process - loading model from shared memory
+INFO 05-14 14:38:36 [model_runner.py:1162] Model loading took 0.0001 GiB and 0.098278 seconds
+INFO 05-14 14:38:36 [model_runner.py:1126] Starting to load model facebook/opt-125m...
+INFO 05-14 14:38:36 [loader.py:1544] Using model identifier: facebook_opt-125m
+INFO 05-14 14:38:36 [loader.py:1568] Secondary process - loading model from shared memory
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [model_runner.py:1162] Model loading took 0.0001 GiB and 0.109237 seconds
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [model_runner.py:1126] Starting to load model facebook/opt-125m...
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [loader.py:1544] Using model identifier: facebook_opt-125m
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [loader.py:1568] Secondary process - loading model from shared memory
+INFO 05-14 14:38:36 [model_runner.py:1162] Model loading took 0.0000 GiB and 0.023030 seconds
+INFO 05-14 14:38:36 [spec_decode_worker.py:387] [Speculative Decoding] Use batch expansion for scoring proposals.
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [model_runner.py:1162] Model loading took 0.0000 GiB and 0.026498 seconds
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:38:36 [spec_decode_worker.py:387] [Speculative Decoding] Use batch expansion for scoring proposals.
+INFO 05-14 14:38:36 [llm_engine.py:432] Using CoSpec for KV cache allocation
+INFO 05-14 14:38:36 [llm_engine.py:441] Secondary process, getting num of blocks
+INFO 05-14 14:38:36 [executor_base.py:112] # cuda blocks: 3692, # CPU blocks: 512
+INFO 05-14 14:38:36 [executor_base.py:117] Maximum concurrency for 2048 tokens per request: 28.84x
+INFO 05-14 14:38:37 [llm_engine.py:461] init engine (profile, create kv cache, warmup model) took 0.99 seconds
+INFO 05-14 14:38:37 [api_server.py:1361] Starting vLLM API server on http://0.0.0.0:8001
+INFO 05-14 14:38:37 [launcher.py:28] Available routes are:
+INFO 05-14 14:38:37 [launcher.py:36] Route: /openapi.json, Methods: HEAD, GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /docs, Methods: HEAD, GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /docs/oauth2-redirect, Methods: HEAD, GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /redoc, Methods: HEAD, GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /health, Methods: GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /load, Methods: GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /ping, Methods: POST, GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /tokenize, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /detokenize, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/models, Methods: GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /version, Methods: GET
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/chat/completions, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/completions, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/embeddings, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /pooling, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /score, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/score, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/audio/transcriptions, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /rerank, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v1/rerank, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /v2/rerank, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /invocations, Methods: POST
+INFO 05-14 14:38:37 [launcher.py:36] Route: /metrics, Methods: GET
+INFO:     127.0.0.1:60762 - "POST /v1/completions HTTP/1.1" 200 OK
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+delegate worker execute_model <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+INFO 05-14 14:39:37 [metrics.py:493] Avg prompt throughput: 1.3 tokens/s, Avg generation throughput: 0.1 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m  False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m  True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False NoneINFO:     127.0.0.1:50368 - "POST /v1/completions HTTP/1.1" 200 OK
+ True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+delegate worker execute_model <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driverINFO:     127.0.0.1:50374 - "POST /v1/completions HTTP/1.1" 200 OK
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f70f5bc74d0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f70f5bc74d0> True
+target start with rank 0
+target finish with rank 0
+delegate worker execute_model <vllm.cospec.cospec_manager.CospecManager object at 0x7f70f5bc74d0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f70f5bc74d0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f70f5bc74d0> False
+INFO 05-14 14:39:39 [metrics.py:493] Avg prompt throughput: 3.5 tokens/s, Avg generation throughput: 0.1 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+ True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None TrueINFO:     127.0.0.1:50384 - "POST /v1/completions HTTP/1.1" 200 OK
+ True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit True
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+delegate worker execute_model <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>INFO:     127.0.0.1:50394 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50398 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50400 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50412 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50424 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50430 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50438 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50450 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50456 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50460 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50474 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50488 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50494 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50508 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50514 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50522 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50528 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50530 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50534 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50544 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50546 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50556 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50564 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50576 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50590 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50602 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50608 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50622 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50626 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50640 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50646 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50656 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50668 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50684 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50692 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50708 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50710 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50722 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50736 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50752 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50760 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50776 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50786 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50802 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50804 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50818 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50828 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50830 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50846 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50852 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58056 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58062 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58078 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58088 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58102 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58112 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58120 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58126 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58132 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58138 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58140 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58154 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58170 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58182 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58188 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58196 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58202 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58210 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58214 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58216 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58232 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58234 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58250 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58258 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58274 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58284 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58294 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58306 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58322 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58324 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58330 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58332 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58336 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58338 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58354 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58364 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58376 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58386 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58398 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58404 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58414 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58422 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58424 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58434 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58450 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58462 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58472 - "POST /v1/completions HTTP/1.1" 200 OK
+[1;36m(VllmWorkerProcess pid=575716)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=575716)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=575716)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=575716)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=575716)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=575716)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=575716)[0;0m INFO 05-14 14:40:21 [multiproc_worker_utils.py:259] Worker exiting
+
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m delegate worker execute_model None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m local or distributed worker cospec_manager None
+[1;36m(VllmWorkerProcess pid=576190)[0;0m execute model with driver_worker False None True
+[1;36m(VllmWorkerProcess pid=576190)[0;0m INFO 05-14 14:40:21 [multiproc_worker_utils.py:259] Worker exiting
+INFO 05-14 14:40:21 [launcher.py:79] Shutting down FastAPI HTTP server.
+ False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+target finish with rank 0
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> False
+is_driver True
+getting early_exit with rank 0
+getting early_exit_False
+!! is_driver True should_exit False
+cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+local or distributed worker cospec_manager <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0>
+execute model with driver_worker True <vllm.cospec.cospec_manager.CospecManager object at 0x7f0f1662bad0> True
+target start with rank 0
+INFO 05-14 14:40:22 [multiproc_worker_utils.py:137] Terminating local vLLM worker processes
+INFO 05-14 14:40:23 [api_server.py:1391] NVIDIA MPS daemon stopped successfully

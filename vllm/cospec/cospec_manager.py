@@ -1,10 +1,6 @@
 import torch
-import time
 import os
 import fcntl
-import numpy as np
-from sklearn.linear_model import LinearRegression
-from collections import deque
 
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
@@ -19,10 +15,12 @@ class CospecManager:
         self.shm = SharedMemory()
         self.profiler = Profiler(vllm_config)
         self.selective_validator = SelectiveValidator()
+        self.rank = vllm_config.parallel_config.rank
+        self.is_driver = self.rank == 0
         self.is_primary = vllm_config.speculative_config.is_primary
         self.start_time = None
         self.predicted_target_latency = None
-        self.target_lock_fd = os.open("/tmp/cospec_target.lock", os.O_CREAT | os.O_RDWR)
+        self.target_lock_fd = os.open(f"/tmp/cospec_target_{self.rank}.lock", os.O_CREAT | os.O_RDWR)
         self.current_batch_size = 0
 
     def target_start(self):
@@ -42,7 +40,9 @@ class CospecManager:
             return False
         
         torch.cuda.synchronize()
-        return self.shm.get_nowait(f"early_exit_{self.is_primary}")
+        should_exit = self.shm.get_nowait(f"early_exit_{self.is_primary}")
+        return should_exit
+
     
     def set_current_batch_size(self, batch_size: int):
         self.current_batch_size = batch_size

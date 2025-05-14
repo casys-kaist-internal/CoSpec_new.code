@@ -121,14 +121,14 @@ def test_spec_decode_selective_validation(vllm_runner, common_llm_kwargs,
             # Identical models.
             "speculative_config": {
                 "model": "JackFram/llama-68m",
-                "num_speculative_tokens": 5,
+                "num_speculative_tokens": 7,
             },
         },
     ])
 @pytest.mark.parametrize("baseline_llm_kwargs", [{}])
 @pytest.mark.parametrize("test_llm_kwargs", [{}])
-@pytest.mark.parametrize("batch_size", [8])
-@pytest.mark.parametrize("output_len", [32])
+@pytest.mark.parametrize("batch_size", [8, 16])
+@pytest.mark.parametrize("output_len", [32, 64])
 @pytest.mark.parametrize("seed", [1])
 def test_spec_decode_selective_validation_consolidated_attention(vllm_runner, common_llm_kwargs,
                                 per_test_common_llm_kwargs,
