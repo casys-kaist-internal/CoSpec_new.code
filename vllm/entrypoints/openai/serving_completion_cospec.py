@@ -663,6 +663,14 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         async for _ in result_generator:
             pass
 
+    async def _train_selective_validator(self):
+        while True:
+            selective_validator_trained = await self.engine_client.is_selective_validator_trained()
+            if selective_validator_trained:
+                break
+            
+
+
     def _select_engine(self) -> EngineClient:
         if self.dynamic_colocation:
             self._maybe_change_colocation_mode()
@@ -686,13 +694,15 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         if elapsed < self.dwelling_time:
             return
         
-        ratio = self.engine_client.predict_colocation_speedup_ratio()
-        logger.info(f"Colocation speedup ratio: {ratio}")
+        total_requests = self.engine_client.get_num_requests() + self.engine_client2.get_num_requests()
+        
+        ratio = self.engine_client.predict_colocation_speedup_ratio(total_requests)
+        print(f"Colocation speedup ratio: {ratio}")
         
         switched = False
         if self.colocation_mode:
             if ratio < (1 - self.performance_threshold):
-                logger.info(f"Switching to non-colocation mode")
+                print(f"Switching to non-colocation mode")
                 self.colocation_mode = False
                 # Select the engine with more requests
                 engine1_requests = self.engine_client.get_num_requests()
@@ -702,10 +712,10 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             
         else: 
             if ratio > (1 + self.performance_threshold):
-                logger.info(f"Switching to colocation mode")
+                print(f"Switching to colocation mode")
                 self.colocation_mode = True
                 switched = True
 
         if switched:
             self.last_mode_switch_time = current_time
-            logger.info(f"Mode switched to {'colocation' if self.colocation_mode else 'non-colocation'}")
+            print(f"Mode switched to {'colocation' if self.colocation_mode else 'non-colocation'}")

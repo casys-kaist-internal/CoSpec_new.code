@@ -210,6 +210,7 @@ class ModelRunnerBase(ABC, Generic[T]):
         seq_group_metadata_list: List[SequenceGroupMetadata],
         virtual_engine: int = 0,
         finished_requests_ids: Optional[List[str]] = None,
+        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> T:
         """
         Prepare the inputs to ModelRunnerBase.execute_model from an execution

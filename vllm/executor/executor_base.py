@@ -212,9 +212,12 @@ class ExecutorBase(ABC):
 
     def maybe_load_cached_cospec_profile(self) -> bool:
         return self.collective_rpc("maybe_load_cached_cospec_profile")
+    
+    def is_selective_validator_trained(self) -> bool:
+        return self.collective_rpc("is_selective_validator_trained")
 
-    def predict_colocation_speedup_ratio(self) -> float:
-        return self.collective_rpc("predict_colocation_speedup_ratio")
+    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+        return self.collective_rpc("predict_colocation_speedup_ratio", kwargs=dict(total_requests=total_requests))
 
     def sleep(self, level: int = 1):
         if self.is_sleeping:

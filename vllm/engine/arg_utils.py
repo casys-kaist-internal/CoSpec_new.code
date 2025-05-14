@@ -1039,7 +1039,7 @@ class EngineArgs:
         )
 
     def create_load_config(self) -> LoadConfig:
-        if envs.COSPEC:
+        if envs.COSPEC and not envs.COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST:
             logger.info("For CoSpec, using shared memory to load models")
             self.load_format = "shared_memory"
 

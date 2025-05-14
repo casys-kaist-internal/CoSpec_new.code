@@ -90,8 +90,8 @@ class Top1Proposer(SpeculativeProposer):
                 cospec_manager=cospec_manager,
                 is_target=is_target
             )
-            # maybe we should adjust the proposal_lens here 
-            proposal_len = self._adjust_proposal_lens(proposal_lens, maybe_sampler_output)
+            # Should adjust the proposal_lens here 
+            adjusted_proposal_len = self._adjust_proposal_lens(proposal_lens, maybe_sampler_output)
             (
                 proposal_lens,
                 maybe_sampler_output,
@@ -107,9 +107,9 @@ class Top1Proposer(SpeculativeProposer):
     
         # Combine speculative- and non-speculative sequences into the same
         # representation.
-        proposal_tokens, proposal_probs, proposal_lens, pre_temperature_probs = self._merge_outputs(
+        proposal_tokens, proposal_probs, proposal_lens, unscaled_temp_probs = self._merge_outputs(
             batch_size=len(seq_group_metadata_list),
-            proposal_len=proposal_len,
+            proposal_len=adjusted_proposal_len,
             maybe_sampler_output=maybe_sampler_output,
             proposal_lens=proposal_lens,
             nonzero_proposal_len_indices=nonzero_proposal_len_indices,
@@ -119,7 +119,7 @@ class Top1Proposer(SpeculativeProposer):
             proposal_token_ids=proposal_tokens,
             proposal_probs=proposal_probs,
             proposal_lens=proposal_lens,
-            pre_temperature_probs=pre_temperature_probs,
+            unscaled_temp_probs=unscaled_temp_probs,
             no_proposals=maybe_sampler_output is None
         )
         
@@ -170,12 +170,12 @@ class Top1Proposer(SpeculativeProposer):
         )
     
     def _adjust_proposal_lens(self, proposal_lens, maybe_sampler_output):
-        proposal_len = len(maybe_sampler_output)
+        adjusted_proposal_len = len(maybe_sampler_output)
         for i in range(len(proposal_lens)):
-            if proposal_lens[i] > proposal_len:
-                proposal_lens[i] = proposal_len
-
-        return proposal_len
+            if proposal_lens[i] > adjusted_proposal_len:
+                proposal_lens[i] = adjusted_proposal_len
+        # print("adjusted proposal len", proposal_lens)
+        return adjusted_proposal_len
 
     @staticmethod
     def _remove_no_proposal_seqs(proposal_lens, maybe_sampler_output,
@@ -263,7 +263,7 @@ class Top1Proposer(SpeculativeProposer):
             return proposal_tokens, proposal_probs, proposal_lens_tensor, None
 
         sampler_output = maybe_sampler_output
-        proposal_tokens, proposal_probs, pre_temperature_probs, *_ = sampler_output_to_torch(
+        proposal_tokens, proposal_probs, unscaled_temp_probs, *_ = sampler_output_to_torch(
             sampler_output, sampler_transposed)
 
         # Now, reformat the output GPU tensors such that each sequence has
@@ -280,16 +280,16 @@ class Top1Proposer(SpeculativeProposer):
         )
         entire_proposal_probs[nonzero_proposal_len_indices] = proposal_probs
 
-        entire_pre_temperature_probs = pre_temperature_probs.new_full(
-            size=(batch_size, *pre_temperature_probs.shape[1:]),
+        entire_unscaled_temp_probs = unscaled_temp_probs.new_full(
+            size=(batch_size, *unscaled_temp_probs.shape[1:]),
             fill_value=-1,
         )
-        entire_pre_temperature_probs[nonzero_proposal_len_indices] = pre_temperature_probs
+        entire_unscaled_temp_probs[nonzero_proposal_len_indices] = unscaled_temp_probs
 
-        proposal_tokens, proposal_probs, pre_temperature_probs = (
+        proposal_tokens, proposal_probs, unscaled_temp_probs = (
             entire_proposal_tokens,
             entire_proposal_probs,
-            entire_pre_temperature_probs,
+            entire_unscaled_temp_probs,
         )
 
         proposal_lens_tensor = torch.zeros(batch_size,
@@ -297,4 +297,4 @@ class Top1Proposer(SpeculativeProposer):
                                            device=self._device)
         proposal_lens_tensor[nonzero_proposal_len_indices] = proposal_len
 
-        return proposal_tokens, proposal_probs, proposal_lens_tensor, pre_temperature_probs
+        return proposal_tokens, proposal_probs, proposal_lens_tensor, unscaled_temp_probs

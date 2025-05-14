@@ -108,6 +108,7 @@ class PagedAttention:
         blocksparse_vert_stride: int = 0,
         blocksparse_block_size: int = 64,
         blocksparse_head_sliding_step: int = 0,
+        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if blocksparse_vert_stride is not None and blocksparse_vert_stride > 1:
             # use blocksparse paged attention
@@ -132,9 +133,17 @@ class PagedAttention:
         use_v1 = (max_seq_len <= 8192
                   and (max_num_partitions == 1 or num_seqs * num_heads > 512))
 
+        should_run_consolidated_attention = True 
+        if not envs.COSPEC_CONSOLIDATED_ATTENTION:
+            should_run_consolidated_attention = False 
+        elif consolidated_lens_tensor is None:
+            should_run_consolidated_attention = False
+        elif torch.any(consolidated_lens_tensor == 1):
+            should_run_consolidated_attention = False
+
         if use_v1:
             # Run PagedAttention V1.
-            if envs.COSPEC_CONSOLIDATED_ATTENTION:
+            if should_run_consolidated_attention:
                 ops.consolidated_paged_attention_v1(
                     output,
                     query,
@@ -144,6 +153,7 @@ class PagedAttention:
                     scale,
                     block_tables,
                     seq_lens,
+                    consolidated_lens_tensor,
                     block_size,
                     max_seq_len,
                     alibi_slopes,
@@ -193,7 +203,7 @@ class PagedAttention:
             )
             max_logits = torch.empty_like(exp_sums)
 
-            if envs.COSPEC_CONSOLIDATED_ATTENTION:
+            if should_run_consolidated_attention:
                 ops.consolidated_paged_attention_v2(
                     output,
                     exp_sums,
@@ -206,6 +216,7 @@ class PagedAttention:
                     scale,
                     block_tables,
                     seq_lens,
+                    consolidated_lens_tensor,
                     block_size,
                     max_seq_len,
                     alibi_slopes,
@@ -244,6 +255,7 @@ class PagedAttention:
                     blocksparse_head_sliding_step,
                 )
         return output
+
 
     @staticmethod
     def forward_prefix(

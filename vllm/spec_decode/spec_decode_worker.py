@@ -793,9 +793,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         # so that backend gets prefill|decode.
         assert num_lookahead_slots == execute_model_req.num_lookahead_slots
 
-        # Set current batch size 
-        self.cospec_manager.set_current_batch_size(execute_model_req.running_queue_size)
-
         # Pass last hidden states from target model to proposer
         execute_model_req.previous_hidden_states = self.previous_hidden_states
         self.previous_hidden_states = None
@@ -816,7 +813,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             raise RuntimeError("Cannot handle cases where distributed draft "
                                "workers generate no tokens")
         
-        if envs.COSPEC_SELECTIVE_VALIDATION:
+        if envs.COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST:
+            proposals = self.cospec_manager.selective_validation_correctness_test(proposals)
+            
+        elif envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
             proposals = self.cospec_manager.selective_validation(proposals)
 
         max_proposal_len = max(proposals.proposal_lens)
@@ -852,7 +852,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # TODO avoid sampling here?
             self.proposer_worker.execute_model(prefill_req)
 
-        if envs.COSPEC_SELECTIVE_VALIDATION:
+        if envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
             self.cospec_manager.update_proposal_history(proposals, proposal_scores)
 
         with Timer() as verification_timer:
@@ -873,7 +873,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             prompt_logprobs=proposal_scores.prompt_logprobs
             if not self._disable_logprobs else None,
             k=execute_model_req.num_lookahead_slots,
-            stage_times=stage_times)
+            stage_times=stage_times,
+            proposal_lens_list=proposals.proposal_lens)
 
     @nvtx_range("spec_decode_worker._verify_tokens")
     def _verify_tokens(
@@ -889,8 +890,12 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         Returns a tuple of Tensors, one for the accepted token ids and one for
         the logprobs according to the scoring model.
         """
-        proposal_lens_list = proposals.proposal_lens.tolist()
+        # print("______________________________________________")
+        # print("proposal_token_ids", proposals.proposal_token_ids)
+        # print("proposal_lens", proposals.proposal_lens)
+        # print("proposal_scores.token_ids", proposal_scores.token_ids)
 
+        proposal_lens_list = proposals.proposal_lens.tolist()
         # vLLM currently only supports proposal lens equal to zero or the batch
         # proposal len. This adds some complexity (splitting the batch into spec
         # and non spec sequences) and should be removed in the future. It can be
@@ -906,7 +911,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         non_spec_token_ids = proposal_scores.token_ids[non_spec_indices]
 
         # Get bonus tokens from target model.
-        bonus_token_ids = proposal_scores.token_ids[spec_indices, -1:]
+        proposal_lens = proposals.proposal_lens[spec_indices]
+        bonus_token_ids = proposal_scores.token_ids[spec_indices].gather(1, (proposal_lens).unsqueeze(1))
 
         # Get probabilities according to proposal method.
         proposal_probs = proposals.proposal_probs[spec_indices]
@@ -931,6 +937,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             draft_token_ids=proposal_token_ids,
             **sampler_extra_kwargs,
         )
+
         # Append output tokens from non-speculative sequences to
         # the accepted token ids tensor.
         non_spec_token_ids = non_spec_token_ids.expand(-1, max_proposal_len +
@@ -981,6 +988,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             torch.Tensor],  # shape: [nprompt_tokens, vocab_size]
         k: int,
         stage_times: Tuple[float, float, float],
+        proposal_lens_list: List[int],
     ) -> List[SamplerOutput]:
         """Given the accepted token ids, create a list of SamplerOutput.
 
@@ -1121,14 +1129,16 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                         topk_logprobs=topk_logprobs_by_step[step_index]
                         [sequence_index][:num_logprobs],
                         step_index=step_index))
+
             sampler_output_list.append(
                 SamplerOutput(outputs=step_output_token_ids))
 
         # Populate the data structures needed to keep track of sequences with
         # bonus tokens.
-        self._track_sequences_with_bonus_tokens(seq_ids,
-                                                request_ids_seq_ids_mapping,
-                                                accepted_token_ids_by_step)
+        self._track_sequences_with_bonus_tokens_per_sequence(seq_ids,
+                                                            request_ids_seq_ids_mapping,
+                                                            accepted_token_ids_by_step,
+                                                            proposal_lens_list)
         maybe_rejsample_metrics = (
             self._metrics.maybe_collect_rejsample_metrics(k))
         if maybe_rejsample_metrics is not None:
@@ -1292,6 +1302,25 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         for request_id, sequences in request_ids_seq_ids_mapping.items():
             self._request_id_seq_id_mapping[request_id].update(sequences)
 
+    def _track_sequences_with_bonus_tokens_per_sequence(
+            self, seq_ids: List[int],
+            request_ids_seq_ids_mapping: Dict[str, Set[int]],
+            accepted_token_ids_by_step: List[List[int]],
+            proposal_lens_list: List[int]):
+        """
+        Updates the internal data structures which keep track of sequences
+        which have been assigned bonus tokens in their last forward pass.
+        """
+        for seq_index, seq_id in enumerate(seq_ids):
+            proposal_len = proposal_lens_list[seq_index]
+            last_token_id = accepted_token_ids_by_step[proposal_len][seq_index]
+            if last_token_id == -1:
+                self._seq_with_bonus_token_in_last_step.discard(seq_id)
+            else:
+                self._seq_with_bonus_token_in_last_step.add(seq_id)
+        for request_id, sequences in request_ids_seq_ids_mapping.items():
+            self._request_id_seq_id_mapping[request_id].update(sequences)
+
     @cached_property
     def _vocab_size(self) -> int:
         """Get the vocab size of the model and make sure it's consistent between
@@ -1355,9 +1384,14 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             return self.cospec_manager.profiler.maybe_load_cached_results()
         return False
     
-    def predict_colocation_speedup_ratio(self) -> float:
+    def is_selective_validator_trained(self) -> bool:
         if self.cospec_manager is not None:
-            return self.cospec_manager.predict_colocation_speedup_ratio()
+            return self.cospec_manager.selective_validator.is_selective_validator_trained()
+        return False
+    
+    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+        if self.cospec_manager is not None:
+            return self.cospec_manager.predict_colocation_speedup_ratio(total_requests)
         return 1.0
 
 

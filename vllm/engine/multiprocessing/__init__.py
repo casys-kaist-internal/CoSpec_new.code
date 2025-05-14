@@ -180,17 +180,27 @@ class RPCMaybeLoadCachedCospecProfileRequest:
 
 @dataclass
 class RPCPredictColocationSpeedupRatioRequest:
+    total_requests: int
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
+    
 @dataclass
 class RPCPredictColocationSpeedupRatioResponse:
     request_id: str
-    ratio: float
+    speedup_ratio: float
 
 @dataclass
 class RPCMaybeLoadCachedCospecProfileResponse:
     request_id: str
     loaded: bool
+
+@dataclass
+class RPCIsSelectiveValidatorTrainedRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
+class RPCIsSelectiveValidatorTrainedResponse:
+    request_id: str
+    trained: bool
 
 
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,

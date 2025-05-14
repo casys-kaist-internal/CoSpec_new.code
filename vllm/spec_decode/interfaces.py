@@ -26,7 +26,7 @@ class SpeculativeProposals:
     proposal_lens: torch.Tensor
 
     # Pre-temperature logits before applying temperature scaling
-    pre_temperature_probs: Optional[torch.Tensor] = None
+    unscaled_temp_probs: Optional[torch.Tensor] = None
 
     # A flag to mark that there's no available proposals
     no_proposals: bool = False
@@ -36,7 +36,7 @@ class SpeculativeProposals:
                 f"proposal_token_ids={self.proposal_token_ids}, "
                 f"proposal_probs={self.proposal_probs.shape}, "
                 f"proposal_lens={self.proposal_lens}, "
-                f"pre_temperature_probs={self.pre_temperature_probs})")
+                f"unscaled_temp_probs={self.unscaled_temp_probs})")
 
 
 @dataclass
