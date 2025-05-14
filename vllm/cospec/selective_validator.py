@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from collections import deque
 from vllm.logger import init_logger
-from typing import Optional, Tuple, TYPE_CHECKING
 from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
 
 logger = init_logger(__name__)

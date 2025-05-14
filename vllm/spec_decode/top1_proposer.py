@@ -5,7 +5,6 @@ from typing import List, Optional, Set, Tuple
 import torch
 import logging
 
-from vllm.cospec.cospec_manager import CospecManager
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
@@ -49,7 +48,6 @@ class Top1Proposer(SpeculativeProposer):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        cospec_manager: Optional[CospecManager] = None,
         is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Get speculative proposals given the input batch.
@@ -87,7 +85,6 @@ class Top1Proposer(SpeculativeProposer):
                 sample_len=proposal_len,
                 seq_ids_with_bonus_token_in_last_step=\
                     seq_ids_with_bonus_token_in_last_step,
-                cospec_manager=cospec_manager,
                 is_target=is_target
             )
             # Should adjust the proposal_lens here 

@@ -7,7 +7,8 @@
 # Model Configuration
 export TARGET_MODEL="facebook/opt-6.7b"
 export DRAFT_MODEL="facebook/opt-125m"
-export TENSOR_PARALLEL_SIZE=1
+export TENSOR_PARALLEL_SIZE=2
+export DRAFT_TENSOR_PARALLEL_SIZE=2
 
 # Dataset Configuration
 # DATASETS=("sharegpt" "gsm8k" "natural-questions")
@@ -44,11 +45,11 @@ declare -A COSPEC_CONFIGS=(
 
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}"
+RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
-echo "config,spec_tokens,temperature,request_rate,dataset,successful_requests,benchmark_duration,total_input_tokens,total_generated_tokens,request_throughput,output_token_throughput,total_token_throughput,mean_ttft,median_ttft,p99_ttft,mean_tpot,median_tpot,p99_tpot,mean_itl,median_itl,p99_itl,mean_e2el,median_e2el,p99_e2el,mean_token_latency,median_token_latency,p99_token_latency" > "$RESULTS_DIR/benchmark_results.csv"
+echo "config,spec_tokens,temperature,request_rate,dataset,tensor_parallel_size,draft_tensor_parallel_size,successful_requests,benchmark_duration,total_input_tokens,total_generated_tokens,request_throughput,output_token_throughput,total_token_throughput,mean_ttft,median_ttft,p99_ttft,mean_tpot,median_tpot,p99_tpot,mean_itl,median_itl,p99_itl,mean_e2el,median_e2el,p99_e2el,mean_token_latency,median_token_latency,p99_token_latency" > "$RESULTS_DIR/benchmark_results.csv"
 
 # =============================================
 # Helper Functions
@@ -75,7 +76,7 @@ start_server() {
 
     # Add speculative config if spec_tokens > 0
     if [ "$spec_tokens" -gt 0 ]; then
-        CMD+=" --speculative_config '{\"model\": \"$DRAFT_MODEL\", \"num_speculative_tokens\": $spec_tokens}'"
+        CMD+=" --speculative_config '{\"model\": \"$DRAFT_MODEL\", \"num_speculative_tokens\": $spec_tokens, \"draft_tensor_parallel_size\": $DRAFT_TENSOR_PARALLEL_SIZE}'"
     fi
 
     # Start server in background and redirect output
@@ -171,7 +172,7 @@ run_benchmark() {
     
     # Parse and save results
     local results=($(parse_benchmark_results "$RESULTS_DIR/${config}_${spec_tokens}_${temperature}_${request_rate}_${dataset}_output.txt"))
-    echo "$config,$spec_tokens,$temperature,$request_rate,$dataset,${results[*]}" | tr ' ' ',' >> "$RESULTS_DIR/benchmark_results.csv"
+    echo "$config,$spec_tokens,$temperature,$request_rate,$dataset,$TENSOR_PARALLEL_SIZE,$DRAFT_TENSOR_PARALLEL_SIZE,${results[*]}" | tr ' ' ',' >> "$RESULTS_DIR/benchmark_results.csv"
 }
 
 # =============================================
