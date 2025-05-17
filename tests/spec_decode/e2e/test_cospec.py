@@ -29,7 +29,7 @@ def init_cospec():
 @pytest.mark.parametrize(
     "common_llm_kwargs",
     [{
-        "enforce_eager": True,
+        "enforce_eager": False,
         "model_name": "JackFram/llama-68m",
     }])
 @pytest.mark.parametrize(
@@ -69,7 +69,7 @@ def test_spec_decode_consolidated_attention(vllm_runner, common_llm_kwargs,
 @pytest.mark.parametrize(
     "common_llm_kwargs",
     [{
-        "enforce_eager": True,
+        "enforce_eager": False,
         "model_name": "JackFram/llama-68m",
     }])
 @pytest.mark.parametrize(
@@ -111,7 +111,7 @@ def test_spec_decode_selective_validation(vllm_runner, common_llm_kwargs,
 @pytest.mark.parametrize(
     "common_llm_kwargs",
     [{
-        "enforce_eager": True,
+        "enforce_eager": False,
         "model_name": "JackFram/llama-68m",
     }])
 @pytest.mark.parametrize(

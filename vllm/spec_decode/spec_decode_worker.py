@@ -347,7 +347,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if envs.COSPEC:
             self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
             self.scorer_worker.cospec_manager = self.cospec_manager
-            self.proposer_worker.cospec_manager = self.cospec_manager
+            self.proposer_worker.worker.cospec_manager = self.cospec_manager
 
         logger.info("SpecDecodeWorker initialized")
 
@@ -765,6 +765,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # should delegate how many times it runs to the proposer.
             for _ in range(max(num_lookahead_slots, 1)):
                 self.proposer_worker.execute_model()
+
+                if num_lookahead_slots != 0:
+                    if self.proposer_worker.worker.cospec_manager is not None:
+                        if self.proposer_worker.worker.cospec_manager.check_early_exit_draft():
+                            break
 
         if not data["no_spec"]:
             self.scorer_worker.execute_model()

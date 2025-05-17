@@ -426,6 +426,8 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         if self.cospec_manager is not None:
             if is_target:
                 self.cospec_manager.target_start()
+            else:
+                self.cospec_manager.draft_start()
         
         torch.cuda.nvtx.range_push(f"execute_model_{'target' if is_target else 'draft'}")
         output = self.model_runner.execute_model(
@@ -440,6 +442,8 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         if self.cospec_manager is not None:
             if is_target:
                 self.cospec_manager.target_finish()
+            else:
+                self.cospec_manager.draft_finish()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:

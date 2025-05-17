@@ -63,7 +63,8 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                ConversationDataset, HuggingFaceDataset,
                                InstructCoderDataset, RandomDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
-                                VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset)
+                                VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset, 
+                                HumanEvalDataset, PythonAlpacaDataset, OrcaMathDataset)
 from benchmark_utils import convert_to_pytorch_benchmark_format, write_to_json
 
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
@@ -646,14 +647,26 @@ def main(args: argparse.Namespace):
     if args.dataset_name == "sharegpt":
         input_requests = ShareGPTDataset(random_seed=args.seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "gsm8k":
-        input_requests = GSM8KDataset(random_seed=args.seed,
-                    dataset_path="openai/gsm8k", 
-                    dataset_subset="main", 
+    # elif args.dataset_name == "gsm8k":
+    #     input_requests = GSM8KDataset(random_seed=args.seed,
+    #                 dataset_path="openai/gsm8k", 
+    #                 dataset_subset="main", 
+    #                 dataset_split="train").sample_all(tokenizer=tokenizer)
+    # elif args.dataset_name == "natural-questions":
+    #     input_requests = NaturalQuestionsDataset(random_seed=args.seed,
+    #                 dataset_path="sentence-transformers/natural-questions", 
+    #                 dataset_split="train").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "humaneval":
+        input_requests = HumanEvalDataset(random_seed=args.seed,
+                    dataset_path="openai/openai_humaneval", 
+                    dataset_split="test").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "python-alpaca":
+        input_requests = PythonAlpacaDataset(random_seed=args.seed,
+                    dataset_path="Vezora/Tested-143k-Python-Alpaca", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "natural-questions":
-        input_requests = NaturalQuestionsDataset(random_seed=args.seed,
-                    dataset_path="sentence-transformers/natural-questions", 
+    elif args.dataset_name == "orca-math":
+        input_requests = OrcaMathDataset(random_seed=args.seed,
+                    dataset_path="microsoft/orca-math-word-problems-200k", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
     else:
         raise ValueError(f"Dataset {args.dataset_name} not supported")
@@ -798,7 +811,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "gsm8k", "natural-questions"],
+        choices=["sharegpt", "gsm8k", "natural-questions", "humaneval", "python-alpaca", "orca-math"],
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",

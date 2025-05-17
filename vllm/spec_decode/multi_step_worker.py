@@ -100,7 +100,8 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
             # and other restrictions that are part of DraftModelRunner's
             # supports_gpu_multi_step(..)
             if expanded_request.previous_hidden_states is not None:
-                self.worker.model_runner.return_hidden_states = True
+                self.worker.model_runner.return_hidden_states = True\
+        
             for i in range(sample_len):
                 model_output: List[SamplerOutput] = self.worker.execute_model(
                     execute_model_req=expanded_request, is_target=is_target)
