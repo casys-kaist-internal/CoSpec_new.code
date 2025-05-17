@@ -138,12 +138,13 @@ class PagedAttention:
             should_run_consolidated_attention = False 
         elif consolidated_lens_tensor is None:
             should_run_consolidated_attention = False
-        elif torch.any(consolidated_lens_tensor == 1):
-            should_run_consolidated_attention = False
+        # elif torch.any(consolidated_lens_tensor == 1): #FIXME 
+        #     should_run_consolidated_attention = False
 
         if use_v1:
             # Run PagedAttention V1.
             if should_run_consolidated_attention:
+                # logger.info("Running consolidated PagedAttention V1")
                 ops.consolidated_paged_attention_v1(
                     output,
                     query,
@@ -167,6 +168,7 @@ class PagedAttention:
                     blocksparse_head_sliding_step,
                 )
             else:
+                # logger.info("Running PagedAttention V2")
                 ops.paged_attention_v1(
                     output,
                     query,
@@ -204,6 +206,7 @@ class PagedAttention:
             max_logits = torch.empty_like(exp_sums)
 
             if should_run_consolidated_attention:
+                # logger.info("Running consolidated PagedAttention V2")
                 ops.consolidated_paged_attention_v2(
                     output,
                     exp_sums,
@@ -230,6 +233,7 @@ class PagedAttention:
                     blocksparse_head_sliding_step,
                 )
             else:
+                # logger.info("Running PagedAttention V2")
                 ops.paged_attention_v2(
                     output,
                     exp_sums,

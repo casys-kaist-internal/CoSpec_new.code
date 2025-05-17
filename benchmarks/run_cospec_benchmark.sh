@@ -39,6 +39,9 @@ declare -A COSPEC_CONFIGS=(
     ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
 )
 
+# Set nvidia-smi EXCLUSIVE_PROCESS 
+# sudo nvidia-smi -c EXCLUSIVE_PROCESS
+
 # =============================================
 # Directory Setup
 # =============================================

@@ -2343,6 +2343,11 @@ class SpeculativeConfig:
                     hf_overrides=SpeculativeConfig.hf_config_override,
                 )
 
+                # if envs.COSPEC:
+                #     logger.info("COSPEC is enabled, setting enforce_eager to True for target model and False for draft model")
+                #     self.target_model_config.enforce_eager = True
+                #     self.draft_model_config.enforce_eager = False
+
                 # Automatically detect the method
                 if self.method == 'eagle':
                     pass
@@ -3866,7 +3871,7 @@ class VllmConfig:
                 "MLA is enabled on a non-GPU platform; forcing chunked "
                 "prefill and prefix caching to be disabled.")
             self.scheduler_config.enable_chunked_prefill = False
-            self.scheduler_config.chunked_prefill_enabled = False
+            self.scheduler_config.chunked_prefill_enabled = Falsed
             self.scheduler_config.max_num_batched_tokens = max(
                 self.scheduler_config.max_model_len,
                 _DEFAULT_MAX_NUM_BATCHED_TOKENS)

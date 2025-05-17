@@ -394,8 +394,13 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         input_seq_id = next(iter(input_seq_group_metadata.seq_data.keys()))
         non_zero_proposal_indices = [i for i, pl in enumerate(proposal_lens_list) if pl > 0]
         actual_batch_index = non_zero_proposal_indices[batch_index]
+        # print(f"non_zero_proposal_indices: {non_zero_proposal_indices}")
+        # print(f"batch_index: {batch_index}")
+        # print(f"actual_batch_index: {actual_batch_index}")
+        # print(f"proposal_token_ids: {proposal_token_ids}")
+        # print(f"proposal_lens_list: {proposal_lens_list}")
         token_ids_to_score = self._get_token_ids_to_score(
-            proposal_token_ids[actual_batch_index])        
+            proposal_token_ids[actual_batch_index])
         proposal_len = proposal_lens_list[actual_batch_index]
         token_ids_to_score = token_ids_to_score[:proposal_len + 1]
 

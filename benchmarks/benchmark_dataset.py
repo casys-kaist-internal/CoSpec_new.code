@@ -207,7 +207,8 @@ def is_valid_sequence(
     output_len: int,
     min_len: int = 4,
     max_prompt_len: int = 1024,
-    max_total_len: int = 2048,
+    # max_total_len: int = 2048,
+    max_total_len: int = 2040, # because of speculative decoding we minus some tokens because of index error
     skip_min_output_len_check: bool = False,
 ) -> bool:
     """
@@ -501,6 +502,93 @@ class ShareGPTDataset(BenchmarkDataset):
         except Exception as e:
             print(f"Failed to save cache: {e}")
             
+        return samples
+    
+    def sample_all_specinfer(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        lora_path: Optional[str] = None,
+        max_loras: Optional[int] = None,
+        output_len: Optional[int] = None,
+        enable_multimodal_chat: bool = False,
+        **kwargs,
+    ) -> list:
+        # If cache doesn't exist or loading failed, generate samples
+        samples: list = []
+        for entry in self.data:
+            prompt, completion = (
+                entry["conversations"][0]["value"],
+                entry["conversations"][1]["value"],
+            )
+
+            lora_request, tokenizer = self.get_random_lora_request(
+                tokenizer=tokenizer, max_loras=max_loras, lora_path=lora_path)
+            prompt_ids = tokenizer(prompt).input_ids
+            completion_ids = tokenizer(completion).input_ids
+            prompt_len = len(prompt_ids)
+            new_output_len = (len(completion_ids)
+                              if output_len is None else output_len)
+            if not is_valid_sequence(prompt_len,
+                                     new_output_len,
+                                     max_prompt_len = 64,
+                                     max_total_len = 256):
+                continue
+            if enable_multimodal_chat:
+                prompt = self.apply_multimodal_chat_transformation(
+                    prompt, None)
+            samples.append(
+                SampleRequest(
+                    prompt=prompt,
+                    prompt_len=prompt_len,
+                    expected_output_len=new_output_len,
+                    lora_request=lora_request,
+                ))
+        
+        return samples
+    
+    def sample_specinfer(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        num_requests: int,
+        lora_path: Optional[str] = None,
+        max_loras: Optional[int] = None,
+        output_len: Optional[int] = None,
+        enable_multimodal_chat: bool = False,
+        **kwargs,
+    ) -> list:
+        # If cache doesn't exist or loading failed, generate samples
+        samples: list = []
+        for entry in self.data:
+            if len(samples) >= num_requests:
+                break
+            prompt, completion = (
+                entry["conversations"][0]["value"],
+                entry["conversations"][1]["value"],
+            )
+
+            lora_request, tokenizer = self.get_random_lora_request(
+                tokenizer=tokenizer, max_loras=max_loras, lora_path=lora_path)
+            prompt_ids = tokenizer(prompt).input_ids
+            completion_ids = tokenizer(completion).input_ids
+            prompt_len = len(prompt_ids)
+            new_output_len = (len(completion_ids)
+                              if output_len is None else output_len)
+            if not is_valid_sequence(prompt_len,
+                                     new_output_len,
+                                     max_prompt_len = 64,
+                                     max_total_len = 256):
+                continue
+            if enable_multimodal_chat:
+                prompt = self.apply_multimodal_chat_transformation(
+                    prompt, None)
+            samples.append(
+                SampleRequest(
+                    prompt=prompt,
+                    prompt_len=prompt_len,
+                    expected_output_len=new_output_len,
+                    lora_request=lora_request,
+                ))
+        
         return samples
 
 # -----------------------------------------------------------------------------
@@ -1122,3 +1210,230 @@ class NaturalQuestionsDataset(HuggingFaceDataset):
         cache_name = f"sharegpt_{tokenizer_name}"
 
         return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
+
+
+class HumanEvalDataset(HuggingFaceDataset):
+    """
+    Dataset class for processing a HumanEval dataset.
+    """
+    SUPPORTED_DATASET_PATHS = {
+        "openai/openai_humaneval"
+    }
+    
+    def sample(self,
+               tokenizer: PreTrainedTokenizerBase,
+               num_requests: int,
+               output_len: Optional[int] = None,
+               **kwargs) -> list:
+        sampled_requests = []
+
+        for item in self.data:
+            if len(sampled_requests) >= num_requests:
+                break
+            prompt = item["prompt"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["canonical_solution"]).input_ids)
+            output_len = answer_len if output_len is None else output_len
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+        return sampled_requests
+    
+    def sample_all(self,
+                   tokenizer: PreTrainedTokenizerBase,
+                   **kwargs) -> list:
+        # Try to load from cache first
+        cache_path = self._get_cache_path(tokenizer.name_or_path)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached_data = json.load(f)
+                # Convert cached data back to SampleRequest objects
+                print(f"Loaded {len(cached_data)} samples from cache from {cache_path}")
+                return [SampleRequest(**sample) for sample in cached_data]
+            except Exception as e:
+                print(f"Failed to load cache: {e}. Regenerating samples...")
+
+        sampled_requests = []
+
+        for item in self.data:
+            prompt = item["prompt"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["canonical_solution"]).input_ids)
+            output_len = answer_len
+            
+            if not is_valid_sequence(prompt_len, output_len):
+                continue
+            
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+            
+        
+        # Cache the generated samples
+        try:
+            # Convert SampleRequest objects to dictionaries for JSON serialization
+            cache_data = [sample.__dict__ for sample in sampled_requests]
+            # make directory if it doesn't exist
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f)
+        except Exception as e:
+            print(f"Failed to save cache: {e}")
+
+        return sampled_requests
+    
+    def _get_cache_path(self, tokenizer_name: str) -> str:
+        """Get the cache file path based on tokenizer and output length."""
+        cache_name = f"humaneval_{tokenizer_name}"
+
+        return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
+    
+class PythonAlpacaDataset(HuggingFaceDataset):
+    """
+    Dataset class for processing a PythonAlpaca dataset.
+    """
+    SUPPORTED_DATASET_PATHS = {
+        "Vezora/Tested-143k-Python-Alpaca"
+    }
+
+    def sample(self,
+               tokenizer: PreTrainedTokenizerBase,
+               num_requests: int,
+               output_len: Optional[int] = None,
+               **kwargs) -> list:
+        sampled_requests = []
+
+        for item in self.data:
+            if len(sampled_requests) >= num_requests:
+                break
+            prompt = item["instruction"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["output"]).input_ids)
+            output_len = answer_len if output_len is None else output_len
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+        return sampled_requests
+    
+    def sample_all(self,
+                   tokenizer: PreTrainedTokenizerBase,
+                   **kwargs) -> list:
+        # Try to load from cache first
+        cache_path = self._get_cache_path(tokenizer.name_or_path)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached_data = json.load(f)
+                # Convert cached data back to SampleRequest objects
+                print(f"Loaded {len(cached_data)} samples from cache from {cache_path}")
+                return [SampleRequest(**sample) for sample in cached_data]
+            except Exception as e:
+                print(f"Failed to load cache: {e}. Regenerating samples...")
+
+        sampled_requests = []
+
+        for item in self.data:
+            prompt = item["instruction"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["output"]).input_ids)
+            output_len = answer_len
+            
+            if not is_valid_sequence(prompt_len, output_len):
+                continue
+            
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+            
+        
+        # Cache the generated samples
+        try:
+            # Convert SampleRequest objects to dictionaries for JSON serialization
+            cache_data = [sample.__dict__ for sample in sampled_requests]
+            # make directory if it doesn't exist
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f)
+        except Exception as e:
+            print(f"Failed to save cache: {e}")
+
+        return sampled_requests
+    
+    def _get_cache_path(self, tokenizer_name: str) -> str:
+        """Get the cache file path based on tokenizer and output length."""
+        cache_name = f"python_alpaca_{tokenizer_name}"
+
+        return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
+    
+class OrcaMathDataset(HuggingFaceDataset):
+    """
+    Dataset class for processing a OrcaMath dataset.
+    """
+    SUPPORTED_DATASET_PATHS = {
+        "microsoft/orca-math-word-problems-200k"
+    }
+    
+    def sample(self,
+               tokenizer: PreTrainedTokenizerBase,
+               num_requests: int,
+               output_len: Optional[int] = None,
+               **kwargs) -> list:
+        sampled_requests = []
+
+        for item in self.data:
+            if len(sampled_requests) >= num_requests:
+                break
+            prompt = item["question"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["answer"]).input_ids)
+            output_len = answer_len if output_len is None else output_len
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+        return sampled_requests
+    
+    def sample_all(self,
+                   tokenizer: PreTrainedTokenizerBase,
+                   **kwargs) -> list:
+        # Try to load from cache first
+        cache_path = self._get_cache_path(tokenizer.name_or_path)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached_data = json.load(f)
+                # Convert cached data back to SampleRequest objects
+                print(f"Loaded {len(cached_data)} samples from cache from {cache_path}")
+                return [SampleRequest(**sample) for sample in cached_data]
+            except Exception as e:
+                print(f"Failed to load cache: {e}. Regenerating samples...")
+
+        sampled_requests = []
+
+        for item in self.data:
+            prompt = item["question"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["answer"]).input_ids)
+            output_len = answer_len
+            
+            if not is_valid_sequence(prompt_len, output_len):
+                continue
+            
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+            
+        
+        # Cache the generated samples
+        try:
+            # Convert SampleRequest objects to dictionaries for JSON serialization
+            cache_data = [sample.__dict__ for sample in sampled_requests]
+            # make directory if it doesn't exist
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f)
+        except Exception as e:
+            print(f"Failed to save cache: {e}")
+
+        return sampled_requests
+    
+    def _get_cache_path(self, tokenizer_name: str) -> str:
+        """Get the cache file path based on tokenizer and output length."""
+        cache_name = f"orca_math_{tokenizer_name}"
+
+        return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
+    

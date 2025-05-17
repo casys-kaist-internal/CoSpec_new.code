@@ -2,7 +2,8 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                ConversationDataset, HuggingFaceDataset,
                                InstructCoderDataset, RandomDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
-                                VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset)
+                                VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset,
+                                HumanEvalDataset, PythonAlpacaDataset, OrcaMathDataset)
 try:
     from vllm.transformers_utils.tokenizer import get_tokenizer
 except ImportError:
@@ -20,21 +21,24 @@ tokenizer = get_tokenizer(tokenizer_id,
                         tokenizer_mode=tokenizer_mode,
                         trust_remote_code=True)
 
-gsm8k_dataset = GSM8KDataset(random_seed=seed,
-                    dataset_path="openai/gsm8k", 
-                    dataset_subset="main", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
-natural_questions_dataset = NaturalQuestionsDataset(random_seed=seed,
-                    dataset_path="sentence-transformers/natural-questions", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
-sharegpt_dataset = ShareGPTDataset(random_seed=seed, 
+sharegpt_dataset = ShareGPTDataset(random_seed=seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
+humaneval_dataset = HumanEvalDataset(random_seed=seed,
+                    dataset_path="openai/openai_humaneval", 
+                    dataset_split="test").sample_all(tokenizer=tokenizer)
+python_alpaca_dataset = PythonAlpacaDataset(random_seed=seed,
+                    dataset_path="Vezora/Tested-143k-Python-Alpaca", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
+orca_math_dataset = OrcaMathDataset(random_seed=seed,
+                    dataset_path="microsoft/orca-math-word-problems-200k", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
 
 # Extract input and output lengths
 datasets = {
     'ShareGPT': sharegpt_dataset,
-    'GSM8K': gsm8k_dataset,
-    'Natural Questions': natural_questions_dataset
+    'HumanEval': humaneval_dataset,
+    'PythonAlpaca': python_alpaca_dataset,
+    'OrcaMath': orca_math_dataset
 }
 
 # Create figure with subplots
