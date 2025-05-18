@@ -40,9 +40,9 @@ for dataset in datasets:
         ax = axes[idx]
         
         # Plot Auto Regressive (baseline with spec_tokens=0) for all temperatures
-        # ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0)]
-        # ax.plot(ar_data['request_rate'], ar_data['mean_token_latency'],
-        #         marker='o', label='Auto Regressive', linewidth=2, color='black')
+        ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0)]
+        ax.plot(ar_data['request_throughput'], ar_data['mean_token_latency'],
+                marker='o', label='Auto Regressive', linewidth=2, color='black')
         
         # Plot baseline with other spec_tokens for current temperature
         baseline_data = dataset_df[(dataset_df['config'] == 'baseline') & 
@@ -50,18 +50,18 @@ for dataset in datasets:
                           (dataset_df['spec_tokens'] > 0)]
         for spec_tokens in sorted(baseline_data['spec_tokens'].unique()):
             spec_data = baseline_data[baseline_data['spec_tokens'] == spec_tokens]
-            ax.plot(spec_data['request_rate'], spec_data['mean_token_latency'],
+            ax.plot(spec_data['request_throughput'], spec_data['mean_token_latency'],
                     marker='o', label=f'baseline (spec_tokens={spec_tokens})', linewidth=2)
         
         # Plot other configs
         other_configs = [config for config in dataset_df['config'].unique() if config != 'baseline']
         for config in other_configs:
             config_data = dataset_df[(dataset_df['config'] == config) & (dataset_df['temperature'] == temp)]
-            ax.plot(config_data['request_rate'], config_data['mean_token_latency'],
+            ax.plot(config_data['request_throughput'], config_data['mean_token_latency'],
                     marker='o', label=config, linewidth=2)
         
         # Customize subplot
-        ax.set_xlabel('Request Rate', fontsize=10)
+        ax.set_xlabel('Request Throughput (req/s)', fontsize=10)
         ax.set_ylabel('Mean Token Latency (ms)', fontsize=10)
         ax.set_title(f'Temperature = {temp}', fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)

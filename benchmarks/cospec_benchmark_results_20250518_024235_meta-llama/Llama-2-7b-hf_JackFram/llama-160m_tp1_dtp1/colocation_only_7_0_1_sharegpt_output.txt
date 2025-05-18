@@ -1,0 +1,970 @@
+INFO 05-18 12:26:59 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8001, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='meta-llama/Llama-2-7b-hf', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=1.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Temperature:  0.0
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Server is ready!
+Starting initial single prompt test run...
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 1.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 5.0 minutes
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:41 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:44 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:45 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:45 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:47 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:51 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:51 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:53 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:29:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:02 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:06 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:09 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:14 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:15 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:15 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:16 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:17 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:18 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:19 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:19 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:21 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:22 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:26 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:26 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:27 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:28 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:28 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:33 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:38 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:41 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:41 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:44 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:44 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:55 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:58 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:58 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:58 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:30:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:02 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:05 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:05 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:06 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:06 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:09 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:09 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:14 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:17 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:17 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:18 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:19 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:23 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:25 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:27 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:27 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:41 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:45 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:45 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:47 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:47 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:48 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:49 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:49 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:51 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:52 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:52 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:55 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:31:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:02 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:04 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:05 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:14 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:14 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:15 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:15 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:17 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:19 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:22 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:22 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:26 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:33 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:33 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:36 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:36 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:36 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:41 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:42 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:45 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:47 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:48 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:49 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:53 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:55 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:55 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:57 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:58 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:32:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:04 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:08 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:12 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:13 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:15 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:16 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:18 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:18 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:20 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:23 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:27 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:33 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:36 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:36 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:38 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:39 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:40 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:43 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:44 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:46 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:48 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:48 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:49 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:50 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:53 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:53 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:54 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:56 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:58 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:33:59 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:00 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:01 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:05 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:07 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:07 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:10 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:11 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:14 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:17 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:18 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:19 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:21 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:22 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:23 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:24 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:25 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:25 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:29 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:30 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:31 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:32 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:34 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:35 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+!!! response:  <ClientResponse(http://127.0.0.1:8001/v1/completions) [200 OK]>
+<CIMultiDictProxy('Date': 'Sun, 18 May 2025 03:34:37 GMT', 'Server': 'uvicorn', 'Content-Type': 'text/event-stream; charset=utf-8', 'Transfer-Encoding': 'chunked')>
+
+============ Serving Benchmark Result ============
+Successful requests:                     295       
+Benchmark duration (s):                  301.78    
+Total input tokens:                      75162     
+Total generated tokens:                  71713     
+Request throughput (req/s):              0.98      
+Output token throughput (tok/s):         237.63    
+Total Token throughput (tok/s):          486.69    
+---------------Time to First Token----------------
+Mean TTFT (ms):                          114.38    
+Median TTFT (ms):                        98.54     
+P99 TTFT (ms):                           280.17    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          23.50     
+Median TPOT (ms):                        20.09     
+P99 TPOT (ms):                           60.80     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           59.85     
+Median ITL (ms):                         56.22     
+P99 ITL (ms):                            157.43    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          4544.94   
+Median E2EL (ms):                        2721.22   
+P99 E2EL (ms):                           31268.59  
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 26.34     
+Median Token Latency (ms):               21.74     
+P99 Token Latency (ms):                  77.00     
+==================================================

@@ -284,7 +284,6 @@ async def async_request_openai_completions(
         try:
             async with session.post(url=api_url, json=payload,
                                     headers=headers) as response:
-                print("!!! response: ", response)
                 if response.status == 200:
                     first_chunk_received = False
                     async for chunk_bytes in response.content:

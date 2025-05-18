@@ -5,27 +5,46 @@
 # =============================================
 
 # Model Configuration
-export TARGET_MODEL="facebook/opt-6.7b"
-export DRAFT_MODEL="facebook/opt-125m"
-export TENSOR_PARALLEL_SIZE=1
-export DRAFT_TENSOR_PARALLEL_SIZE=1
+export TARGET_MODEL="facebook/opt-13b"
+export DRAFT_MODEL="facebook/opt-1.3b"
+export TENSOR_PARALLEL_SIZE=2
+export DRAFT_TENSOR_PARALLEL_SIZE=2
 
 # Dataset Configuration
-# DATASETS=("sharegpt" "gsm8k" "natural-questions")
-DATASETS=("humaneval")
+DATASETS=("sharegpt" "gsm8k" "natural-questions")
+# DATASETS=("sharegpt")
+
+# Request Rate Configuration (requests per second) for each dataset
+SHAREGPT_RATES=(1 2 3 4 5 6 7 8 9 10)
+GSM8K_RATES=(5 10 15 20 25 30)
+NATURAL_QUESTIONS_RATES=(5 10 15 20 25 30)
+
+# Function to get request rates for a dataset
+get_request_rates() {
+    local dataset=$1
+    case $dataset in
+        "sharegpt")
+            echo "${SHAREGPT_RATES[@]}"
+            ;;
+        "gsm8k")
+            echo "${GSM8K_RATES[@]}"
+            ;;
+        "natural-questions")
+            echo "${NATURAL_QUESTIONS_RATES[@]}"
+            ;;
+    esac
+}
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
 COSPEC_SPEC_TOKENS=7
 
 # Temperature Configuration
-TEMPERATURES=(0 0.25 0.5 0.75)
+TEMPERATURES=(0)
 
 # Benchmark Configuration
-export BENCHMARK_DURATION=20  # Duration in minutes
-
-# Request Rate Configuration (requests per second)
-REQUEST_RATES=(5 6 7 8 9 10)
+export WARMUP_DURATION=1
+export BENCHMARK_DURATION=5  # Duration in minutes
 
 PORT=8001
 
@@ -132,6 +151,26 @@ parse_benchmark_results() {
     echo "${results[*]}"
 }
 
+run_warmup() {
+    local config=$1
+    local spec_tokens=$2
+    local temperature=$3
+    local request_rate=$4
+    local dataset=$5
+
+    echo "Running warmup with configuration: $config (Spec Tokens: $spec_tokens, Temperature: $temperature, Request Rate: $request_rate, Dataset: $dataset)"
+
+    python benchmark_serving.py \
+        --backend vllm \
+        --port $PORT \
+        --model $TARGET_MODEL \
+        --dataset-name $dataset \
+        --ignore-eos \
+        --duration-minutes $WARMUP_DURATION \
+        --request-rate $request_rate \
+        --temperature $temperature > "$RESULTS_DIR/${config}_${spec_tokens}_${temperature}_${request_rate}_${dataset}_output.txt"
+}
+
 run_benchmark() {
     local config=$1
     local spec_tokens=$2
@@ -164,10 +203,11 @@ run_benchmark() {
 # Define the order of configurations to run
 declare -a CONFIG_ORDER=(
     "colocation_only"
+    "colocation_dynamic"
     "colocation_dynamic_selective"
+    "full_cospec"
 )
 
-# Calculate total number of runs
 TOTAL_RUNS=0
 # Baseline runs
 for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
@@ -176,11 +216,21 @@ for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
     else
         temperatures=("${TEMPERATURES[@]}")
     fi
-    TOTAL_RUNS=$((TOTAL_RUNS + ${#DATASETS[@]} * ${#temperatures[@]} * ${#REQUEST_RATES[@]}))
+    
+    # Calculate runs for each dataset with its specific request rates
+    for dataset in "${DATASETS[@]}"; do
+        read -ra rates <<< "$(get_request_rates "$dataset")"
+        TOTAL_RUNS=$((TOTAL_RUNS + ${#temperatures[@]} * ${#rates[@]}))
+    done
 done
 
-# # CoSpec runs
-# TOTAL_RUNS=$((TOTAL_RUNS + ${#CONFIG_ORDER[@]} * ${#DATASETS[@]} * ${#TEMPERATURES[@]} * ${#REQUEST_RATES[@]}))
+# CoSpec runs
+for config in "${CONFIG_ORDER[@]}"; do
+    for dataset in "${DATASETS[@]}"; do
+        read -ra rates <<< "$(get_request_rates "$dataset")"
+        TOTAL_RUNS=$((TOTAL_RUNS + ${#TEMPERATURES[@]} * ${#rates[@]}))
+    done
+done
 
 # Initialize run counter
 CURRENT_RUN=0
@@ -193,13 +243,21 @@ for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
     # Start server for this spec_tokens configuration
     server_pid=$(start_server "baseline" $spec_tokens)
     echo "Server PID: $server_pid"
+
+    # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
     
-    temperatures=("${TEMPERATURES[@]}")
+    # For spec_tokens=0, only run with temperature=0
+    if [ "$spec_tokens" -eq 0 ]; then
+        temperatures=(0)
+    else
+        temperatures=("${TEMPERATURES[@]}")
+    fi
     
     # Run all temperature and request rate combinations
     for dataset in "${DATASETS[@]}"; do
         for temperature in "${temperatures[@]}"; do
-            for request_rate in "${REQUEST_RATES[@]}"; do
+            read -ra rates <<< "$(get_request_rates "$dataset")"
+            for request_rate in "${rates[@]}"; do
                 CURRENT_RUN=$((CURRENT_RUN + 1))
                 slack "[$CURRENT_RUN/$TOTAL_RUNS]"
                 run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
@@ -213,29 +271,30 @@ for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
     sleep 5
 done
 
-# # Run CoSpec ablation studies
-# echo "Running CoSpec ablation studies..."
+# Run CoSpec ablation studies
+echo "Running CoSpec ablation studies..."
 
-# for config in "${CONFIG_ORDER[@]}"; do
-#     echo "Running $config configuration..."
-#     server_pid=$(start_server "$config" $COSPEC_SPEC_TOKENS)
-#     echo "Server PID: $server_pid"
+for config in "${CONFIG_ORDER[@]}"; do
+    echo "Running $config configuration..."
+    server_pid=$(start_server "$config" $COSPEC_SPEC_TOKENS)
+    echo "Server PID: $server_pid"
     
-#     # Run all temperature and request rate combinations
-#     for dataset in "${DATASETS[@]}"; do
-#         for temperature in "${TEMPERATURES[@]}"; do
-#             for request_rate in "${REQUEST_RATES[@]}"; do
-#                 CURRENT_RUN=$((CURRENT_RUN + 1))
-#                 slack "[$CURRENT_RUN/$TOTAL_RUNS]"
-#                 run_benchmark "$config" "$COSPEC_SPEC_TOKENS" "$temperature" "$request_rate" "$dataset"
-#             done
-#         done
-#     done
+    # Run all temperature and request rate combinations
+    for dataset in "${DATASETS[@]}"; do
+        for temperature in "${TEMPERATURES[@]}"; do
+            read -ra rates <<< "$(get_request_rates "$dataset")"
+            for request_rate in "${rates[@]}"; do
+                CURRENT_RUN=$((CURRENT_RUN + 1))
+                slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+                run_benchmark "$config" "$COSPEC_SPEC_TOKENS" "$temperature" "$request_rate" "$dataset"
+            done
+        done
+    done
     
-#     # Cleanup server after all request rates are done
-#     kill $server_pid
-#     wait $server_pid 2>/dev/null
-#     sleep 5
-# done
+    # Cleanup server after all request rates are done
+    kill $server_pid
+    wait $server_pid 2>/dev/null
+    sleep 5
+done
 
 echo "Benchmark results have been saved to $RESULTS_DIR/benchmark_results.csv" 

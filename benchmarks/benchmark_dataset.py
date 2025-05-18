@@ -208,7 +208,7 @@ def is_valid_sequence(
     min_len: int = 4,
     max_prompt_len: int = 1024,
     # max_total_len: int = 2048,
-    max_total_len: int = 2040, # because of speculative decoding we minus some tokens because of index error
+    max_total_len: int = 2030, # because of speculative decoding we minus some tokens because of index error
     skip_min_output_len_check: bool = False,
 ) -> bool:
     """

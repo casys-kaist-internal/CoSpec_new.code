@@ -5,10 +5,13 @@ export COSPEC=${COSPEC:-0}
 export PROFILE=${PROFILE:-0}
 export AR=${AR:-0}
 export TARGET_MODEL="facebook/opt-6.7b"
+# export TARGET_MODEL="facebook/opt-350m"
 export DRAFT_MODEL="facebook/opt-125m"
+# export TARGET_MODEL="meta-llama/Llama-2-7b-hf"
+# export DRAFT_MODEL="JackFram/llama-160m"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=2
-export DRAFT_TENSOR_PARALLEL_SIZE=2
+export TENSOR_PARALLEL_SIZE=1
+export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Base command
 CMD="python -m vllm.entrypoints.openai.api_server \
@@ -20,6 +23,7 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --gpu_memory_utilization 0.80 \
     --disable-log-requests"
 
+    # --enable-chunked-prefill \
     # --enforce-eager \
 
 # Speculative config
