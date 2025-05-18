@@ -647,15 +647,15 @@ def main(args: argparse.Namespace):
     if args.dataset_name == "sharegpt":
         input_requests = ShareGPTDataset(random_seed=args.seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
-    # elif args.dataset_name == "gsm8k":
-    #     input_requests = GSM8KDataset(random_seed=args.seed,
-    #                 dataset_path="openai/gsm8k", 
-    #                 dataset_subset="main", 
-    #                 dataset_split="train").sample_all(tokenizer=tokenizer)
-    # elif args.dataset_name == "natural-questions":
-    #     input_requests = NaturalQuestionsDataset(random_seed=args.seed,
-    #                 dataset_path="sentence-transformers/natural-questions", 
-    #                 dataset_split="train").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "gsm8k":
+        input_requests = GSM8KDataset(random_seed=args.seed,
+                    dataset_path="openai/gsm8k", 
+                    dataset_subset="main", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "natural-questions":
+        input_requests = NaturalQuestionsDataset(random_seed=args.seed,
+                    dataset_path="sentence-transformers/natural-questions", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "humaneval":
         input_requests = HumanEvalDataset(random_seed=args.seed,
                     dataset_path="openai/openai_humaneval", 

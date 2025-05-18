@@ -853,7 +853,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # Sync proposer KV cache for prefills.
             prefill_req = execute_model_req.clone(non_spec_seqs)
             # TODO avoid sampling here?
-            self.proposer_worker.execute_model(prefill_req)
+            self.proposer_worker.execute_model(prefill_req, is_target=False)
 
         if envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
             self.cospec_manager.update_proposal_history(proposals, proposal_scores)

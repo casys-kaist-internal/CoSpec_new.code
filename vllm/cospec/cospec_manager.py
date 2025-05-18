@@ -39,11 +39,11 @@ class CospecManager:
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
 
-        # Signal the other engine to early exit draft model execution
-        # And reset the flag for the current engine 
-        if self.is_driver:  
+            # Signal the other engine to early exit draft model execution
+            # And reset the flag for the current engine 
             self.shm.put(f"early_exit_{not self.is_primary}", True)
             self.shm.put(f"early_exit_{self.is_primary}", False)
+
     
     def draft_start(self):
         if self.is_driver:
