@@ -64,30 +64,19 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         proposal_lens_list = proposals.proposal_lens.tolist()
         proposal_token_ids_list = proposals.proposal_token_ids.tolist()
 
+        # COSPEC: We remove chunked prefills inside expand_batch
         # Filter the list to ignore invalid proposals.
         # proposal_token_ids_list_without_skips = [
         #     proposals for proposals in proposal_token_ids_list
         #     if VLLM_INVALID_TOKEN_ID not in proposals
-        # ]
-
-        # if len(proposal_token_ids_list_without_skips) != len(proposal_token_ids_list):
-        #     print("skipped invalid token ids")
-        proposal_token_ids_list_without_skips = []
-        proposal_lens_list_without_skips = []
-        for i, proposal_token_ids in enumerate(proposal_token_ids_list):
-            if VLLM_INVALID_TOKEN_ID in proposal_token_ids:
-                print(f"skipped invalid token ids: {proposal_token_ids}")
-            else:
-                proposal_token_ids_list_without_skips.append(proposal_token_ids)
-                proposal_lens_list_without_skips.append(proposal_lens_list[i])
+        # ] 
 
         (spec_indices, non_spec_indices, target_seq_group_metadata_list,
          num_scoring_tokens) = self._expand_batch(
              seq_group_metadata_list=execute_model_req.seq_group_metadata_list,
-             proposal_token_ids_list=proposal_token_ids_list_without_skips,
+             proposal_token_ids_list=proposal_token_ids_list,
              proposal_lens_list=proposal_lens_list,
          )
-        
         
         # Consolidated Attention
         execute_model_req.consolidated_lens_tensor = torch.add(proposals.proposal_lens, 1).to(torch.int)
@@ -140,15 +129,18 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         (spec_seqs, spec_indices), (non_spec_seqs, non_spec_indices) = \
             split_batch_by_proposal_len(
                 seq_group_metadata_list, proposal_lens_list)
+        
+        proposal_token_ids_list_for_spec = [proposal_token_ids_list[i] for i in spec_indices]
+        proposal_lens_list_for_spec = [proposal_lens_list[i] for i in spec_indices]
 
         spec_expanded_seqs = self._create_scoring_model_input(
             seq_group_metadata_list=spec_seqs,
-            proposal_token_ids=proposal_token_ids_list,
+            proposal_token_ids=proposal_token_ids_list_for_spec,
             # NOTE: We determine the seq ids in the expanded batch using the
             # full seq_group_metadata_list, instead of only spec_seqs.
             target_seq_ids_iter=self._create_target_seq_id_iterator(
                 seq_ids=get_all_seq_ids(seq_group_metadata_list)),
-            proposal_lens_list=proposal_lens_list,
+            proposal_lens_list=proposal_lens_list_for_spec,
         )
 
         num_scoring_tokens = len(spec_expanded_seqs)
@@ -407,6 +399,7 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
 
         token_ids_to_score = self._get_token_ids_to_score(
             proposal_token_ids[batch_index])
+        token_ids_to_score = token_ids_to_score[:proposal_lens_list[batch_index] + 1]
 
         sampling_params = input_seq_group_metadata.sampling_params
         target_seq_group_metadata_list: List[SequenceGroupMetadata] = []
@@ -422,34 +415,6 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
 
         return target_seq_group_metadata_list
     
-        # input_seq_id = next(iter(input_seq_group_metadata.seq_data.keys()))
-        # non_zero_proposal_indices = [i for i, pl in enumerate(proposal_lens_list) if pl > 0]
-        # actual_batch_index = non_zero_proposal_indices[batch_index]
-        # print(f"non_zero_proposal_indices: {non_zero_proposal_indices}")
-        # print(f"batch_index: {batch_index}")
-        # print(f"actual_batch_index: {actual_batch_index}")
-        # print(f"proposal_token_ids: {proposal_token_ids}")
-        # # print(f"actual_batch_index: {actual_batch_index}")
-        # # print(f"proposal_lens_list: {proposal_lens_list}")
-        # token_ids_to_score = self._get_token_ids_to_score(
-        #     proposal_token_ids[actual_batch_index])
-        # proposal_len = proposal_lens_list[actual_batch_index]
-        # token_ids_to_score = token_ids_to_score[:proposal_len + 1]
-
-        # sampling_params = input_seq_group_metadata.sampling_params
-        # target_seq_group_metadata_list: List[SequenceGroupMetadata] = []
-        # for i, token_ids in enumerate(token_ids_to_score):
-        #     target_seq_group_metadata_list.append(
-        #         self._create_single_target_seq_group_metadata(
-        #             input_seq_group_metadata,
-        #             input_seq_id,
-        #             next(target_seq_ids_iter),
-        #             token_ids,
-        #             sampling_params=sampling_params,
-        #         ))
-
-        # return target_seq_group_metadata_list
-
     @staticmethod
     def _create_single_target_seq_group_metadata(
         seq_group_metadata: SequenceGroupMetadata,

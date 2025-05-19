@@ -2,7 +2,9 @@ import torch
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from collections import deque
+from vllm.config import envs
 from vllm.logger import init_logger
+from vllm.sequence import VLLM_INVALID_TOKEN_ID
 from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
 
 logger = init_logger(__name__)
@@ -14,7 +16,8 @@ class SelectiveValidator:
         self.history_y = deque(maxlen=self.history_size)  # Actual acceptance probabilities
         self.regression_model = LinearRegression()
         self.is_model_trained = False
-        self.selective_validation_threshold = 0.3  # Threshold for accepting proposals
+        # Get threshold from environment variable
+        self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
         self.moving_avg_mean_tokens = 7  # Initialize moving average
         self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
 
@@ -212,6 +215,13 @@ class SelectiveValidator:
         target_probs = proposal_scores.probs
         draft_probs = proposals.proposal_probs
         draft_token_ids = proposals.proposal_token_ids
+        # Create a mask for rows that don't contain any invalid tokens
+        valid_rows = ~torch.any(draft_token_ids == VLLM_INVALID_TOKEN_ID, dim=1)
+        
+        # Update tensors in-place by masking invalid rows
+        target_probs = target_probs[valid_rows]
+        draft_probs = draft_probs[valid_rows]
+        draft_token_ids = draft_token_ids[valid_rows]
 
         # Get probabilities for proposed tokens
         selected_target_probs = torch.gather(
@@ -246,6 +256,10 @@ class SelectiveValidator:
         # Convert to numpy and flatten
         unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy().flatten()
         acceptance_probs_np = acceptance_probs.cpu().numpy().flatten()
+
+        # Assert there is no nan in the data
+        assert not np.isnan(unscaled_temp_probs_np).any()
+        assert not np.isnan(acceptance_probs_np).any()
 
         # Add new data to history
         self.history_X.extend(unscaled_temp_probs_np)

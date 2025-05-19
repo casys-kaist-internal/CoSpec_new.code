@@ -425,7 +425,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
 
         if self.cospec_manager is not None:
             if is_target:
-                self.cospec_manager.target_start()
+                self.cospec_manager.target_start(model_input)
             else:
                 self.cospec_manager.draft_start()
         

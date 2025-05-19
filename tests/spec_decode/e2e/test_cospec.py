@@ -66,6 +66,48 @@ def init_cospec():
 #                                             env_vars=env_vars)
 
 
+# @pytest.mark.parametrize(
+#     "common_llm_kwargs",
+#     [{
+#         "enforce_eager": False,
+#         "model_name": "JackFram/llama-68m",
+#     }])
+# @pytest.mark.parametrize(
+#     "per_test_common_llm_kwargs",
+#     [
+#         {
+#             # Identical models.
+#             "speculative_config": {
+#                 "model": "JackFram/llama-68m",
+#                 "num_speculative_tokens": 5,
+#             },
+#         },
+#     ])
+# @pytest.mark.parametrize("baseline_llm_kwargs", [{}])
+# @pytest.mark.parametrize("test_llm_kwargs", [{}])
+# @pytest.mark.parametrize("batch_size", [8])
+# @pytest.mark.parametrize("output_len", [32])
+# @pytest.mark.parametrize("seed", [1])
+# def test_spec_decode_selective_validation(vllm_runner, common_llm_kwargs,
+#                                 per_test_common_llm_kwargs,
+#                                 baseline_llm_kwargs, test_llm_kwargs,
+#                                 batch_size: int, output_len: int, seed: int):
+#     init_cospec()
+#     env_vars = {
+#         "COSPEC": "1",
+#         "COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST": "1"
+#     }
+#     run_equality_correctness_test_with_env(vllm_runner,
+#                                             common_llm_kwargs,
+#                                             per_test_common_llm_kwargs,
+#                                             baseline_llm_kwargs,
+#                                             test_llm_kwargs,
+#                                             batch_size,
+#                                             max_output_len=output_len,
+#                                             seed=seed,
+#                                             temperature=0.0,
+#                                             env_vars=env_vars)
+
 @pytest.mark.parametrize(
     "common_llm_kwargs",
     [{
@@ -81,6 +123,9 @@ def init_cospec():
                 "model": "JackFram/llama-68m",
                 "num_speculative_tokens": 5,
             },
+            "enable_chunked_prefill": True,
+            "max_num_batched_tokens": 4,
+            "max_num_seqs": 4,
         },
     ])
 @pytest.mark.parametrize("baseline_llm_kwargs", [{}])
@@ -88,7 +133,7 @@ def init_cospec():
 @pytest.mark.parametrize("batch_size", [8])
 @pytest.mark.parametrize("output_len", [32])
 @pytest.mark.parametrize("seed", [1])
-def test_spec_decode_selective_validation(vllm_runner, common_llm_kwargs,
+def test_spec_decode_chunked_prefill_selective_validation(vllm_runner, common_llm_kwargs,
                                 per_test_common_llm_kwargs,
                                 baseline_llm_kwargs, test_llm_kwargs,
                                 batch_size: int, output_len: int, seed: int):
@@ -107,7 +152,6 @@ def test_spec_decode_selective_validation(vllm_runner, common_llm_kwargs,
                                             seed=seed,
                                             temperature=0.0,
                                             env_vars=env_vars)
-    
 
 
 # @pytest.mark.parametrize(
