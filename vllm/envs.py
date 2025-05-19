@@ -115,8 +115,9 @@ if TYPE_CHECKING:
     COSPEC: bool = False
     COSPEC_DYNAMIC_COLOCATION: bool = False
     COSPEC_SELECTIVE_VALIDATION: bool = False
-    COSPEC_CONSOLIDATED_ATTENTION: bool = False
     COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST: bool = False
+    COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.3
+    COSPEC_CONSOLIDATED_ATTENTION: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -742,6 +743,9 @@ environment_variables: dict[str, Callable[[], Any]] = {
 
     "COSPEC_SELECTIVE_VALIDATION":
     lambda: bool(int(os.getenv("COSPEC_SELECTIVE_VALIDATION", "0"))),
+
+    "COSPEC_SELECTIVE_VALIDATION_THRESHOLD":
+    lambda: float(os.getenv("COSPEC_SELECTIVE_VALIDATION_THRESHOLD", "0.3")),
 
     "COSPEC_CONSOLIDATED_ATTENTION":
     lambda: bool(int(os.getenv("COSPEC_CONSOLIDATED_ATTENTION", "0"))),

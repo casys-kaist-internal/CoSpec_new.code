@@ -2,6 +2,8 @@ import torch
 import os
 import fcntl
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
@@ -28,21 +30,33 @@ class CospecManager:
         self.shm.put(f"early_exit_{self.is_primary}", False)
         self.total_ranks = vllm_config.parallel_config.world_size
         
+        # Data collection for plotting
+        self.input_shapes = []
+        self.durations = []
 
-    def target_start(self):
+    def target_start(self, model_input):
         if self.is_driver:
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
+            self.start_time = time.perf_counter()
+            input_shape = model_input.input_tokens.shape
+            # Store data for plotting
+            self.input_shapes.append(input_shape[0]) 
 
     def target_finish(self):
         if self.is_driver:
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
-
+            end_time = time.perf_counter()
+            self.durations.append(end_time - self.start_time)
             # Signal the other engine to early exit draft model execution
             # And reset the flag for the current engine 
             self.shm.put(f"early_exit_{not self.is_primary}", True)
             self.shm.put(f"early_exit_{self.is_primary}", False)
+            assert len(self.durations) == len(self.input_shapes)
+            print(f"len(self.durations) % 1000: {len(self.durations) % 1000}")
+            if len(self.durations) % 1000 == 0:
+                self.plot_shape_vs_duration()
 
     
     def draft_start(self):
@@ -110,3 +124,24 @@ class CospecManager:
         torch.cuda.nvtx.range_push("update_proposal_history")
         self.selective_validator.update_proposal_history(proposals, proposal_scores)
         torch.cuda.nvtx.range_pop()
+
+    def plot_shape_vs_duration(self):
+        """Plot the graph of input shape vs duration.
+        
+        Args:
+            save_path: Optional path to save the plot. If None, plot will be displayed.
+        """
+        if not self.is_driver or not self.input_shapes:
+            return
+            
+        plt.figure(figsize=(10, 6))
+        plt.scatter(self.input_shapes, self.durations, alpha=0.5)
+        plt.plot(self.input_shapes, self.durations, 'r--', alpha=0.3)
+        
+        plt.xlabel('Input Shape')
+        plt.ylabel('Duration (seconds)')
+        plt.title('Input Shape vs Duration')
+        plt.grid(True, alpha=0.3)
+        print("saved input_tokens_duration.png")
+        plt.savefig(f"input_tokens_duration.png")
+        plt.close()

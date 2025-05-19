@@ -20,6 +20,7 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --model $TARGET_MODEL \
     --seed 42 \
     -tp $TENSOR_PARALLEL_SIZE \
+    --enable-chunked-prefill \
     --gpu_memory_utilization 0.80 \
     --disable-log-requests"
 
