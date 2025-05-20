@@ -123,10 +123,11 @@ class RPCUProfileRequest(Enum):
     STOP_PROFILE = 2
 
 class RPCCospecProfileRequest(Enum):
-    START_PROFILE = 1
-    STOP_PROFILE = 2
-    SET_COLOCATION_MODE_TRUE = 3
-    SET_COLOCATION_MODE_FALSE = 4
+    START_COLOCATION_PROFILE = 1
+    START_TILING_PROFILE = 2
+    STOP_PROFILE = 3
+    SET_COLOCATION_MODE_TRUE = 4
+    SET_COLOCATION_MODE_FALSE = 5
 
 @dataclass
 class RPCSetNumSpeculativeTokensRequest:
@@ -179,6 +180,10 @@ class RPCMaybeLoadCachedCospecProfileRequest:
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 @dataclass
+class RPCMaybeLoadCachedTilingProfileRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
 class RPCPredictColocationSpeedupRatioRequest:
     total_requests: int
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -190,6 +195,11 @@ class RPCPredictColocationSpeedupRatioResponse:
 
 @dataclass
 class RPCMaybeLoadCachedCospecProfileResponse:
+    request_id: str
+    loaded: bool
+
+@dataclass
+class RPCMaybeLoadCachedTilingProfileResponse:
     request_id: str
     loaded: bool
 
@@ -206,10 +216,12 @@ class RPCIsSelectiveValidatorTrainedResponse:
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
                       RPCUProfileRequest, RPCCospecProfileRequest, RPCLoadAdapterRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
-                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedCospecProfileRequest]
+                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedCospecProfileRequest, 
+                      RPCMaybeLoadCachedTilingProfileRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
-                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedCospecProfileResponse]
+                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedCospecProfileResponse, 
+                          RPCMaybeLoadCachedTilingProfileResponse]
 
 
 def ENGINE_DEAD_ERROR(

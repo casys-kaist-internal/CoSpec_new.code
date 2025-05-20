@@ -487,11 +487,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         all_prompt = True
         atleast_one_prompt = False
         all_zero_spec_tokens = True
+        total_non_proposal_tokens = 0
         for sgm in execute_model_req.seq_group_metadata_list:
             all_prompt = all_prompt and sgm.is_prompt
             atleast_one_prompt = atleast_one_prompt or sgm.is_prompt
             all_zero_spec_tokens = all_zero_spec_tokens and (
                 sgm.num_speculative_tokens == 0)
+            total_non_proposal_tokens += sgm.token_chunk_size
 
         if all_prompt and execute_model_req.seq_group_metadata_list:
             assert num_lookahead_slots == 0, (
@@ -554,7 +556,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if self.cospec_manager is not None:
             self.cospec_manager.profiler.start_step_marker(execute_model_req.running_queue_size, num_lookahead_slots)
         result =  self._run_speculative_decoding_step(execute_model_req,
-                                                   num_lookahead_slots)
+                                                   num_lookahead_slots, 
+                                                   total_non_proposal_tokens)
         if self.cospec_manager is not None:
             self.cospec_manager.profiler.stop_step_marker()
         return result
@@ -781,7 +784,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
     @nvtx_range("spec_decode_worker._run_speculative_decoding_step")
     def _run_speculative_decoding_step(
             self, execute_model_req: ExecuteModelRequest,
-            num_lookahead_slots: int) -> List[SamplerOutput]:
+            num_lookahead_slots: int, 
+            total_non_proposal_tokens: int) -> List[SamplerOutput]:
         """Execute a single step of speculative decoding.
 
         This invokes the proposer worker to get k speculative tokens for each
@@ -821,7 +825,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             proposals = self.cospec_manager.selective_validation_correctness_test(proposals)
             
         elif envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
-            proposals = self.cospec_manager.selective_validation(proposals)
+            proposals = self.cospec_manager.selective_validation(proposals, total_non_proposal_tokens)
 
         max_proposal_len = max(proposals.proposal_lens)
         execute_model_req.previous_hidden_states = None
@@ -869,6 +873,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                        scoring_timer.elapsed_time_ms,
                        verification_timer.elapsed_time_ms)
         
+        if self.cospec_manager is not None:
+            if self.cospec_manager.profiler.profiling:
+                accepted_token_ids[:, 1:] = -1
+                # accepted_token_ids = torch.full_like(accepted_token_ids, -1)
+
         return self._create_output_sampler_list(
             execute_model_req.seq_group_metadata_list,
             accepted_token_ids,
@@ -893,6 +902,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         Returns a tuple of Tensors, one for the accepted token ids and one for
         the logprobs according to the scoring model.
         """
+
         # print("______________________________________________")
         # print("proposal_token_ids", proposals.proposal_token_ids)
         # print("proposal_lens", proposals.proposal_lens)
@@ -1366,9 +1376,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if isinstance(self.scorer_worker, WorkerBase):
             self.scorer_worker.stop_profile()
 
-    def start_cospec_profile(self):
+    def start_cospec_profile(self, mode: str):
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.start()
+            self.cospec_manager.profiler.start(mode)
 
     def stop_cospec_profile(self):
         if self.cospec_manager is not None:
@@ -1387,6 +1397,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             return self.cospec_manager.profiler.maybe_load_cached_results()
         return False
     
+    def maybe_load_cached_tiling_profile(self) -> bool:
+        if self.cospec_manager is not None:
+            return self.cospec_manager.profiler.maybe_load_cached_results_for_tiling()
+        return False
+
     def is_selective_validator_trained(self) -> bool:
         if self.cospec_manager is not None:
             return self.cospec_manager.selective_validator.is_selective_validator_trained()

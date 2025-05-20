@@ -373,7 +373,10 @@ async def benchmark(
     if duration_minutes:
         print(f"Benchmark duration: {duration_minutes} minutes")
 
-    pbar = None if disable_tqdm else tqdm(total=len(input_requests))
+    pbar = None if disable_tqdm else tqdm(total=len(input_requests), 
+                                         desc="Processing requests",
+                                         unit="req",
+                                         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]")
 
     # This can be used once the minimum Python version is 3.10 or higher,
     # and it will simplify the code in limited_request_func.
@@ -384,11 +387,23 @@ async def benchmark(
 
     async def limited_request_func(request_func_input, pbar):
         if semaphore is None:
-            return await request_func(request_func_input=request_func_input,
+            result = await request_func(request_func_input=request_func_input,
                                       pbar=pbar)
+            if pbar is not None:
+                # Update throughput in the progress bar
+                elapsed = time.perf_counter() - benchmark_start_time
+                throughput = pbar.n / elapsed if elapsed > 0 else 0
+                pbar.set_postfix({"throughput": f"{throughput:.2f} req/s"})
+            return result
         async with semaphore:
-            return await request_func(request_func_input=request_func_input,
+            result = await request_func(request_func_input=request_func_input,
                                       pbar=pbar)
+            if pbar is not None:
+                # Update throughput in the progress bar
+                elapsed = time.perf_counter() - benchmark_start_time
+                throughput = pbar.n / elapsed if elapsed > 0 else 0
+                pbar.set_postfix({"throughput": f"{throughput:.2f} req/s"})
+            return result
 
     benchmark_start_time = time.perf_counter()
     tasks: list[asyncio.Task] = []

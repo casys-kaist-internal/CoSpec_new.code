@@ -41,7 +41,9 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCPredictColocationSpeedupRatioRequest,
                                          RPCPredictColocationSpeedupRatioResponse,
                                          RPCIsSelectiveValidatorTrainedRequest,
-                                         RPCIsSelectiveValidatorTrainedResponse)
+                                         RPCIsSelectiveValidatorTrainedResponse,
+                                         RPCMaybeLoadCachedTilingProfileRequest,
+                                         RPCMaybeLoadCachedTilingProfileResponse)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -257,7 +259,8 @@ class MQLLMEngineClient(EngineClient):
                 # Put each output into the appropriate queue.
                 elif isinstance(
                         request_outputs,
-                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedCospecProfileResponse)):
+                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedCospecProfileResponse,
+                     RPCMaybeLoadCachedTilingProfileResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -269,7 +272,8 @@ class MQLLMEngineClient(EngineClient):
     def _add_output(self, request_output: Union[RequestOutput,
                                                 RPCAdapterLoadedResponse,
                                                 RPCIsSleepingResponse,
-                                                RPCMaybeLoadCachedCospecProfileResponse]):
+                                                RPCMaybeLoadCachedCospecProfileResponse,
+                                                RPCMaybeLoadCachedTilingProfileResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -701,11 +705,16 @@ class MQLLMEngineClient(EngineClient):
         await self._send_one_way_rpc_request(
             request=RPCUProfileRequest.STOP_PROFILE, socket=self.input_socket)
         
-    async def start_cospec_profile(self) -> None:
+    async def start_cospec_profile(self, mode: str) -> None:
         """Start profiling the engine"""
-
-        await self._send_one_way_rpc_request(
-            request=RPCCospecProfileRequest.START_PROFILE, socket=self.input_socket)
+        if mode == "tiling":
+            await self._send_one_way_rpc_request(
+                request=RPCCospecProfileRequest.START_TILING_PROFILE, socket=self.input_socket)
+        elif mode == "colocation":
+            await self._send_one_way_rpc_request(
+                request=RPCCospecProfileRequest.START_COLOCATION_PROFILE, socket=self.input_socket)
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
 
     async def stop_cospec_profile(self) -> None:
         """Stop profiling the engine"""
@@ -725,6 +734,24 @@ class MQLLMEngineClient(EngineClient):
 
         queue: asyncio.Queue[Union[BaseException,
                                    RPCMaybeLoadCachedCospecProfileResponse]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
+        
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        if isinstance(request_output, BaseException):
+            raise request_output
+        return request_output.loaded
+    
+    async def maybe_load_cached_tiling_profile(self) -> bool:
+        """Load cached tiling profile if exists"""
+        request = RPCMaybeLoadCachedTilingProfileRequest()
+
+        queue: asyncio.Queue[Union[BaseException,
+                                   RPCMaybeLoadCachedTilingProfileResponse]] = asyncio.Queue()
         self.output_queues[request.request_id] = queue
 
         request_bytes = pickle.dumps(request)

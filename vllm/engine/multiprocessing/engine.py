@@ -33,7 +33,9 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCPredictColocationSpeedupRatioRequest,
                                          RPCPredictColocationSpeedupRatioResponse,
                                          RPCIsSelectiveValidatorTrainedRequest,
-                                         RPCIsSelectiveValidatorTrainedResponse)
+                                         RPCIsSelectiveValidatorTrainedResponse,
+                                         RPCMaybeLoadCachedTilingProfileRequest,
+                                         RPCMaybeLoadCachedTilingProfileResponse)
 # yapf: enable
 from vllm.logger import init_logger
 from vllm.outputs import RequestOutput
@@ -276,8 +278,10 @@ class MQLLMEngine:
                     else:
                         self.stop_profile()
                 elif isinstance(request, RPCCospecProfileRequest):
-                    if request == RPCCospecProfileRequest.START_PROFILE:
-                        self.start_cospec_profile()
+                    if request == RPCCospecProfileRequest.START_TILING_PROFILE:
+                        self.start_cospec_profile(mode="tiling")
+                    elif request == RPCCospecProfileRequest.START_COLOCATION_PROFILE:
+                        self.start_cospec_profile(mode="colocation")
                     elif request == RPCCospecProfileRequest.STOP_PROFILE:
                         self.stop_cospec_profile()
                     elif request == RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE:
@@ -303,6 +307,8 @@ class MQLLMEngine:
                     self._handle_is_sleeping_request(request)
                 elif isinstance(request, RPCMaybeLoadCachedCospecProfileRequest):
                     self._handle_maybe_load_cached_cospec_profile_request(request)
+                elif isinstance(request, RPCMaybeLoadCachedTilingProfileRequest):
+                    self._handle_maybe_load_cached_tiling_profile_request(request)
                 elif isinstance(request, RPCIsSelectiveValidatorTrainedRequest):
                     self._handle_is_selective_validator_trained_request(request)
                 elif isinstance(request, RPCPredictColocationSpeedupRatioRequest):
@@ -439,8 +445,8 @@ class MQLLMEngine:
     def stop_profile(self) -> None:
         self.engine.stop_profile()
 
-    def start_cospec_profile(self) -> None:
-        self.engine.start_cospec_profile()
+    def start_cospec_profile(self, mode: str) -> None:
+        self.engine.start_cospec_profile(mode)
 
     def stop_cospec_profile(self) -> None:
         self.engine.stop_cospec_profile()
@@ -455,6 +461,14 @@ class MQLLMEngine:
             RPCMaybeLoadCachedCospecProfileResponse(request_id=request.request_id, 
                                                     loaded=loaded))
     
+    def _handle_maybe_load_cached_tiling_profile_request(self, 
+                                                         request: RPCMaybeLoadCachedTilingProfileRequest) -> bool:
+        loaded = self.engine.maybe_load_cached_tiling_profile()
+        print("loaded", loaded)
+        self._send_outputs(
+            RPCMaybeLoadCachedTilingProfileResponse(request_id=request.request_id, 
+                                                    loaded=loaded))
+
     def _handle_is_selective_validator_trained_request(self, 
                                                        request: RPCIsSelectiveValidatorTrainedRequest) -> bool:
         trained = self.engine.is_selective_validator_trained()
