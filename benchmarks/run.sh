@@ -19,11 +19,13 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --port 8001 \
     --model $TARGET_MODEL \
     --seed 42 \
+    --enforce-eager \
     -tp $TENSOR_PARALLEL_SIZE \
     --enable-chunked-prefill \
-    --gpu_memory_utilization 0.80 \
+    --gpu_memory_utilization 0.85 \
     --disable-log-requests"
 
+    # --max-num-seqs 1024 \
     # --enable-chunked-prefill \
     # --enforce-eager \
 

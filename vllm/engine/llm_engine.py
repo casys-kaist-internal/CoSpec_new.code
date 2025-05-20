@@ -1940,9 +1940,9 @@ class LLMEngine:
     def stop_profile(self) -> None:
         self.model_executor.stop_profile()
 
-    def start_cospec_profile(self) -> None:
+    def start_cospec_profile(self, mode: str) -> None:
         self.stat_loggers["logging"].disable_log()
-        self.model_executor.start_cospec_profile()
+        self.model_executor.start_cospec_profile(mode)
 
     def stop_cospec_profile(self) -> None:
         self.stat_loggers["logging"].enable_log()
@@ -1953,6 +1953,9 @@ class LLMEngine:
 
     def maybe_load_cached_cospec_profile(self) -> bool:
         return self.model_executor.maybe_load_cached_cospec_profile()[0]
+    
+    def maybe_load_cached_tiling_profile(self) -> bool:
+        return self.model_executor.maybe_load_cached_tiling_profile()[0]
     
     def is_selective_validator_trained(self) -> bool:
         return self.model_executor.is_selective_validator_trained()[0]

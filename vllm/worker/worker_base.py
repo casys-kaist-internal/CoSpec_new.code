@@ -425,7 +425,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
 
         if self.cospec_manager is not None:
             if is_target:
-                self.cospec_manager.target_start(model_input)
+                self.cospec_manager.target_start()
             else:
                 self.cospec_manager.draft_start()
         
@@ -441,7 +441,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
         torch.cuda.nvtx.range_pop()
         if self.cospec_manager is not None:
             if is_target:
-                self.cospec_manager.target_finish()
+                self.cospec_manager.target_finish(model_input.input_tokens.shape[0])
             else:
                 self.cospec_manager.draft_finish()
 

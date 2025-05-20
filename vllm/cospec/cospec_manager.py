@@ -10,6 +10,7 @@ from vllm.config import VllmConfig
 from vllm.cospec.shm import SharedMemory
 from vllm.cospec.profiler import Profiler
 from vllm.cospec.selective_validator import SelectiveValidator
+from vllm.spec_decode.util import nvtx_range
 
 logger = init_logger(__name__)
 
@@ -17,7 +18,7 @@ class CospecManager:
     def __init__(self, vllm_config: VllmConfig):
         self.shm = SharedMemory()
         self.profiler = Profiler(vllm_config)
-        self.selective_validator = SelectiveValidator()
+        self.selective_validator = SelectiveValidator(profiler=self.profiler)
         self.rank = vllm_config.parallel_config.rank
         self.is_driver = self.rank == 0
         self.is_primary = vllm_config.speculative_config.is_primary
@@ -34,30 +35,22 @@ class CospecManager:
         self.input_shapes = []
         self.durations = []
 
-    def target_start(self, model_input):
+    def target_start(self):
         if self.is_driver:
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
-            self.start_time = time.perf_counter()
-            input_shape = model_input.input_tokens.shape
-            # Store data for plotting
-            self.input_shapes.append(input_shape[0]) 
+            self.profiler.start_target_marker()
 
-    def target_finish(self):
+    def target_finish(self, num_tokens: int):
         if self.is_driver:
+            print("num_tokens", num_tokens)
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
-            end_time = time.perf_counter()
-            self.durations.append(end_time - self.start_time)
+            self.profiler.stop_target_marker(num_tokens)
             # Signal the other engine to early exit draft model execution
             # And reset the flag for the current engine 
             self.shm.put(f"early_exit_{not self.is_primary}", True)
             self.shm.put(f"early_exit_{self.is_primary}", False)
-            assert len(self.durations) == len(self.input_shapes)
-            print(f"len(self.durations) % 1000: {len(self.durations) % 1000}")
-            if len(self.durations) % 1000 == 0:
-                self.plot_shape_vs_duration()
-
     
     def draft_start(self):
         if self.is_driver:
@@ -89,10 +82,19 @@ class CospecManager:
         self.current_batch_size = batch_size
 
     def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
-        return self.profiler.predict_colocation_speedup_ratio(total_requests, 
-                                                              self.selective_validator.moving_avg_mean_tokens)
+        if self.profiler.profiling:
+            return 0.0
+        
+        if self.is_driver:
+            torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
+            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(total_requests, 
+                                                                            self.selective_validator.moving_avg_mean_tokens) 
+            torch.cuda.nvtx.range_pop()
+            return speedup_ratio
+        else:
+            return 0.0
 
-    def selective_validation(self, proposals):
+    def selective_validation(self, proposals, total_non_proposal_tokens: int):
         """Perform selective validation on proposals.
         
         Args:
@@ -103,16 +105,31 @@ class CospecManager:
             - filtered_proposals: Proposals with acceptance probability >= threshold
             - acceptance_probs: Predicted acceptance probabilities for all proposals
         """
-        torch.cuda.nvtx.range_push("selective_validation")
-        filtered_proposals = self.selective_validator.selective_validation(proposals)
-        torch.cuda.nvtx.range_pop()
-        return filtered_proposals
+        if self.profiler.profiling:
+            return proposals
+
+        if self.is_driver:        
+            torch.cuda.nvtx.range_push("selective_validation")
+            start_time = time.perf_counter()
+            filtered_proposals = self.selective_validator.selective_validation(proposals, total_non_proposal_tokens)
+            end_time = time.perf_counter()
+            print(f"selective_validation time in ms {((end_time - start_time) * 1000):.2f}")
+            torch.cuda.nvtx.range_pop()
+            return filtered_proposals
+        else:
+            return proposals
     
     def selective_validation_correctness_test(self, proposals):
         """Perform random drop for correctness testing purpose"""
         logger.info("Random drop for selective validation correctness test")
-        filtered_proposals = self.selective_validator.random_drop(proposals)
-        return filtered_proposals
+
+        if self.is_driver:
+            torch.cuda.nvtx.range_push("selective_validation_correctness_test")
+            filtered_proposals = self.selective_validator.random_drop(proposals)
+            torch.cuda.nvtx.range_pop()
+            return filtered_proposals
+        else:
+            return proposals
 
     def update_proposal_history(self, proposals, proposal_scores):
         """Update the history of proposal acceptance data.
@@ -121,27 +138,12 @@ class CospecManager:
             proposals: SpeculativeProposals object containing the proposal data
             proposal_scores: Tensor containing the actual acceptance scores
         """
-        torch.cuda.nvtx.range_push("update_proposal_history")
-        self.selective_validator.update_proposal_history(proposals, proposal_scores)
-        torch.cuda.nvtx.range_pop()
-
-    def plot_shape_vs_duration(self):
-        """Plot the graph of input shape vs duration.
-        
-        Args:
-            save_path: Optional path to save the plot. If None, plot will be displayed.
-        """
-        if not self.is_driver or not self.input_shapes:
+        if self.profiler.profiling:
             return
-            
-        plt.figure(figsize=(10, 6))
-        plt.scatter(self.input_shapes, self.durations, alpha=0.5)
-        plt.plot(self.input_shapes, self.durations, 'r--', alpha=0.3)
-        
-        plt.xlabel('Input Shape')
-        plt.ylabel('Duration (seconds)')
-        plt.title('Input Shape vs Duration')
-        plt.grid(True, alpha=0.3)
-        print("saved input_tokens_duration.png")
-        plt.savefig(f"input_tokens_duration.png")
-        plt.close()
+
+        if self.is_driver:
+            torch.cuda.nvtx.range_push("update_proposal_history")
+            self.selective_validator.update_proposal_history(proposals, proposal_scores)
+            torch.cuda.nvtx.range_pop()
+        else:
+            self.selective_validator.update_proposal_history(proposals, proposal_scores)

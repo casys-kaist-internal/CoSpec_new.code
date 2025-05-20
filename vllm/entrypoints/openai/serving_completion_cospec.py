@@ -579,9 +579,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     
     async def profile(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_cospec_profile()
-        logger.info(f"Loaded cached cospec profile: {loaded_cached_profile}")
         if loaded_cached_profile:
-            logger.info("Loaded cached cospec profile")
+            logger.info("Loaded cached profile. Skipping profiling.")
             return 
 
         vllm_config = await self.engine_client.get_vllm_config()
@@ -596,17 +595,17 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         total_iterations = len(batch_sizes) * len(num_speculative_tokens_list)
 
         # warmup
-        await self._profile_non_colocation(8, 1)
-        await self._profile_colocation(8, 1)
+        await self._profile_non_colocation(8, 1, 128)
+        await self._profile_colocation(8, 1, 128)
 
-        await self.engine_client.start_cospec_profile()
-        await self.engine_client2.start_cospec_profile()
+        await self.engine_client.start_cospec_profile(mode="colocation")
+        await self.engine_client2.start_cospec_profile(mode="colocation")
 
         with tqdm(total=total_iterations, desc="Profiling...") as pbar:
             for batch_size in batch_sizes:
                 for num_speculative_tokens in num_speculative_tokens_list:
-                    await self._profile_non_colocation(batch_size, num_speculative_tokens)
-                    await self._profile_colocation(batch_size, num_speculative_tokens)
+                    await self._profile_non_colocation(batch_size, num_speculative_tokens, 128)
+                    await self._profile_colocation(batch_size, num_speculative_tokens, 128)
                     pbar.update(1)
 
         await self.engine_client.stop_cospec_profile()
@@ -616,7 +615,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-    async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int):
+    async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int, max_tokens: int):
         await self.engine_client.set_colocation_mode(False)
         await self.engine_client2.set_colocation_mode(False)
         await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
@@ -629,7 +628,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=128)
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=max_tokens)
             generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
             generators.append(generator)
         
@@ -663,13 +662,99 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         async for _ in result_generator:
             pass
 
+    async def _profile_tiling(self, batch_size: int, prompt_lengths: List[int]): 
+        await self.engine_client.set_colocation_mode(False)
+        await self.engine_client2.set_colocation_mode(False)
+        await self.engine_client.set_num_speculative_tokens(0)
+        await self.engine_client2.set_num_speculative_tokens(0)
+        await self.engine_client.set_profile_batch_size(batch_size)
+        await self.engine_client2.set_profile_batch_size(batch_size)
+
+        generators: list[AsyncGenerator[RequestOutput, None]] = []
+
+        for _ in range(16):
+            for i in range(batch_size):
+                request_id = f"profile_{i}"
+                # Create a prompt with the specified length for this sequence
+                prompt_length = prompt_lengths[i]
+                dummy_prompt = TokensPrompt(prompt_token_ids=[1] * prompt_length)
+                sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=1)
+                generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
+                generators.append(generator)
+            
+            result_generator = merge_async_iterators(*generators)
+
+            async for _ in result_generator:
+                pass
+
+    async def profile_tiling(self):
+        loaded_cached_profile = await self.engine_client.maybe_load_cached_tiling_profile()
+        if loaded_cached_profile:
+            logger.info("Loaded cached tiling profile. Skipping profiling.")
+            loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
+            assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
+            return 
+        
+        vllm_config = await self.engine_client.get_vllm_config()
+        original_num_speculative_tokens = vllm_config.speculative_config.num_speculative_tokens
+
+        # Fixed batch size at max_num_seqs
+        max_num_seqs = vllm_config.scheduler_config.max_num_seqs
+        max_num_batched_tokens = vllm_config.scheduler_config.max_num_batched_tokens
+        
+        # Target total token counts in multiples of 8 up to 2048
+        target_token_counts = list(range(8, max_num_batched_tokens + 1, 8))
+        
+        # Calculate prompt lengths for each target token count
+        prompt_lengths_list = []
+        batch_sizes = []
+        for target_tokens in target_token_counts:
+            if target_tokens <= max_num_seqs:
+                # When target tokens <= max_num_seqs, use target_tokens as batch size
+                batch_size = target_tokens
+                prompt_lengths = [1] * batch_size
+            else:
+                # When target tokens > max_num_seqs, distribute tokens across sequences
+                batch_size = max_num_seqs
+                base_length = target_tokens // max_num_seqs
+                remainder = target_tokens % max_num_seqs
+                
+                # Create list with base_length for all sequences
+                prompt_lengths = [base_length] * max_num_seqs
+                
+                # Distribute remainder tokens across first 'remainder' sequences
+                for i in range(remainder):
+                    prompt_lengths[i] += 1
+            
+            prompt_lengths_list.append(prompt_lengths)
+            batch_sizes.append(batch_size)
+        
+        # Set tqdm as a single progress bar
+        total_iterations = len(target_token_counts)
+
+        # warmup with minimal prompt length
+        await self._profile_tiling(8, [1] * 8)  # Use smallest batch size for warmup
+
+        await self.engine_client.start_cospec_profile(mode="tiling")
+
+        with tqdm(total=total_iterations, desc="Profiling...") as pbar:
+            for prompt_lengths, batch_size in zip(prompt_lengths_list, batch_sizes):
+                await self._profile_tiling(batch_size, prompt_lengths)
+                pbar.update(1)
+
+        await self.engine_client.stop_cospec_profile()
+
+        loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
+        assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
+
+        # reset num_speculative_tokens
+        await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
+
     async def _train_selective_validator(self):
         while True:
             selective_validator_trained = await self.engine_client.is_selective_validator_trained()
             if selective_validator_trained:
                 break
-            
-
 
     def _select_engine(self) -> EngineClient:
         if self.dynamic_colocation:

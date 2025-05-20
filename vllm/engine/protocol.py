@@ -276,7 +276,7 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
-    async def start_cospec_profile(self) -> None:
+    async def start_cospec_profile(self, mode: str) -> None:
         """Start profiling the engine"""
         ...
 
@@ -293,6 +293,11 @@ class EngineClient(ABC):
     @abstractmethod
     async def maybe_load_cached_cospec_profile(self) -> bool:
         """Load cached cospec profile if exists"""
+        ...
+
+    @abstractmethod
+    async def maybe_load_cached_tiling_profile(self) -> bool:
+        """Load cached tiling profile if exists"""
         ...
 
     @abstractmethod

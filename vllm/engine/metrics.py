@@ -455,6 +455,10 @@ class LoggingStatLogger(StatLoggerBase):
         self.last_prompt_throughput: Optional[float] = None
         self.last_generation_throughput: Optional[float] = None
         self.log_enabled = True
+        if vllm_config.speculative_config is not None:
+            self.is_primary = vllm_config.speculative_config.is_primary
+        else:
+            self.is_primary = False
 
     def log(self, stats: Stats) -> None:
         """Called by LLMEngine.
@@ -491,11 +495,12 @@ class LoggingStatLogger(StatLoggerBase):
                 log_fn = logger.debug
 
             log_fn(
-                "Avg prompt throughput: %.1f tokens/s, "
+                "[%s] Avg prompt throughput: %.1f tokens/s, "
                 "Avg generation throughput: %.1f tokens/s, "
                 "Running: %d reqs, Swapped: %d reqs, "
                 "Pending: %d reqs, GPU KV cache usage: %.1f%%, "
                 "CPU KV cache usage: %.1f%%.",
+                "primary" if self.is_primary else "secondary",
                 prompt_throughput,
                 generation_throughput,
                 stats.num_running_sys,
