@@ -2343,11 +2343,6 @@ class SpeculativeConfig:
                     hf_overrides=SpeculativeConfig.hf_config_override,
                 )
 
-                # if envs.COSPEC:
-                #     logger.info("COSPEC is enabled, setting enforce_eager to True for target model and False for draft model")
-                #     self.target_model_config.enforce_eager = True
-                #     self.draft_model_config.enforce_eager = False
-
                 # Automatically detect the method
                 if self.method == 'eagle':
                     pass

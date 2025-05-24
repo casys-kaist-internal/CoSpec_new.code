@@ -4,20 +4,23 @@
 # Configuration
 # =============================================
 
+# nvidia-smi -c EXCLUSIVE_PROCESS
+ulimit -n 65535
+
 # Model Configuration
-export TARGET_MODEL="meta-llama/Llama-2-7b-hf"
-export DRAFT_MODEL="JackFram/llama-160m"
+export TARGET_MODEL="facebook/opt-6.7b"
+export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Dataset Configuration
-DATASETS=("sharegpt" "gsm8k" "natural-questions")
-# DATASETS=("sharegpt")
+DATASETS=("math500" "sharegpt" "opencode")
 
 # Request Rate Configuration (requests per second) for each dataset
-SHAREGPT_RATES=(1 2 3 4 5 6 7 8 9 10)
-GSM8K_RATES=(5 10 15 20 25 30)
-NATURAL_QUESTIONS_RATES=(5 10 15 20 25 30)
+MATH500_RATES=(2 4 6 8 10 12 14)
+SHAREGPT_RATES=(2 4 6 8 10)
+OPENMATH_RATES=(1 2 3 4 5)
+OPENCODE_RATES=(1 2 3 4 5)
 
 # Function to get request rates for a dataset
 get_request_rates() {
@@ -26,11 +29,14 @@ get_request_rates() {
         "sharegpt")
             echo "${SHAREGPT_RATES[@]}"
             ;;
-        "gsm8k")
-            echo "${GSM8K_RATES[@]}"
+        "openmath")
+            echo "${OPENMATH_RATES[@]}"
             ;;
-        "natural-questions")
-            echo "${NATURAL_QUESTIONS_RATES[@]}"
+        "opencode")
+            echo "${OPENCODE_RATES[@]}"
+            ;;
+        "math500")
+            echo "${MATH500_RATES[@]}"
             ;;
     esac
 }
@@ -46,14 +52,14 @@ TEMPERATURES=(0)
 export WARMUP_DURATION=1
 export BENCHMARK_DURATION=5  # Duration in minutes
 
-PORT=8001
+PORT=8000
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_only"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["colocation_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["colocation_selective_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
     ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
 )
 
@@ -92,7 +98,8 @@ start_server() {
         --model $TARGET_MODEL \
         --seed 42 \
         -tp $TENSOR_PARALLEL_SIZE \
-        --gpu_memory_utilization 0.85 \
+        --enable-chunked-prefill \
+        --gpu_memory_utilization 0.80 \
         --disable-log-requests"
 
     # Add speculative config if spec_tokens > 0
@@ -202,9 +209,9 @@ run_benchmark() {
 
 # Define the order of configurations to run
 declare -a CONFIG_ORDER=(
-    "colocation_only"
-    "colocation_dynamic_selective"
-    "full_cospec"
+    "colocation"
+    "colocation_selective"
+    "colocation_selective_consolidated"
 )
 
 TOTAL_RUNS=0
@@ -235,8 +242,8 @@ done
 CURRENT_RUN=0
 
 # Run baseline benchmark with different spec tokens and request rates
-# echo "Running baseline benchmarks with different configurations..."
-# echo "Total runs to complete: $TOTAL_RUNS"
+echo "Running baseline benchmarks with different configurations..."
+echo "Total runs to complete: $TOTAL_RUNS"
 
 # for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
 #     # Start server for this spec_tokens configuration
@@ -246,11 +253,7 @@ CURRENT_RUN=0
 #     # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
     
 #     # For spec_tokens=0, only run with temperature=0
-#     if [ "$spec_tokens" -eq 0 ]; then
-#         temperatures=(0)
-#     else
-#         temperatures=("${TEMPERATURES[@]}")
-#     fi
+#     temperatures=("${TEMPERATURES[@]}")
     
 #     # Run all temperature and request rate combinations
 #     for dataset in "${DATASETS[@]}"; do

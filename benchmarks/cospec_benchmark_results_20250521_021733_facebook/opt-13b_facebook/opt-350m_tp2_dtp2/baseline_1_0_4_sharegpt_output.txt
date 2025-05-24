@@ -1,0 +1,66 @@
+INFO 05-21 03:42:38 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8002, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='facebook/opt-13b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=4.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Temperature:  0.0
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8002/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 4.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 5.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     1166      
+Benchmark duration (s):                  300.24    
+Total input tokens:                      266760    
+Total generated tokens:                  259021    
+Request throughput (req/s):              3.88      
+Output token throughput (tok/s):         862.72    
+Total Token throughput (tok/s):          1751.22   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          120.17    
+Median TTFT (ms):                        101.55    
+P99 TTFT (ms):                           437.42    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          41.89     
+Median TPOT (ms):                        38.74     
+P99 TPOT (ms):                           101.07    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           75.13     
+Median ITL (ms):                         56.13     
+P99 ITL (ms):                            329.38    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          8693.56   
+Median E2EL (ms):                        5872.22   
+P99 E2EL (ms):                           38760.18  
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 44.65     
+Median Token Latency (ms):               40.48     
+P99 Token Latency (ms):                  106.72    
+==================================================

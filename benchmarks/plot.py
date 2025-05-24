@@ -60,6 +60,9 @@ for dataset in datasets:
             ax.plot(config_data['request_throughput'], config_data['mean_token_latency'],
                     marker='o', label=config, linewidth=2)
         
+        # y axis log scale
+        ax.set_yscale('log')
+        
         # Customize subplot
         ax.set_xlabel('Request Throughput (req/s)', fontsize=10)
         ax.set_ylabel('Mean Token Latency (ms)', fontsize=10)

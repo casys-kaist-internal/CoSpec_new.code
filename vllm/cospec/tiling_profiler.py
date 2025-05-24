@@ -33,6 +33,7 @@ class TilingProfiler:
         self.precomputed_latencies: Optional[List[float]] = None
         self.max_precomputed_tokens: Optional[int] = None
         self.precomputed_latencies_linear: Optional[List[float]] = None
+        
     def maybe_load_cached_results(self):
         """Load cached profiling results if they exist and train linear regression model."""
         print("maybe_load_cached_results")
@@ -75,7 +76,7 @@ class TilingProfiler:
         target_duration = target_end_time - self.target_start_time
         # Reset target timing state
         self.target_start_time = None
-        print("num_tokens", num_tokens, "target_duration", target_duration)
+        # print("num_tokens", num_tokens, "target_duration", target_duration)
 
         # Round up to nearest multiple of 8
         num_tokens = ((num_tokens - 1) // 8 + 1) * 8

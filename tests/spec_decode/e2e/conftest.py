@@ -326,6 +326,9 @@ def run_equality_correctness_test_with_env(
             if expected_acceptance_rate is not None:
                 assert acceptance_rate >= expected_acceptance_rate - 1e-2
 
+    # print("org_outputs: ", org_outputs)
+    # print("sd_outputs: ", sd_outputs)
+
     # Only pass token entries, not the logprobs
     check_outputs_equal(outputs_0_lst=[out[0:2] for out in org_outputs],
                         outputs_1_lst=[out[0:2] for out in sd_outputs],

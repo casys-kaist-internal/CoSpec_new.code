@@ -260,7 +260,7 @@ class MQLLMEngineClient(EngineClient):
                 elif isinstance(
                         request_outputs,
                     (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedCospecProfileResponse,
-                     RPCMaybeLoadCachedTilingProfileResponse)):
+                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -273,7 +273,8 @@ class MQLLMEngineClient(EngineClient):
                                                 RPCAdapterLoadedResponse,
                                                 RPCIsSleepingResponse,
                                                 RPCMaybeLoadCachedCospecProfileResponse,
-                                                RPCMaybeLoadCachedTilingProfileResponse]):
+                                                RPCMaybeLoadCachedTilingProfileResponse,
+                                                RPCIsSelectiveValidatorTrainedResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -780,6 +781,7 @@ class MQLLMEngineClient(EngineClient):
 
         if isinstance(request_output, BaseException):
             raise request_output
+        return request_output.trained
         
     async def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
         """Predict the speedup ratio for colocation"""

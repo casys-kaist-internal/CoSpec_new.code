@@ -64,11 +64,28 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                InstructCoderDataset, RandomDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset, 
-                                HumanEvalDataset, PythonAlpacaDataset, OrcaMathDataset)
+                                HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
+                                OpenMathInstructDataset, Math500Dataset)
 from benchmark_utils import convert_to_pytorch_benchmark_format, write_to_json
 
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
 
+
+# Adapted from: https://github.com/sgl-project/sglang/blob/v0.4.1/python/sglang/srt/utils.py#L630 # noqa: E501
+def set_ulimit(target_soft_limit=65535):
+    import resource
+    resource_type = resource.RLIMIT_NOFILE
+    current_soft, current_hard = resource.getrlimit(resource_type)
+
+    if current_soft < target_soft_limit:
+        try:
+            resource.setrlimit(resource_type,
+                               (target_soft_limit, current_hard))
+        except ValueError as e:
+            print("Found ulimit of %s and failed to automatically increase "
+                "with error %s. This can cause fd limit errors like "
+                "`OSError: [Errno 24] Too many open files`. Consider "
+                "increasing with ulimit -n", current_soft, e)
 
 @dataclass
 class BenchmarkMetrics:
@@ -281,6 +298,23 @@ async def wait_for_server(base_url: str, retry_interval: float = 10.0) -> bool:
             print(f"Waiting for server to start...")
         await asyncio.sleep(retry_interval)
 
+async def wait_for_selective_validator_training(base_url: str, check_interval: float = 5.0) -> None:
+    """Wait for selective validator to be trained by checking the endpoint."""
+    print("Waiting for selective validator to be trained...")
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/selective_validator_trained") as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get("is_trained", False):
+                            print("Selective validator is trained!")
+                            return
+        except Exception as e:
+            print(f"Error checking selective validator status: {e}")
+        print("Selective validator not trained yet, waiting...")
+        await asyncio.sleep(check_interval)
+
 async def benchmark(
     backend: str,
     api_url: str,
@@ -302,6 +336,7 @@ async def benchmark(
     lora_modules: Optional[Iterable[str]],
     extra_body: Optional[dict],
     duration_minutes: Optional[float] = None,
+    selective_validator_training: bool = False,
 ):
     if backend in ASYNC_REQUEST_FUNCS:
         request_func = ASYNC_REQUEST_FUNCS[backend]
@@ -484,6 +519,9 @@ async def benchmark(
 
     benchmark_duration = time.perf_counter() - benchmark_start_time
 
+    if selective_validator_training:
+        return 
+
     metrics, actual_output_lens = calculate_metrics(
         input_requests=input_requests,
         outputs=outputs,
@@ -659,32 +697,32 @@ def main(args: argparse.Namespace):
             "Please specify '--dataset-name' and the corresponding "
             "'--dataset-path' if required.")
 
+    # Get full dataset and split into 90/10 train/test
     if args.dataset_name == "sharegpt":
-        input_requests = ShareGPTDataset(random_seed=args.seed,
+        full_requests = ShareGPTDataset(random_seed=args.seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "gsm8k":
-        input_requests = GSM8KDataset(random_seed=args.seed,
-                    dataset_path="openai/gsm8k", 
-                    dataset_subset="main", 
+    elif args.dataset_name == "opencode":
+        full_requests = OpenCodeInstructDataset(random_seed=args.seed,
+                    dataset_path="nvidia/OpenCodeInstruct", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "natural-questions":
-        input_requests = NaturalQuestionsDataset(random_seed=args.seed,
-                    dataset_path="sentence-transformers/natural-questions", 
+    elif args.dataset_name == "openmath":
+        full_requests = OpenMathInstructDataset(random_seed=args.seed,
+                    dataset_path="nvidia/OpenMathInstruct-2", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "humaneval":
-        input_requests = HumanEvalDataset(random_seed=args.seed,
-                    dataset_path="openai/openai_humaneval", 
+    elif args.dataset_name == "math500":
+        full_requests = Math500Dataset(random_seed=args.seed,
+                    dataset_path="HuggingFaceH4/MATH-500", 
                     dataset_split="test").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "python-alpaca":
-        input_requests = PythonAlpacaDataset(random_seed=args.seed,
-                    dataset_path="Vezora/Tested-143k-Python-Alpaca", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "orca-math":
-        input_requests = OrcaMathDataset(random_seed=args.seed,
-                    dataset_path="microsoft/orca-math-word-problems-200k", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
     else:
         raise ValueError(f"Dataset {args.dataset_name} not supported")
+
+    # Split into 90/10 train/test
+    random.shuffle(full_requests)
+    split_idx = int(len(full_requests) * 0.1)  # 10% for test
+    test_requests = full_requests[:split_idx]
+    input_requests = full_requests[split_idx:]  # 90% for training
+
+    print(f"Split dataset into {len(test_requests)} test samples and {len(input_requests)} training samples")
 
     goodput_config_dict = check_goodput_args(args)
 
@@ -714,6 +752,71 @@ def main(args: argparse.Namespace):
     gc.collect()
     gc.freeze()
 
+    # First run the test split to train the selective validator
+    print("Running test split to train selective validator...")
+    
+    async def run_test_until_trained():
+        # First check if already trained
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{base_url}/selective_validator_trained") as response:
+                if response.status == 200:
+                    result = await response.json()
+                    if result.get("is_trained", False):
+                        print("Don't need to train selective validator")
+                        return result
+
+        request_count = 0
+        start_time = time.time()
+        batch_size = 64
+        while True:  # Keep cycling until training is complete
+            # Get next batch of requests
+            batch_requests = []
+            for i in range(batch_size):
+                request = test_requests[(request_count + i) % len(test_requests)]
+                batch_requests.append(request)
+            request_count += batch_size
+            
+            print(f"Running test requests {request_count-batch_size+1} to {request_count} (cycling through {len(test_requests)} requests)")
+            
+            result = await benchmark(
+                backend=backend,
+                api_url=api_url,
+                base_url=base_url,
+                model_id=model_id,
+                model_name=model_name,
+                tokenizer=tokenizer,
+                input_requests=batch_requests,  # Send batch of requests
+                logprobs=args.logprobs,
+                request_rate=args.request_rate,
+                burstiness=args.burstiness,
+                disable_tqdm=args.disable_tqdm,
+                profile=args.profile,
+                selected_percentile_metrics=args.percentile_metrics.split(","),
+                selected_percentiles=[
+                    float(p) for p in args.metric_percentiles.split(",")
+                ],
+                ignore_eos=args.ignore_eos,
+                goodput_config_dict=goodput_config_dict,
+                max_concurrency=args.max_concurrency,
+                lora_modules=args.lora_modules,
+                extra_body=sampling_params,
+                selective_validator_training=True,
+            )
+            
+            # Check if selective validator is trained
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{base_url}/selective_validator_trained") as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get("is_trained", False):
+                            training_time = time.time() - start_time  # Keep in seconds
+                            print(f"Selective validator trained after {request_count} test requests ({training_time:.2f} seconds)")
+                            return result
+
+    asyncio.run(run_test_until_trained())
+
+    # Now run the full benchmark
+    print("Running full benchmark...")
     benchmark_result = asyncio.run(
         benchmark(
             backend=backend,
@@ -826,7 +929,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "gsm8k", "natural-questions", "humaneval", "python-alpaca", "orca-math"],
+        choices=["sharegpt", "opencode", "openmath", "math500"], 
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",
@@ -1126,5 +1229,6 @@ if __name__ == "__main__":
                         "script chooses a LoRA module at random.")
 
     args = parser.parse_args()
-
+    
+    set_ulimit()
     main(args)

@@ -577,7 +577,17 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             top_logprobs=out_top_logprobs,
         )
     
-    async def profile(self) -> None:
+    async def cospec_profile(self) -> None:
+        if envs.COSPEC_DYNAMIC_COLOCATION:
+            await self.profile_colocation()
+
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            await self.profile_tiling()
+    
+    """
+    Profiler for dynamic colocation. 
+    """
+    async def profile_colocation(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_cospec_profile()
         if loaded_cached_profile:
             logger.info("Loaded cached profile. Skipping profiling.")
@@ -662,31 +672,9 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         async for _ in result_generator:
             pass
 
-    async def _profile_tiling(self, batch_size: int, prompt_lengths: List[int]): 
-        await self.engine_client.set_colocation_mode(False)
-        await self.engine_client2.set_colocation_mode(False)
-        await self.engine_client.set_num_speculative_tokens(0)
-        await self.engine_client2.set_num_speculative_tokens(0)
-        await self.engine_client.set_profile_batch_size(batch_size)
-        await self.engine_client2.set_profile_batch_size(batch_size)
-
-        generators: list[AsyncGenerator[RequestOutput, None]] = []
-
-        for _ in range(16):
-            for i in range(batch_size):
-                request_id = f"profile_{i}"
-                # Create a prompt with the specified length for this sequence
-                prompt_length = prompt_lengths[i]
-                dummy_prompt = TokensPrompt(prompt_token_ids=[1] * prompt_length)
-                sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=1)
-                generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
-                generators.append(generator)
-            
-            result_generator = merge_async_iterators(*generators)
-
-            async for _ in result_generator:
-                pass
-
+    """
+    Profiler for tiled selective validation.
+    """
     async def profile_tiling(self):
         loaded_cached_profile = await self.engine_client.maybe_load_cached_tiling_profile()
         if loaded_cached_profile:
@@ -750,11 +738,36 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         # reset num_speculative_tokens
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
 
-    async def _train_selective_validator(self):
-        while True:
-            selective_validator_trained = await self.engine_client.is_selective_validator_trained()
-            if selective_validator_trained:
-                break
+    async def _profile_tiling(self, batch_size: int, prompt_lengths: List[int]): 
+        await self.engine_client.set_colocation_mode(False)
+        await self.engine_client2.set_colocation_mode(False)
+        await self.engine_client.set_num_speculative_tokens(0)
+        await self.engine_client2.set_num_speculative_tokens(0)
+        await self.engine_client.set_profile_batch_size(batch_size)
+        await self.engine_client2.set_profile_batch_size(batch_size)
+
+        generators: list[AsyncGenerator[RequestOutput, None]] = []
+
+        for _ in range(16):
+            for i in range(batch_size):
+                request_id = f"profile_{i}"
+                # Create a prompt with the specified length for this sequence
+                prompt_length = prompt_lengths[i]
+                dummy_prompt = TokensPrompt(prompt_token_ids=[1] * prompt_length)
+                sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=1)
+                generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
+                generators.append(generator)
+            
+            result_generator = merge_async_iterators(*generators)
+
+            async for _ in result_generator:
+                pass
+
+    async def is_selective_validator_trained(self) -> bool:
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            return await self.engine_client.is_selective_validator_trained()
+        else:
+            return True
 
     def _select_engine(self) -> EngineClient:
         if self.dynamic_colocation:

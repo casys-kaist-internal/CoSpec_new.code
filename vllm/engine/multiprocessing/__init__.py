@@ -217,11 +217,11 @@ RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
                       RPCUProfileRequest, RPCCospecProfileRequest, RPCLoadAdapterRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
                       RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedCospecProfileRequest, 
-                      RPCMaybeLoadCachedTilingProfileRequest]
+                      RPCMaybeLoadCachedTilingProfileRequest, RPCIsSelectiveValidatorTrainedRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
                           RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedCospecProfileResponse, 
-                          RPCMaybeLoadCachedTilingProfileResponse]
+                          RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse]
 
 
 def ENGINE_DEAD_ERROR(

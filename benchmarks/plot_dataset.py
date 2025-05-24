@@ -3,7 +3,8 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                InstructCoderDataset, RandomDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset,
-                                HumanEvalDataset, PythonAlpacaDataset, OrcaMathDataset)
+                                HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
+                                OpenMathInstructDataset)
 try:
     from vllm.transformers_utils.tokenizer import get_tokenizer
 except ImportError:
@@ -11,7 +12,7 @@ except ImportError:
 
 import matplotlib.pyplot as plt
 import numpy as np
-
+import json
 seed = 42
 
 tokenizer_id = "facebook/opt-6.7b"
@@ -23,22 +24,43 @@ tokenizer = get_tokenizer(tokenizer_id,
 
 sharegpt_dataset = ShareGPTDataset(random_seed=seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
-humaneval_dataset = HumanEvalDataset(random_seed=seed,
-                    dataset_path="openai/openai_humaneval", 
-                    dataset_split="test").sample_all(tokenizer=tokenizer)
-python_alpaca_dataset = PythonAlpacaDataset(random_seed=seed,
-                    dataset_path="Vezora/Tested-143k-Python-Alpaca", 
+# humaneval_dataset = HumanEvalDataset(random_seed=seed,
+#                     dataset_path="openai/openai_humaneval", 
+#                     dataset_split="test").sample_all(tokenizer=tokenizer)
+# gsm8k_dataset = GSM8KDataset(random_seed=seed,
+#                     dataset_path="openai/gsm8k", 
+#                     dataset_subset="main",
+#                     dataset_split="train").sample_all(tokenizer=tokenizer)
+openmath_dataset = OpenMathInstructDataset(random_seed=seed,
+                    dataset_path="nvidia/OpenMathInstruct-2",
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-orca_math_dataset = OrcaMathDataset(random_seed=seed,
-                    dataset_path="microsoft/orca-math-word-problems-200k", 
+# python_alpaca_dataset = PythonAlpacaDataset(random_seed=seed,
+#                     dataset_path="Vezora/Tested-143k-Python-Alpaca", 
+#                     dataset_split="train").sample_all(tokenizer=tokenizer)
+open_code_instruct_dataset = OpenCodeInstructDataset(random_seed=seed,
+                    dataset_path="nvidia/OpenCodeInstruct", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
+# open_math_reasoning_dataset = OpenMathReasoningDataset(random_seed=seed,
+#                     dataset_path="nvidia/OpenMathReasoning", 
+#                     dataset_split="cot").sample_all(tokenizer=tokenizer)
 
-# Extract input and output lengths
+# # Extract input and output lengths
+# datasets = {
+#     'ShareGPT': sharegpt_dataset,
+#     'PythonAlpaca': python_alpaca_dataset,
+#     'HumanEval': humaneval_dataset,
+#     'OpenCodeInstruct': open_code_instruct_dataset,
+#     'OpenMathReasoning': open_math_reasoning_dataset
+# }
+
+# Save prompts to JSON file
+# with open("sharegpt_prompts.json", "w") as f:
+#     json.dump([sample.prompt for sample in sharegpt_dataset], f)
+
 datasets = {
     'ShareGPT': sharegpt_dataset,
-    'HumanEval': humaneval_dataset,
-    'PythonAlpaca': python_alpaca_dataset,
-    'OrcaMath': orca_math_dataset
+    'OpenMathInstruct': openmath_dataset,
+    'OpenCodeInstruct': open_code_instruct_dataset,
 }
 
 # Create figure with subplots
@@ -80,6 +102,3 @@ for name, dataset in datasets.items():
           f"Min: {min(input_lengths)}, Max: {max(input_lengths)}")
     print(f"Output lengths - Mean: {np.mean(output_lengths):.1f}, Median: {np.median(output_lengths):.1f}, "
           f"Min: {min(output_lengths)}, Max: {max(output_lengths)}")
-
-
-

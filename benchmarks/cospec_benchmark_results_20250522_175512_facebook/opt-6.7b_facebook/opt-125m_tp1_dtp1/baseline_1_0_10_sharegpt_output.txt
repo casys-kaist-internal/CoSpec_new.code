@@ -1,0 +1,40 @@
+INFO 05-22 19:59:41 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=10.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Temperature:  0.0
+Checking server health at http://127.0.0.1:8000/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 10.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 5.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     901       
+Benchmark duration (s):                  300.39    
+Total input tokens:                      191363    
+Total generated tokens:                  318147    
+Request throughput (req/s):              3.00      
+Output token throughput (tok/s):         1059.10   
+Total Token throughput (tok/s):          1696.14   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          78561.41  
+Median TTFT (ms):                        78586.21  
+P99 TTFT (ms):                           183822.33 
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          83.92     
+Median TPOT (ms):                        82.35     
+P99 TPOT (ms):                           119.96    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           159.22    
+Median ITL (ms):                         140.73    
+P99 ITL (ms):                            437.58    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          107349.15 
+Median E2EL (ms):                        109502.71 
+P99 E2EL (ms):                           209698.21 
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 491.38    
+Median Token Latency (ms):               304.79    
+P99 Token Latency (ms):                  2358.78   
+==================================================

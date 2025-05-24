@@ -11,6 +11,7 @@ from vllm.cospec.shm import SharedMemory
 from vllm.cospec.profiler import Profiler
 from vllm.cospec.selective_validator import SelectiveValidator
 from vllm.spec_decode.util import nvtx_range
+from vllm.config import envs
 
 logger = init_logger(__name__)
 
@@ -43,7 +44,7 @@ class CospecManager:
 
     def target_finish(self, num_tokens: int):
         if self.is_driver:
-            print("num_tokens", num_tokens)
+            print("target_num_tokens, ", num_tokens)
             torch.cuda.synchronize()
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
             self.profiler.stop_target_marker(num_tokens)
@@ -118,18 +119,7 @@ class CospecManager:
             return filtered_proposals
         else:
             return proposals
-    
-    def selective_validation_correctness_test(self, proposals):
-        """Perform random drop for correctness testing purpose"""
-        logger.info("Random drop for selective validation correctness test")
 
-        if self.is_driver:
-            torch.cuda.nvtx.range_push("selective_validation_correctness_test")
-            filtered_proposals = self.selective_validator.random_drop(proposals)
-            torch.cuda.nvtx.range_pop()
-            return filtered_proposals
-        else:
-            return proposals
 
     def update_proposal_history(self, proposals, proposal_scores):
         """Update the history of proposal acceptance data.
