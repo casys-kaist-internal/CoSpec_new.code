@@ -113,11 +113,11 @@ if TYPE_CHECKING:
 
     # CoSpec specific env vars
     COSPEC: bool = False
+    COSPEC_CORRECTNESS_TEST: bool = False
     COSPEC_DYNAMIC_COLOCATION: bool = False
     COSPEC_SELECTIVE_VALIDATION: bool = False
-    COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST: bool = False
     COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.3
-    COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile"
+    COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile" # tile, linear, threshold, random
     COSPEC_CONSOLIDATED_ATTENTION: bool = False
 
 def get_default_cache_root():
@@ -754,8 +754,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "COSPEC_CONSOLIDATED_ATTENTION":
     lambda: bool(int(os.getenv("COSPEC_CONSOLIDATED_ATTENTION", "0"))),
 
-    "COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST":
-    lambda: bool(int(os.getenv("COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST", "0"))),
+    "COSPEC_CORRECTNESS_TEST":
+    lambda: bool(int(os.getenv("COSPEC_CORRECTNESS_TEST", "0"))),
 }
 
 # end-env-vars-definition

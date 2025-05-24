@@ -68,9 +68,9 @@ async def generate_text(session, prompt, server_url="http://localhost:8000", tok
 async def process_prompt(session, prompt, server_url, tokenizer):
     """Process a single prompt without waiting for delay."""
     result = await generate_text(session, prompt, server_url=server_url, tokenizer=tokenizer)
-    if result:
-        print("\nPrompt:", result.prompt)
-        print("\nGenerated Response:", result.response)
+    # if result:
+    #     print("\nPrompt:", result.prompt)
+    #     print("\nGenerated Response:", result.response)
     return result
 
 def calculate_metrics(metrics: List[RequestMetrics]) -> dict:
@@ -96,7 +96,7 @@ def calculate_metrics(metrics: List[RequestMetrics]) -> dict:
 async def main_async():
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Client for text generation with Poisson distributed request rates')
-    parser.add_argument('--server-url', type=str, default="http://localhost:8000",
+    parser.add_argument('--server-url', type=str, default="http://localhost:7000",
                       help='Base URL of the FastAPI server')
     parser.add_argument('--request-rate', type=float, default=1.0,
                       help='Average requests per second (lambda for Poisson distribution)')
@@ -109,9 +109,9 @@ async def main_async():
     args = parser.parse_args()
 
     # Initialize tokenizer and dataset
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+    tokenizer = AutoTokenizer.from_pretrained("facebook/opt-6.7b")
     sharegpt_dataset = ShareGPTDataset(random_seed=args.random_seed,
-                      dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_specinfer(tokenizer=tokenizer, num_requests=100)
+                      dataset_path=args.dataset_path).sample_specinfer(tokenizer=tokenizer, num_requests=100)
     
     # Calculate end time if duration is specified
     end_time = None
@@ -134,16 +134,9 @@ async def main_async():
                 pbar.close()
                 print(f"\nReached time limit of {args.duration_minutes} minutes")
                 break
-                
-            # Check if we've exhausted the dataset
-            if i >= len(sharegpt_dataset):
-                pbar.close()
-                print("\nExhausted all prompts in dataset")
-                break
             
-            # Create and start new task
-            prompt = sharegpt_dataset[i].prompt
-            print("prompt length: ", len(prompt))
+            # Cycle through the dataset using modulo
+            prompt = sharegpt_dataset[i % len(sharegpt_dataset)].prompt
             task = asyncio.create_task(process_prompt(session, prompt, args.server_url, tokenizer))
             tasks.add(task)
             
@@ -174,6 +167,7 @@ async def main_async():
         # Calculate and print metrics
         metrics = calculate_metrics(completed_metrics)
         print("\nBenchmark Results:")
+        print(f"Request throughput: {metrics['total_requests'] / args.duration_minutes:.2f} requests/second")
         print(f"Mean latency per token: {metrics['mean_latency_per_token']:.4f} seconds")
         print(f"Total requests completed: {metrics['total_requests']}")
         print(f"Total tokens generated: {metrics['total_tokens']}")

@@ -1,0 +1,55 @@
+INFO 05-23 11:17:49 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8000, endpoint='/v1/completions', dataset_name='math500', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=12.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Loaded 500 samples from cache from HuggingFaceH4/cache/math500_facebook/opt-6.7b.json
+Temperature:  0.0
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8000/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 12.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 5.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     2094      
+Benchmark duration (s):                  300.32    
+Total input tokens:                      152367    
+Total generated tokens:                  444029    
+Request throughput (req/s):              6.97      
+Output token throughput (tok/s):         1478.54   
+Total Token throughput (tok/s):          1985.90   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          39905.24  
+Median TTFT (ms):                        41479.47  
+P99 TTFT (ms):                           92886.41  
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          137.29    
+Median TPOT (ms):                        118.54    
+P99 TPOT (ms):                           320.84    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           648.11    
+Median ITL (ms):                         610.40    
+P99 ITL (ms):                            1045.56   
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          64816.48  
+Median E2EL (ms):                        65684.14  
+P99 E2EL (ms):                           133369.19 
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 481.65    
+Median Token Latency (ms):               332.75    
+P99 Token Latency (ms):                  2116.18   
+==================================================

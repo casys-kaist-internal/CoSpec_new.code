@@ -1,0 +1,52 @@
+INFO 05-22 07:20:21 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8001, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=2.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Temperature:  0.0
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8001/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 5.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     596       
+Benchmark duration (s):                  302.94    
+Total input tokens:                      128242    
+Total generated tokens:                  142419    
+Request throughput (req/s):              1.97      
+Output token throughput (tok/s):         470.12    
+Total Token throughput (tok/s):          893.44    
+---------------Time to First Token----------------
+Mean TTFT (ms):                          80.55     
+Median TTFT (ms):                        69.88     
+P99 TTFT (ms):                           192.88    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          12.31     
+Median TPOT (ms):                        9.64      
+P99 TPOT (ms):                           35.81     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           45.45     
+Median ITL (ms):                         40.71     
+P99 ITL (ms):                            149.55    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          2216.21   
+Median E2EL (ms):                        1621.13   
+P99 E2EL (ms):                           9353.30   
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 14.25     
+Median Token Latency (ms):               10.19     
+P99 Token Latency (ms):                  47.26     
+==================================================

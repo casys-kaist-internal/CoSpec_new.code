@@ -251,8 +251,8 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
         if self._cached_decode_metadata is not None:
             # Recover cached decode-phase attention
             # metadata structure
-            if self.consolidated_lens_tensor is not None:
-                self._cached_decode_metadata.consolidated_lens_tensor = self.consolidated_lens_tensor[self.num_prefills:]
+            # if self.consolidated_lens_tensor is not None:
+            #     self._cached_decode_metadata.consolidated_lens_tensor = self.consolidated_lens_tensor
             
             return self._cached_decode_metadata
         
@@ -267,8 +267,8 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
         block_tables = (None if self.block_tables is None else
                         self.block_tables[self.num_prefills:])
         consolidated_lens_tensor = (None if self.consolidated_lens_tensor is None else 
-                                self.consolidated_lens_tensor[self.num_prefills:])
-
+                                self.consolidated_lens_tensor)
+        
         # Construct & cache decode-phase attention metadata structure
         self._cached_decode_metadata = XFormersMetadata(
             num_prefills=0,
@@ -614,7 +614,10 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                 block_tables_arg,
             ) = get_seq_len_block_table_args(decode_meta, False, attn_type)
 
-            output[num_prefill_query_tokens:] = PagedAttention.forward_decode(
+            # if decode_meta.consolidated_lens_tensor is not None:
+            #     print("consolidated_lens_tensor sum: ", decode_meta.consolidated_lens_tensor.sum())
+            #     print("decode_query length: ", decode_query.shape[0])
+            result = PagedAttention.forward_decode(
                 decode_query,
                 key_cache,
                 value_cache,
@@ -629,6 +632,7 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                 layer._v_scale,
                 consolidated_lens_tensor=decode_meta.consolidated_lens_tensor,
             )
+            output[num_prefill_query_tokens:] = result
 
         # Reshape the output tensor.
         return output.view(-1, self.num_heads * self.head_size)

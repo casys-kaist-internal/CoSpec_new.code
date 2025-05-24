@@ -343,6 +343,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self._disable_log_stats = disable_log_stats
         self._num_spec_prefill_steps = num_spec_prefill_steps
 
+
+        # Check CoSpec Environment Variables
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_SELECTIVE_VALIDATION is set"
+        if envs.COSPEC_CONSOLIDATED_ATTENTION:
+            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_CONSOLIDATED_ATTENTION is set"
+
         self.cospec_manager = None
         if envs.COSPEC:
             self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
@@ -821,12 +828,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             raise RuntimeError("Cannot handle cases where distributed draft "
                                "workers generate no tokens")
         
-        if envs.COSPEC_SELECTIVE_VALIDATION_CORRECTNESS_TEST:
-            proposals = self.cospec_manager.selective_validation_correctness_test(proposals)
-            
-        elif envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
+        if envs.COSPEC_SELECTIVE_VALIDATION:
             proposals = self.cospec_manager.selective_validation(proposals, total_non_proposal_tokens)
-
+        
         max_proposal_len = max(proposals.proposal_lens)
         execute_model_req.previous_hidden_states = None
 
@@ -857,9 +861,12 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # Sync proposer KV cache for prefills.
             prefill_req = execute_model_req.clone(non_spec_seqs)
             # TODO avoid sampling here?
+            # we should remove consolidated_lens_tensor in draft run 
+            if envs.COSPEC_CONSOLIDATED_ATTENTION:
+                prefill_req.consolidated_lens_tensor = None
             self.proposer_worker.execute_model(prefill_req, is_target=False)
 
-        if envs.COSPEC and envs.COSPEC_SELECTIVE_VALIDATION:
+        if envs.COSPEC_SELECTIVE_VALIDATION and not envs.COSPEC_CORRECTNESS_TEST:
             self.cospec_manager.update_proposal_history(proposals, proposal_scores)
 
         with Timer() as verification_timer:
@@ -876,7 +883,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if self.cospec_manager is not None:
             if self.cospec_manager.profiler.profiling:
                 accepted_token_ids[:, 1:] = -1
-                # accepted_token_ids = torch.full_like(accepted_token_ids, -1)
 
         return self._create_output_sampler_list(
             execute_model_req.seq_group_metadata_list,
@@ -951,6 +957,11 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             **sampler_extra_kwargs,
         )
 
+        # total_proposal_tokens = proposal_lens.sum()
+        # # sum of accepted_tokens with element not -1 
+        # num_accepted_tokens = (accepted_token_ids[:, :-1] != -1).sum()
+        # print("accept probability ", num_accepted_tokens / total_proposal_tokens)
+        
         # Append output tokens from non-speculative sequences to
         # the accepted token ids tensor.
         non_spec_token_ids = non_spec_token_ids.expand(-1, max_proposal_len +
@@ -990,6 +1001,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             self.previous_hidden_states = HiddenStates(
                 hidden_states, terminal_metadata,
                 second_last_token_hidden_states)
+
         return accepted_token_ids, logprobs
 
     def _create_output_sampler_list(

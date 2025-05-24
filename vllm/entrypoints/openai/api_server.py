@@ -257,44 +257,45 @@ async def build_async_engine_client_from_engine_args(
             from prometheus_client import multiprocess
             multiprocess.mark_process_dead(engine_process.pid)
 
-    # V1 AsyncLLM.
-    elif envs.VLLM_USE_V1:
-        if disable_frontend_multiprocessing:
-            logger.warning(
-                "V1 is enabled, but got --disable-frontend-multiprocessing. "
-                "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
+    # # V1 AsyncLLM.
+    # elif envs.VLLM_USE_V1:
+    #     if disable_frontend_multiprocessing:
+    #         logger.warning(
+    #             "V1 is enabled, but got --disable-frontend-multiprocessing. "
+    #             "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
 
-        from vllm.v1.engine.async_llm import AsyncLLM
-        async_llm: Optional[AsyncLLM] = None
-        try:
-            async_llm = AsyncLLM.from_vllm_config(
-                vllm_config=vllm_config,
-                usage_context=usage_context,
-                disable_log_requests=engine_args.disable_log_requests,
-                disable_log_stats=engine_args.disable_log_stats)
-            yield async_llm
-        finally:
-            if async_llm:
-                async_llm.shutdown()
+    #     from vllm.v1.engine.async_llm import AsyncLLM
+    #     async_llm: Optional[AsyncLLM] = None
+    #     try:
+    #         async_llm = AsyncLLM.from_vllm_config(
+    #             vllm_config=vllm_config,
+    #             usage_context=usage_context,
+    #             disable_log_requests=engine_args.disable_log_requests,
+    #             disable_log_stats=engine_args.disable_log_stats)
+    #         yield async_llm
+    #     finally:
+    #         if async_llm:
+    #             async_llm.shutdown()
 
-    # V0 AsyncLLM.
-    elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
-          or disable_frontend_multiprocessing):
+    # # V0 AsyncLLM.
+    # elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
+    #       or disable_frontend_multiprocessing):
 
-        engine_client: Optional[EngineClient] = None
-        try:
-            engine_client = AsyncLLMEngine.from_vllm_config(
-                vllm_config=vllm_config,
-                usage_context=usage_context,
-                disable_log_requests=engine_args.disable_log_requests,
-                disable_log_stats=engine_args.disable_log_stats)
-            yield engine_client
-        finally:
-            if engine_client and hasattr(engine_client, "shutdown"):
-                engine_client.shutdown()
+    #     engine_client: Optional[EngineClient] = None
+    #     try:
+    #         engine_client = AsyncLLMEngine.from_vllm_config(
+    #             vllm_config=vllm_config,
+    #             usage_context=usage_context,
+    #             disable_log_requests=engine_args.disable_log_requests,
+    #             disable_log_stats=engine_args.disable_log_stats)
+    #         yield engine_client
+    #     finally:
+    #         if engine_client and hasattr(engine_client, "shutdown"):
+    #             engine_client.shutdown()
 
     # V0MQLLMEngine.
     else:
+        # AR 
         if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
             # Make TemporaryDirectory for prometheus multiprocessing
             # Note: global TemporaryDirectory will be automatically
@@ -503,6 +504,16 @@ async def get_server_load_metrics(request: Request):
     return JSONResponse(
         content={'server_load': request.app.state.server_load_metrics})
 
+@router.api_route("/selective_validator_trained", methods=["GET"])
+async def selective_validator_trained(raw_request: Request) -> Response:
+    """Check if the selective validator is trained"""
+    handler = completion(raw_request)
+    if handler is None:
+        return base(raw_request).create_error_response(
+            message="The model does not support Completions API")
+    
+    is_trained = await handler.is_selective_validator_trained()
+    return JSONResponse(content={"is_trained": is_trained})
 
 @router.api_route("/ping", methods=["GET", "POST"])
 async def ping(raw_request: Request) -> Response:
@@ -1190,10 +1201,8 @@ async def init_app_state_cospec(
     state.enable_server_load_tracking = args.enable_server_load_tracking
     state.server_load_metrics = 0
 
-    if envs.COSPEC_SELECTIVE_VALIDATION:
-        await state.openai_serving_completion.profile_tiling()
-    # if envs.COSPEC_DYNAMIC_COLOCATION:
-    #     await state.openai_serving_completion.profile()
+    # Cospec Profiling
+    await state.openai_serving_completion.cospec_profile()
 
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET

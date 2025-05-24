@@ -5,8 +5,9 @@ from itertools import chain, count
 from typing import Iterator, List, Optional, Tuple
 
 import torch
-
+from vllm.config import envs
 from vllm import SamplingParams
+
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import (VLLM_INVALID_TOKEN_ID, VLLM_TOKEN_ID_ARRAY_TYPE,
                            ExecuteModelRequest, SequenceData,
@@ -77,10 +78,15 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
              proposal_token_ids_list=proposal_token_ids_list,
              proposal_lens_list=proposal_lens_list,
          )
-        
-        # Consolidated Attention
-        execute_model_req.consolidated_lens_tensor = torch.add(proposals.proposal_lens, 1).to(torch.int)
 
+        if envs.COSPEC_CONSOLIDATED_ATTENTION:
+            non_spec_indices_without_chunked_prefill = [
+                idx for idx in non_spec_indices
+                if not execute_model_req.seq_group_metadata_list[idx].is_prompt
+            ]
+            decode_indicies = non_spec_indices_without_chunked_prefill + spec_indices
+            execute_model_req.consolidated_lens_tensor = (proposals.proposal_lens[decode_indicies] + 1).to(torch.int)
+            
         torch.cuda.nvtx.range_push("execute_model")
         target_sampler_output = self._scorer_worker.execute_model(
             execute_model_req=execute_model_req.clone(
@@ -110,7 +116,7 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
                 k=execute_model_req.num_lookahead_slots,
                 proposal_lens_list=proposal_lens_list,
             )
-
+    
     def _expand_batch(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
@@ -193,6 +199,7 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
             assert non_spec_outputs.hidden_states is not None
             scores.hidden_states[non_spec_indices, :1, :] = \
                 non_spec_outputs.hidden_states[nospec_sampled_token_idxs].unsqueeze(1)
+            
         return scores
     
 
@@ -295,6 +302,7 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
             token_ids=non_spec_target_token_ids,
             logprobs=non_spec_target_logprobs,
             hidden_states=non_spec_target_hidden_states)
+        
         # Contract remaining nonspec entries based on non_spec_indices, if any.
         return self._contract_non_speculative(
             spec_scores, contracted_seq_group_metadata_list, non_spec_indices,
