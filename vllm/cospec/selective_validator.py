@@ -119,17 +119,18 @@ class SelectiveValidator:
     def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
-        
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
 
         # Get shape and device info
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
-        device = acceptance_probs.device
+        device = cumulative_acceptance_probs.device
         
         # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
-        masked_acceptance_probs = acceptance_probs * length_mask
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
         # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
@@ -142,16 +143,6 @@ class SelectiveValidator:
         sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
         non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
         sorted_original_indices = non_zero_indices[sorted_indices]
-        
-        # Add bonus to end tokens of each sequence based on actual proposal lengths
-        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
-        # Calculate end token indices based on actual proposal lengths
-        end_token_indices = torch.cumsum(proposals.proposal_lens, dim=0) - 1
-        print("end_token_indicies", end_token_indices)
-        end_token_mask = torch.isin(sorted_original_indices, end_token_indices)
-        print("end_token_mask", end_token_mask)
-        sorted_values[end_token_mask] += 1.0
-        print("sorted_values", sorted_values)
         
         # Calculate expected throughput more efficiently
         total_valid_tokens = len(sorted_values)
@@ -176,30 +167,32 @@ class SelectiveValidator:
         """Generate mask for threshold-based selective validation."""
         # Get predictions and create masks in one go
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
         seq_len = proposals.proposal_token_ids.shape[1]
-        device = acceptance_probs.device
+        device = cumulative_acceptance_probs.device
         
         # Create all masks in one go
         length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
         is_negative_one = (proposals.unscaled_temp_probs == -1)
-        threshold_mask = acceptance_probs >= self.selective_validation_threshold
+        threshold_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
         
         return (threshold_mask & length_mask) | is_negative_one
     
     def _generate_linear_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
 
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
         
         # Get shape and device info
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
-        device = acceptance_probs.device
+        device = cumulative_acceptance_probs.device
         
         # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
-        masked_acceptance_probs = acceptance_probs * length_mask
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
         # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
@@ -235,17 +228,18 @@ class SelectiveValidator:
     def _generate_polynomial_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
 
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
         
         # Get shape and device info
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
-        device = acceptance_probs.device
+        device = cumulative_acceptance_probs.device
         
         # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
-        masked_acceptance_probs = acceptance_probs * length_mask
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
         # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
@@ -282,9 +276,10 @@ class SelectiveValidator:
         """Perform random drop for testing purpose"""
         # Create random mask with 50% probability of dropping each token
         random_acceptance_probs = self.random_predict_acceptance_probability(proposals)
+        cumulative_acceptance_probs = torch.cumprod(random_acceptance_probs, dim=1)
 
         # Create mask for proposals that meet the threshold
-        valid_mask = random_acceptance_probs >= self.selective_validation_threshold
+        valid_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
         
         # Create a mask for tokens within proposal lengths
         length_mask = torch.arange(proposals.proposal_token_ids.shape[1], 
@@ -353,15 +348,7 @@ class SelectiveValidator:
         # Generate random probabilities between 0 and 1
         random_probs = torch.rand(batch_size, seq_len, device=proposals.proposal_token_ids.device)
         
-        # Calculate cumulative probabilities
-        # For each position, multiply with all previous positions
-        cumulative_probs = torch.ones_like(random_probs)
-        
-        for i in range(seq_len):
-            # For each position, multiply with all previous positions
-            cumulative_probs[:, i] = torch.prod(random_probs[:, :i+1], dim=1)
-        
-        return cumulative_probs
+        return random_probs
 
     @nvtx_range("_calculate_acceptance_probabilities")
     def _calculate_acceptance_probabilities(self, proposals: SpeculativeProposals, proposal_scores: SpeculativeScores) -> torch.Tensor:
