@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import traceback
+import random
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
@@ -34,6 +35,13 @@ class RequestFuncInput:
     multi_modal_content: Optional[dict] = None
     ignore_eos: bool = False
     language: Optional[str] = None
+
+    def __post_init__(self):
+        if self.extra_body is not None and self.extra_body.get("temperature") == -1:
+            # Create a copy of extra_body to avoid modifying the original
+            self.extra_body = self.extra_body.copy()
+            self.extra_body["temperature"] = random.choice([0, 0.3, 0.6])
+            # print(f"Request using temperature: {self.extra_body['temperature']}")
 
 
 @dataclass

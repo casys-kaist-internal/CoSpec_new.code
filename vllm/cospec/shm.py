@@ -9,7 +9,7 @@ class SharedMemory:
     def __init__(self, namespace: str = "cospec"):
         self.namespace = namespace
         self.lock_path = f"/tmp/{namespace}.lock"
-        self.shm_dir = Path(f"/dev/shm/{namespace}")
+        self.shm_dir = Path(f"/tmp/cospec_shm_{namespace}")
         self.shm_dir.mkdir(exist_ok=True)
         self.lock_fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR)
 

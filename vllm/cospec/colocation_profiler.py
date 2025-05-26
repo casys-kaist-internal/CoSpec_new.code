@@ -15,23 +15,83 @@ from vllm.spec_decode.util import nvtx_range
 
 logger = init_logger(__name__)
 
+class CustomNonColocationModel:
+    def __init__(self):
+        self.X = None  # Coefficient for num_spec_tokens * batch_size
+        self.Y = None  # Coefficient for (num_spec_tokens + 1) * batch_size
+        self.Z = None  # Intercept
+
+    def fit(self, X, y):
+        # X should be array of [batch_size, num_spec_tokens]
+        batch_sizes = X[:, 0]
+        num_spec_tokens = X[:, 1]
+        
+        # Create design matrix for our specific formula
+        X_design = np.column_stack([
+            num_spec_tokens * batch_sizes,  # term1: num_spec_tokens * batch_size
+            (num_spec_tokens + 1) * batch_sizes,  # term2: (num_spec_tokens + 1) * batch_size
+            np.ones_like(batch_sizes)  # intercept term
+        ])
+        
+        # Solve using least squares
+        coeffs, _, _, _ = np.linalg.lstsq(X_design, y, rcond=None)
+        self.X = coeffs[0]
+        self.Y = coeffs[1]
+        self.Z = coeffs[2]
+
+    def predict(self, X):
+        batch_sizes = X[:, 0]
+        num_spec_tokens = X[:, 1]
+        
+        return (self.X * num_spec_tokens * batch_sizes + 
+                self.Y * (num_spec_tokens + 1) * batch_sizes + 
+                self.Z)
+
+class CustomColocationModel:
+    def __init__(self):
+        self.X = None  # Coefficient for (num_spec_tokens + 1) * (batch_size / 2) * 2 
+        self.Y = None  # Intercept
+
+    def fit(self, X, y):
+        # X should be array of [batch_size, num_spec_tokens]
+        batch_sizes = X[:, 0]
+        num_spec_tokens = X[:, 1]
+        
+        # Create design matrix for our specific formula
+        X_design = np.column_stack([
+            (num_spec_tokens + 1) * batch_sizes,  # term: (num_spec_tokens + 1) * (batch_size / 2) * 2 = (num_spec_tokens + 1) * batch_size 
+            np.ones_like(batch_sizes)  # intercept term
+        ])
+        
+        # Solve using least squares
+        coeffs, _, _, _ = np.linalg.lstsq(X_design, y, rcond=None)
+        self.X = coeffs[0]
+        self.Y = coeffs[1]
+
+    def predict(self, X):
+        batch_sizes = X[:, 0]
+        num_spec_tokens = X[:, 1]
+        
+        return (self.X * (num_spec_tokens + 1) * batch_sizes + 
+                self.Y)
+
 class ColocationProfiler:
     """Class for handling colocation vs non-colocation profiling."""
     
     def __init__(self, profile_dir: str):
         self.profile_dir = profile_dir
-        self.profile_file = os.path.join(profile_dir, "results.csv")
+        self.profile_file = os.path.join(profile_dir, "colocation_results.csv")
         
         # Profiling state
         self.profile_results: Dict[Tuple[int, int, bool], List[float]] = {}
         self.run_counts: Dict[Tuple[int, int, bool], int] = {}
         self.current_set: Optional[Dict] = None
         self.start_time: Optional[float] = None
+        self.colocation_mode = False
         
         # Regression models
         self.colocation_model: Optional[LinearRegression] = None
         self.non_colocation_model: Optional[LinearRegression] = None
-        self.poly = PolynomialFeatures(degree=2)
         self.test_keys: Optional[List[Tuple[int, int]]] = None
         
         # Warmup settings
@@ -40,19 +100,62 @@ class ColocationProfiler:
         
         logger.info(f"Colocation profile file: {self.profile_file}")
     
-    def start_step_marker(self, batch_size: int, num_speculative_tokens: int, colocation_mode: bool):
+    def maybe_load_cached_results(self) -> bool:
+        """Load cached profiling results if they exist and train regression models."""
+        if not os.path.exists(self.profile_file):
+            return False
+            
+        logger.info(f"Loading cached profiling results from {self.profile_file}")
+        try:
+            with open(self.profile_file, "r") as f:
+                # Skip header
+                next(f)
+                for line in f:
+                    batch_size, num_spec_tokens, colocation_mode, mean_step_time = line.strip().split(",")
+                    batch_size = int(batch_size)
+                    num_spec_tokens = int(num_spec_tokens)
+                    colocation_mode = colocation_mode.lower() == 'true'
+                    mean_step_time = float(mean_step_time)
+                    
+                    # Create key for the configuration
+                    key = (batch_size, num_spec_tokens, colocation_mode)
+                    
+                    # Initialize with empty list and add the cached mean latency
+                    self.profile_results[key] = [mean_step_time]
+                    
+            logger.info(f"Loaded cached profiling results from {self.profile_file}")
+            
+            # Train regression models and generate plots
+            self._train_regression_models()
+            metrics = self._calculate_model_metrics()
+            self._plot_speedup_heatmap()
+            self._plot_regression_heatmap()
+            self._plot_roc_curve(metrics.get('fpr'), metrics.get('tpr'), metrics.get('AUROC'))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to load cached profiling results: {str(e)}")
+            return False
+
+    def set_colocation_mode(self, colocation_mode: bool):
+        """Set the colocation mode for subsequent profiling"""
+        self.colocation_mode = colocation_mode
+    
+    def set_profile_batch_size(self, batch_size: int):
+        """Set the batch size for subsequent profiling"""
+        self.profile_batch_size = batch_size
+
+    def start_step_marker(self, num_speculative_tokens: int):
         """Start timing a step"""
-        if colocation_mode:
-            batch_size = batch_size * 2
-        
         torch.cuda.synchronize()
         
         # Start a new timing set
         self.current_set = {
-            'batch_size': batch_size,
+            'batch_size': self.profile_batch_size,
             'num_speculative_tokens': num_speculative_tokens,
             'step_time': None,
-            'colocation_mode': colocation_mode,
+            'colocation_mode': self.colocation_mode,
         }
         self.start_time = time.perf_counter()
     
@@ -81,7 +184,7 @@ class ColocationProfiler:
         # Increment run counter
         self.run_counts[key] += 1
         
-        if self.run_counts[key] > 3 and self.run_counts[key] <= 13:
+        if self.run_counts[key] > 5 and self.run_counts[key] <= 15:
             self.profile_results[key].append(duration)
     
         # Reset current timing state
@@ -90,8 +193,6 @@ class ColocationProfiler:
     
     def save_results(self):
         """Save profiling results and generate visualizations"""
-        if not self.is_primary:
-            return
             
         try:
             os.makedirs(self.profile_dir, exist_ok=True)
@@ -216,35 +317,31 @@ class ColocationProfiler:
             
         # Train colocation model
         if len(X_colocation) > 0:
-            X_colocation_poly = self.poly.fit_transform(X_colocation)
-            self.colocation_model = LinearRegression()
-            self.colocation_model.fit(X_colocation_poly, y_colocation)
+            self.colocation_model = CustomColocationModel()
+            self.colocation_model.fit(X_colocation, y_colocation)
             logger.info(f"Trained colocation model on {len(X_colocation)} data points")
             
         # Train non-colocation model
         if len(X_non_colocation) > 0:
-            X_non_colocation_poly = self.poly.transform(X_non_colocation)
-            self.non_colocation_model = LinearRegression()
-            self.non_colocation_model.fit(X_non_colocation_poly, y_non_colocation)
+            self.non_colocation_model = CustomNonColocationModel()
+            self.non_colocation_model.fit(X_non_colocation, y_non_colocation)
             logger.info(f"Trained non-colocation model on {len(X_non_colocation)} data points")
     
     def predict_colocation_speedup_ratio(self, batch_size: int, num_spec_tokens: int) -> float:
         """Predict the speedup ratio between non-colocation and colocation modes."""
-        if self.colocation_model is None or self.non_colocation_model is None:
-            self._train_regression_models()
-            if self.colocation_model is None or self.non_colocation_model is None:
-                return 0.0
+        assert self.colocation_model is not None and self.non_colocation_model is not None, "Models not trained"
         
         # Prepare input features
         X = np.array([[batch_size, num_spec_tokens]])
-        X_poly = self.poly.transform(X)
         
         # Make predictions
-        colocation_time = self.colocation_model.predict(X_poly)[0]
-        non_colocation_time = self.non_colocation_model.predict(X_poly)[0]
+        colocation_time = self.colocation_model.predict(X)[0]
+        non_colocation_time = self.non_colocation_model.predict(X)[0]
         
         # Calculate ratio (non-colocation / colocation)
         ratio = non_colocation_time / colocation_time if colocation_time > 0 else 0.0
+
+        # logger.info("[Dynamic Colocation] batch_size: {}, num_spec_tokens: {}, ratio: {}".format(batch_size, num_spec_tokens, ratio))
         
         return ratio
     
@@ -335,9 +432,6 @@ class ColocationProfiler:
     
     def _plot_speedup_heatmap(self):
         """Plot heatmap of speedup ratio between colocation and non-colocation modes"""
-        if not self.is_primary:
-            return
-            
         if not self.profile_results:
             logger.warning("No profile results to plot")
             return
@@ -376,7 +470,7 @@ class ColocationProfiler:
                         speedup_matrix[i, j] = avg_non_colocation / avg_colocation
         
         # Create heatmap
-        plt.figure(figsize=(20, 8))
+        plt.figure(figsize=(7, 3))
         sns.heatmap(speedup_matrix, 
                    xticklabels=batch_sizes,
                    yticklabels=spec_tokens,
@@ -385,6 +479,9 @@ class ColocationProfiler:
                    annot=True,
                    fmt='.2f',  
                    cbar_kws={'label': 'Speedup Ratio (Non-colocation / Colocation)\n>1: Colocation faster\n<1: Non-colocation faster'})
+        
+        # Add contour line at 1.0
+        plt.contour(speedup_matrix, levels=[1.0], colors='red', linewidths=2)
         
         plt.xlabel('Batch Size')
         plt.ylabel('Speculative Window Size')
@@ -399,9 +496,6 @@ class ColocationProfiler:
     
     def _plot_regression_heatmap(self):
         """Plot heatmap of predicted speedup ratio using regression models"""
-        if not self.is_primary:
-            return
-            
         if self.colocation_model is None or self.non_colocation_model is None:
             logger.warning("Regression models not trained")
             return

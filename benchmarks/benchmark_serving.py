@@ -756,6 +756,10 @@ def main(args: argparse.Namespace):
     print("Running test split to train selective validator...")
     
     async def run_test_until_trained():
+        # Wait for server to be ready
+        if not await wait_for_server(base_url):
+            raise RuntimeError("Server failed to start within the timeout period")
+    
         # First check if already trained
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{base_url}/selective_validator_trained") as response:
@@ -767,7 +771,7 @@ def main(args: argparse.Namespace):
 
         request_count = 0
         start_time = time.time()
-        batch_size = 64
+        batch_size = 128
         while True:  # Keep cycling until training is complete
             # Get next batch of requests
             batch_requests = []

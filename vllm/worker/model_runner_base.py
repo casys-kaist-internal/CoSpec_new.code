@@ -229,6 +229,8 @@ class ModelRunnerBase(ABC, Generic[T]):
         kv_caches: Optional[List[torch.Tensor]],
         intermediate_tensors: Optional[IntermediateTensors] = None,
         num_steps: int = 1,
+        cospec_manager = None,
+        is_target = True,
         **kwargs,
     ) -> Optional[List[SamplerOutput]]:
         """

@@ -345,6 +345,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
 
         # Check CoSpec Environment Variables
+        if envs.COSPEC_DYNAMIC_COLOCATION:
+            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_DYNAMIC_COLOCATION is set"
         if envs.COSPEC_SELECTIVE_VALIDATION:
             assert envs.COSPEC, "COSPEC is not enabled but COSPEC_SELECTIVE_VALIDATION is set"
         if envs.COSPEC_CONSOLIDATED_ATTENTION:
@@ -354,7 +356,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if envs.COSPEC:
             self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
             self.scorer_worker.cospec_manager = self.cospec_manager
-            self.proposer_worker.worker.cospec_manager = self.cospec_manager
+
+            if isinstance(self.proposer_worker, SmallerTpProposerWorker):
+                self.proposer_worker._worker.worker.cospec_manager = self.cospec_manager
+            elif isinstance(self.proposer_worker, MultiStepWorker):
+                self.proposer_worker.worker.cospec_manager = self.cospec_manager
+            else:
+                raise ValueError(f"Unsupported proposer worker type: {type(self.proposer_worker)}")
 
         logger.info("SpecDecodeWorker initialized")
 
@@ -561,12 +569,12 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             return result
 
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.start_step_marker(execute_model_req.running_queue_size, num_lookahead_slots)
+            self.cospec_manager.start_step_marker(num_lookahead_slots)
         result =  self._run_speculative_decoding_step(execute_model_req,
                                                    num_lookahead_slots, 
                                                    total_non_proposal_tokens)
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.stop_step_marker()
+            self.cospec_manager.stop_step_marker()
         return result
 
     @torch.inference_mode()
@@ -777,9 +785,16 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                 self.proposer_worker.execute_model()
 
                 if num_lookahead_slots != 0:
-                    if self.proposer_worker.worker.cospec_manager is not None:
-                        if self.proposer_worker.worker.cospec_manager.check_early_exit_draft():
-                            break
+                    if isinstance(self.proposer_worker, SmallerTpProposerWorker):
+                        if self.proposer_worker._worker.worker.cospec_manager is not None:
+                            if self.proposer_worker._worker.worker.cospec_manager.check_early_exit_draft():
+                                break
+                    elif isinstance(self.proposer_worker, MultiStepWorker):
+                        if self.proposer_worker.worker.cospec_manager is not None:
+                            if self.proposer_worker.worker.cospec_manager.check_early_exit_draft():
+                                break
+                    else:
+                        raise ValueError(f"Unsupported proposer worker type: {type(self.proposer_worker)}")
 
         if not data["no_spec"]:
             self.scorer_worker.execute_model()
@@ -881,7 +896,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                        verification_timer.elapsed_time_ms)
         
         if self.cospec_manager is not None:
-            if self.cospec_manager.profiler.profiling:
+            if self.cospec_manager.is_profiling():
                 accepted_token_ids[:, 1:] = -1
 
         return self._create_output_sampler_list(
@@ -1188,7 +1203,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             return
         
         if self.cospec_manager is not None:
-            if self.cospec_manager.profiler.profiling:
+            if self.cospec_manager.is_profiling():
                 return
 
         logger.info(
@@ -1390,33 +1405,33 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
     def start_cospec_profile(self, mode: str):
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.start(mode)
+            self.cospec_manager.start_profile(mode)
 
     def stop_cospec_profile(self):
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.stop()
+            self.cospec_manager.stop_profile()
 
     def set_colocation_mode(self, colocation_mode: bool):
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.set_colocation_mode(colocation_mode)
+            self.cospec_manager.set_colocation_mode(colocation_mode)
 
     def set_profile_batch_size(self, batch_size: int):
         if self.cospec_manager is not None:
-            self.cospec_manager.profiler.set_profile_batch_size(batch_size)
+            self.cospec_manager.set_profile_batch_size(batch_size)
 
-    def maybe_load_cached_cospec_profile(self) -> bool:
+    def maybe_load_cached_colocation_profile(self) -> bool:
         if self.cospec_manager is not None:
-            return self.cospec_manager.profiler.maybe_load_cached_results()
+            return self.cospec_manager.maybe_load_cached_colocation_profile()
         return False
     
     def maybe_load_cached_tiling_profile(self) -> bool:
         if self.cospec_manager is not None:
-            return self.cospec_manager.profiler.maybe_load_cached_results_for_tiling()
+            return self.cospec_manager.maybe_load_cached_tiling_profile()
         return False
 
     def is_selective_validator_trained(self) -> bool:
         if self.cospec_manager is not None:
-            return self.cospec_manager.selective_validator.is_selective_validator_trained()
+            return self.cospec_manager.is_selective_validator_trained()
         return False
     
     def predict_colocation_speedup_ratio(self, total_requests: int) -> float:

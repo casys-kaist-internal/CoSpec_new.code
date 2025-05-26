@@ -210,8 +210,8 @@ class ExecutorBase(ABC):
     def set_profile_batch_size(self, batch_size: int) -> None:
         self.collective_rpc("set_profile_batch_size", kwargs=dict(batch_size=batch_size))
 
-    def maybe_load_cached_cospec_profile(self) -> bool:
-        return self.collective_rpc("maybe_load_cached_cospec_profile")
+    def maybe_load_cached_colocation_profile(self) -> bool:
+        return self.collective_rpc("maybe_load_cached_colocation_profile")
     
     def maybe_load_cached_tiling_profile(self) -> bool:
         return self.collective_rpc("maybe_load_cached_tiling_profile")

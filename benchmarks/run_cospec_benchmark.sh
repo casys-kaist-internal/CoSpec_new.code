@@ -13,12 +13,16 @@ export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
+export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
+export APP_SLACK_ICON_EMOJI=":dog:"
+export APP_SLACK_CHANNEL="malus07"
+
 # Dataset Configuration
-DATASETS=("math500" "sharegpt" "opencode")
+DATASETS=("math500")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(2 4 6 8 10 12 14)
-SHAREGPT_RATES=(2 4 6 8 10)
+SHAREGPT_RATES=(1 2 3 4 5 6 7 8)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
 
@@ -46,7 +50,7 @@ BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
 COSPEC_SPEC_TOKENS=7
 
 # Temperature Configuration
-TEMPERATURES=(0)
+TEMPERATURES=(0 0.3 0.6 -1)
 
 # Benchmark Configuration
 export WARMUP_DURATION=1
@@ -58,8 +62,8 @@ PORT=8000
 declare -A COSPEC_CONFIGS=(
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_selective_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
+    ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
 )
 
@@ -209,9 +213,10 @@ run_benchmark() {
 
 # Define the order of configurations to run
 declare -a CONFIG_ORDER=(
+    "full_cospec"
     "colocation"
-    "colocation_selective"
-    "colocation_selective_consolidated"
+    "colocation_dynamic"
+    "colocation_dynamic_selective"
 )
 
 TOTAL_RUNS=0
@@ -245,33 +250,33 @@ CURRENT_RUN=0
 echo "Running baseline benchmarks with different configurations..."
 echo "Total runs to complete: $TOTAL_RUNS"
 
-# for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
-#     # Start server for this spec_tokens configuration
-#     server_pid=$(start_server "baseline" $spec_tokens)
-#     echo "Server PID: $server_pid"
+for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
+    # Start server for this spec_tokens configuration
+    server_pid=$(start_server "baseline" $spec_tokens)
+    echo "Server PID: $server_pid"
 
-#     # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
+    # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
     
-#     # For spec_tokens=0, only run with temperature=0
-#     temperatures=("${TEMPERATURES[@]}")
+    # For spec_tokens=0, only run with temperature=0
+    temperatures=("${TEMPERATURES[@]}")
     
-#     # Run all temperature and request rate combinations
-#     for dataset in "${DATASETS[@]}"; do
-#         for temperature in "${temperatures[@]}"; do
-#             read -ra rates <<< "$(get_request_rates "$dataset")"
-#             for request_rate in "${rates[@]}"; do
-#                 CURRENT_RUN=$((CURRENT_RUN + 1))
-#                 slack "[$CURRENT_RUN/$TOTAL_RUNS]"
-#                 run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
-#             done
-#         done
-#     done
+    # Run all temperature and request rate combinations
+    for dataset in "${DATASETS[@]}"; do
+        for temperature in "${temperatures[@]}"; do
+            read -ra rates <<< "$(get_request_rates "$dataset")"
+            for request_rate in "${rates[@]}"; do
+                CURRENT_RUN=$((CURRENT_RUN + 1))
+                ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+                run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
+            done
+        done
+    done
     
-#     # Cleanup server after all request rates are done
-#     kill $server_pid
-#     wait $server_pid 2>/dev/null
-#     sleep 5
-# done
+    # Cleanup server after all request rates are done
+    kill $server_pid
+    wait $server_pid 2>/dev/null
+    sleep 5
+done
 
 # Run CoSpec ablation studies
 echo "Running CoSpec ablation studies..."
@@ -287,7 +292,7 @@ for config in "${CONFIG_ORDER[@]}"; do
             read -ra rates <<< "$(get_request_rates "$dataset")"
             for request_rate in "${rates[@]}"; do
                 CURRENT_RUN=$((CURRENT_RUN + 1))
-                slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+                ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
                 run_benchmark "$config" "$COSPEC_SPEC_TOKENS" "$temperature" "$request_rate" "$dataset"
             done
         done

@@ -36,8 +36,8 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
                                          RPCSetProfileBatchSizeRequest,
                                          RPCUProfileRequest, RPCCospecProfileRequest, RPCWakeUpRequest,
-                                         RPCMaybeLoadCachedCospecProfileResponse,
-                                         RPCMaybeLoadCachedCospecProfileRequest,
+                                         RPCMaybeLoadCachedColocationProfileResponse,
+                                         RPCMaybeLoadCachedColocationProfileRequest,
                                          RPCPredictColocationSpeedupRatioRequest,
                                          RPCPredictColocationSpeedupRatioResponse,
                                          RPCIsSelectiveValidatorTrainedRequest,
@@ -259,8 +259,8 @@ class MQLLMEngineClient(EngineClient):
                 # Put each output into the appropriate queue.
                 elif isinstance(
                         request_outputs,
-                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedCospecProfileResponse,
-                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse)):
+                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedColocationProfileResponse,
+                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse, RPCPredictColocationSpeedupRatioResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -272,9 +272,10 @@ class MQLLMEngineClient(EngineClient):
     def _add_output(self, request_output: Union[RequestOutput,
                                                 RPCAdapterLoadedResponse,
                                                 RPCIsSleepingResponse,
-                                                RPCMaybeLoadCachedCospecProfileResponse,
+                                                RPCMaybeLoadCachedColocationProfileResponse,
                                                 RPCMaybeLoadCachedTilingProfileResponse,
-                                                RPCIsSelectiveValidatorTrainedResponse]):
+                                                RPCIsSelectiveValidatorTrainedResponse,
+                                                RPCPredictColocationSpeedupRatioResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -729,12 +730,17 @@ class MQLLMEngineClient(EngineClient):
         await self._send_one_way_rpc_request(
             request=RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE if colocation_mode else RPCCospecProfileRequest.SET_COLOCATION_MODE_FALSE, socket=self.input_socket)
         
-    async def maybe_load_cached_cospec_profile(self) -> bool:
+    async def set_profile_batch_size(self, batch_size: int) -> None:
+        """Set the batch size for subsequent profiling"""
+        await self._send_one_way_rpc_request(
+            request=RPCSetProfileBatchSizeRequest(batch_size), socket=self.input_socket)
+
+    async def maybe_load_cached_colocation_profile(self) -> bool:
         """Load cached cospec profile if exists"""
-        request = RPCMaybeLoadCachedCospecProfileRequest()
+        request = RPCMaybeLoadCachedColocationProfileRequest()
 
         queue: asyncio.Queue[Union[BaseException,
-                                   RPCMaybeLoadCachedCospecProfileResponse]] = asyncio.Queue()
+                                   RPCMaybeLoadCachedColocationProfileResponse]] = asyncio.Queue()
         self.output_queues[request.request_id] = queue
 
         request_bytes = pickle.dumps(request)
@@ -806,13 +812,6 @@ class MQLLMEngineClient(EngineClient):
 
         await self._send_one_way_rpc_request(
             request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
-            socket=self.input_socket)
-        
-    async def set_profile_batch_size(self, batch_size: int) -> None:
-        """Set the batch size for profiling"""
-
-        await self._send_one_way_rpc_request(
-            request=RPCSetProfileBatchSizeRequest(batch_size),
             socket=self.input_socket)
 
     async def reset_prefix_cache(self,

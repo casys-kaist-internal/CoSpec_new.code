@@ -423,27 +423,16 @@ class LocalOrDistributedWorkerBase(WorkerBase):
                 orig_model_execute_time = intermediate_tensors.tensors.get(
                     "model_execute_time", torch.tensor(0)).item()
 
-        if self.cospec_manager is not None:
-            if is_target:
-                self.cospec_manager.target_start()
-            else:
-                self.cospec_manager.draft_start()
-        
-        torch.cuda.nvtx.range_push(f"execute_model_{'target' if is_target else 'draft'}")
         output = self.model_runner.execute_model(
             model_input=model_input,
             kv_caches=self.kv_cache[worker_input.virtual_engine]
             if self.kv_cache is not None else None,
             intermediate_tensors=intermediate_tensors,
             num_steps=num_steps,
+            cospec_manager=self.cospec_manager,
+            is_target=is_target, 
             **kwargs,
         )
-        torch.cuda.nvtx.range_pop()
-        if self.cospec_manager is not None:
-            if is_target:
-                self.cospec_manager.target_finish(model_input.input_tokens.shape[0])
-            else:
-                self.cospec_manager.draft_finish()
 
         model_execute_time = time.perf_counter() - start_time
         if not get_pp_group().is_last_rank:

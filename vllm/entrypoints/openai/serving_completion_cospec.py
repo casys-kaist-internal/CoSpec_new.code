@@ -73,8 +73,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         self.colocation_mode = True
         self.selected_engine_idx = 0
         self.last_mode_switch_time = time.time()
-        self.dwelling_time = 60  # 60 seconds for dynamic colocation mode switch cooldown
+        self.dwelling_time = 10  # 10 seconds for dynamic colocation mode switch cooldown
         self.performance_threshold = 0.05  # 5% performance difference threshold
+        self.consecutive_count_threshold = 5
+        self.consecutive_non_colocation_count = 0
+        self.consecutive_colocation_count = 0
 
     async def create_completion(
         self,
@@ -148,7 +151,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         try:
             for i, engine_prompt in enumerate(engine_prompts):
                 # Select engine for this prompt
-                current_engine = self._select_engine()
+                current_engine = await self._select_engine()
                 
                 sampling_params: Union[SamplingParams, BeamSearchParams]
                 default_max_tokens = self.max_model_len - len(
@@ -588,8 +591,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     Profiler for dynamic colocation. 
     """
     async def profile_colocation(self) -> None:
-        loaded_cached_profile = await self.engine_client.maybe_load_cached_cospec_profile()
+        loaded_cached_profile = await self.engine_client.maybe_load_cached_colocation_profile()
         if loaded_cached_profile:
+            time.sleep(10)
+            loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
+            assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
             logger.info("Loaded cached profile. Skipping profiling.")
             return 
 
@@ -598,24 +604,24 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         original_num_speculative_tokens = vllm_config.speculative_config.num_speculative_tokens
         original_num_speculative_tokens2 = vllm_config2.speculative_config.num_speculative_tokens
 
-        batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs // 2 + 1, 8)
+        batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs + 1, 8)
         num_speculative_tokens_list = range(1, 8)
 
         # Set tqdm as a single progress bar
         total_iterations = len(batch_sizes) * len(num_speculative_tokens_list)
 
         # warmup
-        await self._profile_non_colocation(8, 1, 128)
-        await self._profile_colocation(8, 1, 128)
+        await self._profile_non_colocation(8, 1)
+        await self._profile_colocation(8, 1)
 
         await self.engine_client.start_cospec_profile(mode="colocation")
         await self.engine_client2.start_cospec_profile(mode="colocation")
 
         with tqdm(total=total_iterations, desc="Profiling...") as pbar:
-            for batch_size in batch_sizes:
+            for batch_size in reversed(batch_sizes):
                 for num_speculative_tokens in num_speculative_tokens_list:
-                    await self._profile_non_colocation(batch_size, num_speculative_tokens, 128)
-                    await self._profile_colocation(batch_size, num_speculative_tokens, 128)
+                    await self._profile_non_colocation(batch_size, num_speculative_tokens)
+                    await self._profile_colocation(batch_size, num_speculative_tokens)
                     pbar.update(1)
 
         await self.engine_client.stop_cospec_profile()
@@ -625,7 +631,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-    async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int, max_tokens: int):
+        time.sleep(10)
+        loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
+        assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
+
+    async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int):
         await self.engine_client.set_colocation_mode(False)
         await self.engine_client2.set_colocation_mode(False)
         await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
@@ -638,7 +648,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=max_tokens)
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64)
             generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
             generators.append(generator)
         
@@ -661,7 +671,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=128)
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64)
             engine_idx = (engine_idx + 1) % 2
             current_engine = self.engine_client if engine_idx == 0 else self.engine_client2
             generator = current_engine.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
@@ -690,7 +700,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         max_num_seqs = vllm_config.scheduler_config.max_num_seqs
         max_num_batched_tokens = vllm_config.scheduler_config.max_num_batched_tokens
         
-        # Target total token counts in multiples of 8 up to 2048
+        # Target total token counts in multiples of 8 up to max_num_batched_tokens
         target_token_counts = list(range(8, max_num_batched_tokens + 1, 8))
         
         # Calculate prompt lengths for each target token count
@@ -732,6 +742,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
         await self.engine_client.stop_cospec_profile()
 
+        time.sleep(10)
+
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
         assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
 
@@ -743,8 +755,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client2.set_colocation_mode(False)
         await self.engine_client.set_num_speculative_tokens(0)
         await self.engine_client2.set_num_speculative_tokens(0)
-        await self.engine_client.set_profile_batch_size(batch_size)
-        await self.engine_client2.set_profile_batch_size(batch_size)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
@@ -769,9 +779,9 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         else:
             return True
 
-    def _select_engine(self) -> EngineClient:
+    async def _select_engine(self) -> EngineClient:
         if self.dynamic_colocation:
-            self._maybe_change_colocation_mode()
+            await self._maybe_change_colocation_mode()
             if self.colocation_mode:
                 return self._load_balance()
             else:
@@ -784,36 +794,66 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         engine_client2_num_requests = self.engine_client2.get_num_requests()
         return self.engine_client if engine_client1_num_requests < engine_client2_num_requests else self.engine_client2
 
-    def _maybe_change_colocation_mode(self):
+    async def _maybe_change_colocation_mode(self):
         current_time = time.time()
         elapsed = current_time - self.last_mode_switch_time
         
         # Enforce minimum dwelling time
-        if elapsed < self.dwelling_time:
-            return
+        # if elapsed < self.dwelling_time:
+        #     return
         
         total_requests = self.engine_client.get_num_requests() + self.engine_client2.get_num_requests()
         
-        ratio = self.engine_client.predict_colocation_speedup_ratio(total_requests)
-        print(f"Colocation speedup ratio: {ratio}")
+        # start_time = time.perf_counter()
+        # Directly await the async method
+        if self.colocation_mode: 
+            ratio = await self.engine_client.predict_colocation_speedup_ratio(total_requests)
+        else: 
+            selected_engine = self.engine_client if self.selected_engine_idx == 0 else self.engine_client2
+            ratio = await selected_engine.predict_colocation_speedup_ratio(total_requests)
+        # logger.info(f"[Dynamic Colocation] Colocation speedup ratio: {ratio:.2f}")
+        # end_time = time.perf_counter()
+        # logger.info(f"[Dynamic Colocation] Time taken to predict colocation speedup ratio: {end_time - start_time:.2f} seconds")
         
         switched = False
         if self.colocation_mode:
             if ratio < (1 - self.performance_threshold):
-                print(f"Switching to non-colocation mode")
-                self.colocation_mode = False
-                # Select the engine with more requests
-                engine1_requests = self.engine_client.get_num_requests()
-                engine2_requests = self.engine_client2.get_num_requests()
-                self.selected_engine_idx = 0 if engine1_requests >= engine2_requests else 1
-                switched = True
+                # Increment counter for non-colocation mode
+                self.consecutive_non_colocation_count += 1
+                self.consecutive_colocation_count = 0
+                
+                # Only switch if we have enough consecutive counts
+                if self.consecutive_non_colocation_count >= self.consecutive_count_threshold:
+                    logger.info(f"[Dynamic Colocation] Switching to non-colocation mode after {self.consecutive_non_colocation_count} consecutive predictions")
+                    self.colocation_mode = False
+                    # Select the engine with more requests
+                    engine1_requests = self.engine_client.get_num_requests()
+                    engine2_requests = self.engine_client2.get_num_requests()
+                    self.selected_engine_idx = 0 if engine1_requests >= engine2_requests else 1
+                    switched = True
+                    # Reset counter after switching
+                    self.consecutive_non_colocation_count = 0
+            else:
+                # Reset counter if prediction doesn't suggest switching
+                self.consecutive_non_colocation_count = 0
             
         else: 
             if ratio > (1 + self.performance_threshold):
-                print(f"Switching to colocation mode")
-                self.colocation_mode = True
-                switched = True
+                # Increment counter for colocation mode
+                self.consecutive_colocation_count += 1
+                self.consecutive_non_colocation_count = 0
+                
+                # Only switch if we have enough consecutive counts
+                if self.consecutive_colocation_count >= self.consecutive_count_threshold:
+                    logger.info(f"[Dynamic Colocation] Switching to colocation mode after {self.consecutive_colocation_count} consecutive predictions")
+                    self.colocation_mode = True
+                    switched = True
+                    # Reset counter after switching
+                    self.consecutive_colocation_count = 0
+            else:
+                # Reset counter if prediction doesn't suggest switching
+                self.consecutive_colocation_count = 0
 
         if switched:
             self.last_mode_switch_time = current_time
-            print(f"Mode switched to {'colocation' if self.colocation_mode else 'non-colocation'}")
+            logger.info(f"[Dynamic Colocation] Mode switched to {'colocation' if self.colocation_mode else 'non-colocation'}")

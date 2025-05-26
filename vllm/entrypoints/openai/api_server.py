@@ -1297,7 +1297,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 async def run_server_cospec(args, **uvicorn_kwargs) -> None:
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
-    
+
     # Stop the already running MPS daemon
     try:
         subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
@@ -1309,12 +1309,21 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         logger.info("Initializing NVIDIA MPS...")
         
         # Set MPS environment variables
-        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = "/tmp/nvidia-mps"
-        os.environ["CUDA_MPS_LOG_DIRECTORY"] = "/tmp/nvidia-log"
+        mps_dir = f"/tmp/nvidia-mps-{os.getpid()}"
+        log_dir = f"/tmp/nvidia-log-{os.getpid()}"
+        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = mps_dir
+        os.environ["CUDA_MPS_LOG_DIRECTORY"] = log_dir
         
-        # Create directories if they don't exist
-        os.makedirs(os.environ["CUDA_MPS_PIPE_DIRECTORY"], exist_ok=True)
-        os.makedirs(os.environ["CUDA_MPS_LOG_DIRECTORY"], exist_ok=True)
+        # # Create directories if they don't exist with proper permissions
+        # os.makedirs(mps_dir, mode=0o777, exist_ok=True)
+        # os.makedirs(log_dir, mode=0o777, exist_ok=True)
+        
+        # # Change ownership to root:root to match nvidia-mps
+        # subprocess.run(["chown", "root:root", mps_dir], check=True)
+        # subprocess.run(["chown", "root:root", log_dir], check=True)
+        
+        # # Set exact permissions to match nvidia-mps (drwxrwxrwx)
+        # subprocess.run(["chmod", "777", mps_dir], check=True)
         
         # Start MPS control daemon
         subprocess.run(["nvidia-cuda-mps-control", "-d"], check=True)
@@ -1400,6 +1409,8 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         try:
             subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
             logger.info("NVIDIA MPS daemon stopped successfully")
+            subprocess.run(["rm", "-rf", f"/tmp/nvidia-mps-{os.getpid()}"], check=True)
+            
         except Exception as e:
             logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
 
@@ -1417,7 +1428,7 @@ if __name__ == "__main__":
     # Cleanup previous shared memory files on server start
     try:
         import glob
-        shm_files = glob.glob('/dev/shm/cospec*')
+        shm_files = glob.glob('/tmp/cospec*')
         for f in shm_files:
             try:
                 if os.path.isfile(f):

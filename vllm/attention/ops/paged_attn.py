@@ -133,13 +133,13 @@ class PagedAttention:
         use_v1 = (max_seq_len <= 8192
                   and (max_num_partitions == 1 or num_seqs * num_heads > 512))
 
-        should_run_consolidated_attention = True 
+        should_run_consolidated_attention = True
         if not envs.COSPEC_CONSOLIDATED_ATTENTION:
             should_run_consolidated_attention = False 
         elif consolidated_lens_tensor is None:
             should_run_consolidated_attention = False
-        # elif torch.any(consolidated_lens_tensor == 1): #FIXME 
-        #     should_run_consolidated_attention = False
+        elif torch.mean(consolidated_lens_tensor.float()) < 2:
+            should_run_consolidated_attention = False
 
         if use_v1:
             # Run PagedAttention V1.

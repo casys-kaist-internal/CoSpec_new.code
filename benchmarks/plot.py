@@ -13,8 +13,9 @@ args = parser.parse_args()
 # Read the CSV file
 df = pd.read_csv(args.csv)
 
-# Create output directory for plots
-output_dir = 'benchmark_plots'
+# Create output directory for plots using the input CSV filename
+output_dir = os.path.splitext(os.path.basename(args.csv))[0]
+output_dir = "plot_" + output_dir
 os.makedirs(output_dir, exist_ok=True)
 
 # Get unique datasets
@@ -27,6 +28,10 @@ for dataset in datasets:
     
     # Get unique temperatures and calculate grid dimensions
     temperatures = sorted(dataset_df['temperature'].unique())
+    # Move temperature -1 to the end if it exists
+    if -1 in temperatures:
+        temperatures.remove(-1)
+        temperatures.append(-1)
     n_temps = len(temperatures)
     n_cols = 5
     n_rows = math.ceil(n_temps / n_cols)
@@ -39,8 +44,8 @@ for dataset in datasets:
     for idx, temp in enumerate(temperatures):
         ax = axes[idx]
         
-        # Plot Auto Regressive (baseline with spec_tokens=0) for all temperatures
-        ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0)]
+        # Plot Auto Regressive (baseline with spec_tokens=0)
+        ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0) & (dataset_df['temperature'] == temp)]
         ax.plot(ar_data['request_throughput'], ar_data['mean_token_latency'],
                 marker='o', label='Auto Regressive', linewidth=2, color='black')
         
@@ -66,7 +71,9 @@ for dataset in datasets:
         # Customize subplot
         ax.set_xlabel('Request Throughput (req/s)', fontsize=10)
         ax.set_ylabel('Mean Token Latency (ms)', fontsize=10)
-        ax.set_title(f'Temperature = {temp}', fontsize=12)
+        # Display "Random" for temperature -1
+        temp_title = "Random" if temp == -1 else f"Temperature = {temp}"
+        ax.set_title(temp_title, fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.7)
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
 

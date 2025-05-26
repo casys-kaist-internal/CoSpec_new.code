@@ -12,20 +12,25 @@ export DRAFT_MODEL="facebook/opt-125m"
 # export DRAFT_MODEL="facebook/opt-350m"
 # export TARGET_MODEL="meta-llama/Llama-2-7b-hf"
 # export DRAFT_MODEL="JackFram/llama-160m"
+# export TARGET_MODEL="huggyllama/llama-13b"
+# export TARGET_MODEL="huggyllama/llama-7b"
+# export DRAFT_MODEL="double7/vicuna-68m"
 export NUM_SPEC_TOKENS=7
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
+export DOWNLOAD_DIR="/mnt/sdb/huggingface"
 
 # Base command
 CMD="python -m vllm.entrypoints.openai.api_server \
     --host 0.0.0.0 \
-    --port 8001 \
+    --port 8011 \
     --model $TARGET_MODEL \
     --seed 42 \
     --enable-chunked-prefill \
     -tp $TENSOR_PARALLEL_SIZE \
     --gpu_memory_utilization 0.80 \
-    --disable-log-requests"
+    --disable-log-requests \
+    --download-dir $DOWNLOAD_DIR"
 
     # --max-num-seqs 1024 \
     # --enable-chunked-prefill \

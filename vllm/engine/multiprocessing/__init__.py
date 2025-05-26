@@ -176,7 +176,7 @@ class RPCAdapterLoadedResponse:
     request_id: str
 
 @dataclass
-class RPCMaybeLoadCachedCospecProfileRequest:
+class RPCMaybeLoadCachedColocationProfileRequest:
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 @dataclass
@@ -194,7 +194,7 @@ class RPCPredictColocationSpeedupRatioResponse:
     speedup_ratio: float
 
 @dataclass
-class RPCMaybeLoadCachedCospecProfileResponse:
+class RPCMaybeLoadCachedColocationProfileResponse:
     request_id: str
     loaded: bool
 
@@ -216,12 +216,14 @@ class RPCIsSelectiveValidatorTrainedResponse:
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
                       RPCUProfileRequest, RPCCospecProfileRequest, RPCLoadAdapterRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
-                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedCospecProfileRequest, 
-                      RPCMaybeLoadCachedTilingProfileRequest, RPCIsSelectiveValidatorTrainedRequest]
+                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedColocationProfileRequest, 
+                      RPCMaybeLoadCachedTilingProfileRequest, RPCIsSelectiveValidatorTrainedRequest,
+                      RPCPredictColocationSpeedupRatioRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
-                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedCospecProfileResponse, 
-                          RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse]
+                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedColocationProfileResponse, 
+                          RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse,
+                          RPCPredictColocationSpeedupRatioResponse]
 
 
 def ENGINE_DEAD_ERROR(

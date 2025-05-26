@@ -291,7 +291,12 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
-    async def maybe_load_cached_cospec_profile(self) -> bool:
+    async def set_profile_batch_size(self, batch_size: int) -> None:
+        """Set the batch size for subsequent profiling"""
+        ...
+
+    @abstractmethod
+    async def maybe_load_cached_colocation_profile(self) -> bool:
         """Load cached cospec profile if exists"""
         ...
 
@@ -303,11 +308,6 @@ class EngineClient(ABC):
     @abstractmethod
     async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         """Set the number of speculative tokens"""
-        ...
-
-    @abstractmethod
-    async def set_profile_batch_size(self, batch_size: int) -> None:
-        """Set the batch size for profiling"""
         ...
 
     @abstractmethod

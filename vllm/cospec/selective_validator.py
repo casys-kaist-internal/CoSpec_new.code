@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from collections import deque
 from vllm.config import envs
@@ -11,7 +10,9 @@ from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
 from vllm.spec_decode.util import nvtx_range
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score, roc_curve
-import seaborn as sns
+import pandas as pd
+import os
+from datetime import datetime
 
 logger = init_logger(__name__)
 
@@ -20,16 +21,18 @@ class SelectiveValidator:
         self.history_size = 10000  # Minimum number of samples needed to train the model
         self.history_X = deque(maxlen=self.history_size)  # Pre-temperature probabilities
         self.history_y = deque(maxlen=self.history_size)  # Actual acceptance probabilities
-        self.poly_features = PolynomialFeatures(degree=2)  # Use degree 2 polynomial
-        self.regression_model = LinearRegression()
+        self.regression_model = LinearRegression()  # Use LinearRegression directly
         self.is_model_trained = False
-        # Get threshold from environment variable
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
         self.moving_avg_mean_tokens = 7  # Initialize moving average
         self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
+        self.has_first_data_point = False  # Flag to track if we have received first data point
         self.profiler = profiler
-        self.min_samples_per_bin = 100  # Minimum samples required per bin
-        self.n_bins = 10  # Number of bins for probability distribution
+
+        self.validation_size = 10000  # Size of validation dataset
+        self.validation_X = []
+        self.validation_y = []
+        self.has_enough_validation_data = False
 
         if envs.COSPEC_SELECTIVE_VALIDATION:
             logger.info(f"Selective validation enabled with method: {envs.COSPEC_SELECTIVE_VALIDATION_METHOD}")
@@ -49,6 +52,10 @@ class SelectiveValidator:
         if proposals.no_proposals or proposals.unscaled_temp_probs is None or not self.is_model_trained:
             return proposals
         
+        # Skip until validation set
+        # if not self.has_enough_validation_data:
+        #     return proposals
+        
         # Generate mask based on validation method
         if envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "tile":
             valid_mask = self._generate_tiled_mask(proposals, total_non_proposal_tokens)
@@ -56,6 +63,8 @@ class SelectiveValidator:
             valid_mask = self._generate_threshold_mask(proposals)
         elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "linear":
             valid_mask = self._generate_linear_mask(proposals, total_non_proposal_tokens)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "polynomial":
+            valid_mask = self._generate_polynomial_mask(proposals, total_non_proposal_tokens)
         elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "random": # For correctness testing purpose 
             valid_mask = self._generate_random_mask(proposals)
         else:
@@ -88,10 +97,16 @@ class SelectiveValidator:
         proposals.no_proposals = torch.all(new_proposal_lens == 0)
         
         # Update moving average in one operation
-        self.moving_avg_mean_tokens = (
-            (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
-            self.moving_avg_alpha * new_proposal_lens.float().mean().item()
-        )
+        if not self.has_first_data_point:
+            self.moving_avg_mean_tokens = new_proposal_lens.float().mean().item()
+            self.has_first_data_point = True
+        else:
+            self.moving_avg_mean_tokens = (
+                (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
+                self.moving_avg_alpha * new_proposal_lens.float().mean().item()
+            )
+        
+        # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
         
         # Mask invalid tokens and truncate in-place
         proposals.proposal_token_ids[~valid_mask] = 0
@@ -103,7 +118,7 @@ class SelectiveValidator:
 
     def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
-        acceptance_probs = self.predict_acceptance_probability(proposals)
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
         
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
@@ -128,6 +143,16 @@ class SelectiveValidator:
         non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
         sorted_original_indices = non_zero_indices[sorted_indices]
         
+        # Add bonus to end tokens of each sequence based on actual proposal lengths
+        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+        # Calculate end token indices based on actual proposal lengths
+        end_token_indices = torch.cumsum(proposals.proposal_lens, dim=0) - 1
+        print("end_token_indicies", end_token_indices)
+        end_token_mask = torch.isin(sorted_original_indices, end_token_indices)
+        print("end_token_mask", end_token_mask)
+        sorted_values[end_token_mask] += 1.0
+        print("sorted_values", sorted_values)
+        
         # Calculate expected throughput more efficiently
         total_valid_tokens = len(sorted_values)
         latencies = torch.tensor(
@@ -150,7 +175,7 @@ class SelectiveValidator:
     def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate mask for threshold-based selective validation."""
         # Get predictions and create masks in one go
-        acceptance_probs = self.predict_acceptance_probability(proposals)
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
         seq_len = proposals.proposal_token_ids.shape[1]
         device = acceptance_probs.device
         
@@ -163,7 +188,7 @@ class SelectiveValidator:
     
     def _generate_linear_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
-        acceptance_probs = self.predict_acceptance_probability(proposals)
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
 
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
@@ -192,6 +217,52 @@ class SelectiveValidator:
         total_valid_tokens = len(sorted_values)
         latencies = torch.tensor(
             self.profiler.get_target_model_latencies_linear(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
+            device=device
+        )
+        
+        # Calculate expected throughput in one operation
+        expected_throughput = torch.cumsum(sorted_values, dim=0) / latencies
+        
+        # Find optimal validation length
+        optimal_total_length = torch.argmax(expected_throughput).item() + 1
+        
+        # Create final mask in one operation
+        flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
+        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        
+        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+    
+    def _generate_polynomial_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+        # Get predicted acceptance probabilities for all proposals
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+
+        # This is for chunked prefill all tokens are filled with negative one but we should pass them 
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        
+        # Get shape and device info
+        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+        device = acceptance_probs.device
+        
+        # Create length mask and apply it to acceptance probabilities in one step
+        length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        masked_acceptance_probs = acceptance_probs * length_mask
+        
+        # Flatten and get non-zero elements more efficiently
+        flat_acceptance_probs = masked_acceptance_probs.flatten()
+        non_zero_mask = flat_acceptance_probs > 0
+        
+        if not non_zero_mask.any():
+            return torch.zeros_like(length_mask)
+            
+        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
+        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
+        sorted_original_indices = non_zero_indices[sorted_indices]
+        
+        # Calculate expected throughput more efficiently
+        total_valid_tokens = len(sorted_values)
+        latencies = torch.tensor(
+            self.profiler.get_target_model_latencies_polynomial(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
             device=device
         )
         
@@ -243,46 +314,29 @@ class SelectiveValidator:
         # Update history and train model if needed
         self._update_history(unscaled_temp_probs, acceptance_probs)
 
-    @nvtx_range("predict_acceptance_probability")
-    def predict_acceptance_probability(self, proposals: SpeculativeProposals) -> torch.Tensor:
-        """Predict acceptance probability using the trained regression model."""
-        assert self.is_model_trained
+    @nvtx_range("predict_acceptance_probabilities")
+    def predict_acceptance_probabilities(
+        self, unscaled_temp_probs: torch.Tensor
+    ) -> torch.Tensor:
+        """Predict acceptance probabilities for each token."""
+        if not self.is_model_trained:
+            return torch.ones_like(unscaled_temp_probs)
 
-        unscaled_temp_probs = proposals.unscaled_temp_probs
+        # Store original shape
+        original_shape = unscaled_temp_probs.shape
 
-        # Convert to numpy for prediction
-        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
-        original_shape = unscaled_temp_probs_np.shape
-        
-        # Reshape for prediction
-        unscaled_temp_probs_np = unscaled_temp_probs_np.reshape(-1, 1)
-        
-        # Transform features to polynomial
-        unscaled_temp_probs_poly = self.poly_features.transform(unscaled_temp_probs_np)
-        
+        # Convert to numpy and reshape
+        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy().reshape(-1, 1)
+
         # Get predictions and clip to valid range
-        predictions = self.regression_model.predict(unscaled_temp_probs_poly)
+        predictions = self.regression_model.predict(unscaled_temp_probs_np)
         predictions = np.clip(predictions, 0, 1)
-        
+
         # Reshape back to original shape
         predictions = predictions.reshape(original_shape)
-        
-        # Convert to tensor
-        predictions = torch.from_numpy(predictions).to(unscaled_temp_probs.device)
-        
-        # If proposal len is 0 then set the acceptance probability to 0
-        predictions[proposals.proposal_lens == 0] = 0
-        
-        # Calculate cumulative probabilities
-        # For each position, multiply with all previous positions
-        _, seq_len = predictions.shape
-        cumulative_predictions = torch.ones_like(predictions)
-        
-        for i in range(seq_len):
-            # For each position, multiply with all previous positions
-            cumulative_predictions[:, i] = torch.prod(predictions[:, :i+1], dim=1)
-        
-        return cumulative_predictions
+
+        # Convert back to tensor
+        return torch.from_numpy(predictions).to(unscaled_temp_probs.device)
 
     def random_predict_acceptance_probability(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate random acceptance probabilities for testing purposes.
@@ -360,6 +414,8 @@ class SelectiveValidator:
             acceptance_probs: Tensor of actual acceptance probabilities
         """
         if self.is_model_trained:
+            # if not self.has_enough_validation_data:
+            #     self.collect_validation_data(unscaled_temp_probs, acceptance_probs)
             return
         
         # Convert to numpy and flatten
@@ -386,75 +442,132 @@ class SelectiveValidator:
 
         # Check if we have enough data in each bin
         if len(self.history_X) >= self.history_size:
-            self._train_model()
-            # # Convert history to numpy arrays
-            # X = np.array(self.history_X)
-            # y = np.array(self.history_y)
-            
-            # # Create bins for non-negative values only
-            # valid_X = X[X >= 0]  # Filter out -1 values
-            # if len(valid_X) > 0:
-            #     bin_edges = np.linspace(0, 1, self.n_bins + 1)
-            #     bin_indices = np.digitize(valid_X, bin_edges) - 1
-                
-            #     # Count samples in each bin
-            #     bin_counts = np.zeros(self.n_bins)
-            #     for i in range(self.n_bins):
-            #         bin_counts[i] = np.sum(bin_indices == i)
-                
-            #     # Check if all bins have enough samples
-            #     if np.all(bin_counts >= self.min_samples_per_bin):
-            #         logger.info(f"Training model with bin distribution: {bin_counts}")
-            #         self._train_model()
-            #     else:
-            #         logger.info(f"Waiting for more data. Current bin distribution: {bin_counts}")
-            # else:
-            #     logger.info("No valid data points (all values are -1)")
+            self.train_model()
 
-    @nvtx_range("_train_model")
-    def _train_model(self):
-        # Convert history to numpy arrays efficiently
-        X = np.array(self.history_X, dtype=np.float32).reshape(-1, 1)
-        y = np.array(self.history_y, dtype=np.float32).reshape(-1)
+    def train_model(self):
+        """Train the polynomial regression model on historical data."""
+        if len(self.history_X) < 2:
+            return
 
-        # assert X and y have the same number of samples
-        assert len(X) == len(y)
-
-        # Transform features to polynomial
-        X_poly = self.poly_features.fit_transform(X)
+        # Convert history to numpy arrays
+        X = np.array(list(self.history_X)).reshape(-1, 1)
+        y = np.array(list(self.history_y))
 
         # Train the model
-        self.regression_model.fit(X_poly, y)
+        self.regression_model.fit(X, y)
         self.is_model_trained = True
 
-        # Calculate predictions for analysis
-        y_pred = self.regression_model.predict(X_poly)
-        
-        # Generate visualization and calculate metrics
-        auroc, ece = self._analyze_model_performance(X, y, y_pred)
-
         logger.info(
-            f"Trained polynomial acceptance prediction model. "
+            f"Trained acceptance prediction model. "
             f"Model coefficients: {self.regression_model.coef_}, "
             f"intercept: {self.regression_model.intercept_:.4f}, "
-            f"AUROC: {auroc:.4f}, ECE: {ece:.4f}"
         )
 
-    def _analyze_model_performance(self, X: np.ndarray, y: np.ndarray, y_pred: np.ndarray) -> tuple[float, float]:
-        """Analyze model performance by generating visualizations and calculating metrics."""
-        # Calculate AUROC
-        auroc = roc_auc_score(y, y_pred)
+    def evaluate_model(self) -> float:
+        """Evaluate the model on historical data."""
+        if not self.is_model_trained or len(self.history_X) < 2:
+            return 0.0
+
+        # Convert history to numpy arrays
+        X_val = np.array(list(self.history_X)).reshape(-1, 1)
+        y_true = np.array(list(self.history_y))
+
+        # Get predictions
+        y_pred = self.regression_model.predict(X_val)
+        y_pred = np.clip(y_pred, 0, 1)
+
+        # Calculate mean squared error
+        mse = np.mean((y_true - y_pred) ** 2)
+        return float(mse)
+
+    def is_selective_validator_trained(self) -> bool:
+        return self.is_model_trained
+
+    def collect_validation_data(self, unscaled_temp_probs: torch.Tensor, acceptance_probs: torch.Tensor):
+        """Collect validation data for model evaluation.
         
-        # Calculate ROC curve
-        fpr, tpr, _ = roc_curve(y, y_pred)
+        Args:
+            unscaled_temp_probs: Tensor of pre-temperature probabilities
+            acceptance_probs: Tensor of actual acceptance probabilities
+        """
+        if not self.is_model_trained:
+            logger.warning("Model is not trained yet. Cannot collect validation data.")
+            return
         
-        # Calculate ECE
+        # Convert to numpy and flatten
+        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
+        acceptance_probs_np = acceptance_probs.cpu().numpy()
+        
+        # Flatten both arrays
+        unscaled_temp_probs_np = unscaled_temp_probs_np.flatten()
+        acceptance_probs_np = acceptance_probs_np.flatten()
+
+        # Filter out -1 values
+        valid_mask = unscaled_temp_probs_np != -1
+        unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+
+        # Ensure both arrays have the same length
+        assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
+
+        # Assert there is no nan in the data
+        assert not np.isnan(unscaled_temp_probs_np).any()
+        assert not np.isnan(acceptance_probs_np).any()
+
+        # Add new data to validation set
+        self.validation_X.extend(unscaled_temp_probs_np)
+        self.validation_y.extend(acceptance_probs_np)
+
+        # Check if we have enough validation data
+        if len(self.validation_X) >= self.validation_size:
+            self.has_enough_validation_data = True
+            logger.info(f"Collected enough validation data ({len(self.validation_X)} samples)")
+            self.evaluate_validation_data()
+    
+
+    def evaluate_validation_data(self, save_path: str = 'validation_evaluation.png'):
+        """Evaluate model performance on collected validation data.
+        
+        Args:
+            save_path: Path to save the evaluation plots
+        """
+        # Convert validation data to numpy arrays
+        X_val = np.array(self.validation_X, dtype=np.float32).reshape(-1, 1)
+        y_val = np.array(self.validation_y, dtype=np.float32)
+
+        # Get predictions
+        y_pred = self.predict_acceptance_probabilities(torch.from_numpy(X_val).to(torch.device('cpu')))
+        y_pred = y_pred.cpu().numpy()
+        y_pred = np.clip(y_pred, 0, 1)
+
+        # Save data to CSV files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Create directory for data if it doesn't exist
+        data_dir = "validation_data"
+        os.makedirs(data_dir, exist_ok=True)
+
+        # Save raw data
+        raw_data = pd.DataFrame({
+            'unscaled_temp_probs': X_val.flatten(),
+            'actual_acceptance': y_val.flatten(),
+            'predicted_acceptance': y_pred.flatten()
+        })
+        raw_data.to_csv(os.path.join(data_dir, f'raw_data_{timestamp}.csv'), index=False)
+
+        # Calculate and save ROC curve data
+        fpr, tpr, thresholds = roc_curve(y_val.flatten(), y_pred.flatten())
+        roc_data = pd.DataFrame({
+            'fpr': fpr,
+            'tpr': tpr,
+            'thresholds': thresholds
+        })
+        roc_data.to_csv(os.path.join(data_dir, f'roc_data_{timestamp}.csv'), index=False)
+
+        # Calculate and save calibration data
         n_bins = 10
         bin_edges = np.linspace(0, 1, n_bins + 1)
-        bin_indices = np.digitize(y_pred, bin_edges) - 1
-        ece = 0
+        bin_indices = np.digitize(y_pred.flatten(), bin_edges) - 1
         
-        # Calculate bin statistics for ECE
         bin_means = []
         bin_true_means = []
         bin_counts = []
@@ -463,35 +576,55 @@ class SelectiveValidator:
         for i in range(n_bins):
             mask = bin_indices == i
             if np.sum(mask) > 0:
-                bin_pred = np.mean(y_pred[mask])
-                bin_true = np.mean(y[mask])
+                bin_pred = np.mean(y_pred.flatten()[mask])
+                bin_true = np.mean(y_val.flatten()[mask])
                 bin_count = np.sum(mask)
-                ece += np.abs(bin_pred - bin_true) * bin_count / len(y)
+                bin_center = (bin_edges[i] + bin_edges[i+1]) / 2
                 
                 bin_means.append(bin_pred)
                 bin_true_means.append(bin_true)
                 bin_counts.append(bin_count)
-                bin_centers.append((bin_edges[i] + bin_edges[i+1]) / 2)
+                bin_centers.append(bin_center)
+
+        calibration_data = pd.DataFrame({
+            'bin_center': bin_centers,
+            'predicted_mean': bin_means,
+            'actual_mean': bin_true_means,
+            'count': bin_counts,
+            'density': np.array(bin_counts) / len(y_val.flatten())
+        })
+        calibration_data.to_csv(os.path.join(data_dir, f'calibration_data_{timestamp}.csv'), index=False)
+
+        # Save metrics
+        metrics_data = pd.DataFrame({
+            'metric': ['AUROC', 'ECE'],
+            'value': [roc_auc_score(y_val.flatten(), y_pred.flatten()), 
+                     sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))]
+        })
+        metrics_data.to_csv(os.path.join(data_dir, f'metrics_{timestamp}.csv'), index=False)
 
         # Create visualization
-        plt.figure(figsize=(15, 5))
+        plt.figure(figsize=(10, 5))
         
-        # Plot 2: ROC curve
-        plt.subplot(1, 3, 2)
-        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {auroc:.4f})')
+        # Plot 1: ROC curve
+        plt.subplot(1, 2, 1)
+        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {roc_auc_score(y_val.flatten(), y_pred.flatten()):.4f})')
         plt.plot([0, 1], [0, 1], 'k--', label='Random')
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
         plt.title('ROC Curve')
         plt.legend()
         
-        # Plot 3: Calibration curve with histogram
-        plt.subplot(1, 3, 3)
+        # Plot 2: Calibration curve with histogram
+        plt.subplot(1, 2, 2)    
         plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
+        
+        # Calculate ECE explicitly
+        ece = sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))
         plt.plot(bin_means, bin_true_means, 'o-', label=f'Model (ECE={ece:.4f})')
         
         # Calculate density instead of count
-        total_samples = len(y)
+        total_samples = len(y_val.flatten())
         bin_densities = np.array(bin_counts) / total_samples
         
         # Add histogram of predictions
@@ -501,54 +634,14 @@ class SelectiveValidator:
         
         plt.xlabel('Predicted Probability')
         plt.ylabel('True Probability')
-        plt.title('Calibration Curve')
+        plt.title(f'Calibration Curve (ECE={ece:.4f})')
         plt.legend(loc='upper left')
         ax2.legend(loc='upper right')
         
-        # Ensure x-label is visible
-        plt.subplots_adjust(bottom=0.2)
-        
         plt.tight_layout()
-        plt.savefig('calibration_analysis.png')
+        plt.savefig(save_path)
         plt.close()
 
-        # Create separate figure for AUROC and ECE
-        plt.figure(figsize=(10, 5))
-        
-        # Plot 1: ROC curve
-        plt.subplot(1, 2, 1)
-        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {auroc:.4f})')
-        plt.plot([0, 1], [0, 1], 'k--', label='Random')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('ROC Curve')
-        plt.legend()
-        
-        # Plot 2: Calibration curve with histogram
-        plt.subplot(1, 2, 2)
-        plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
-        plt.plot(bin_means, bin_true_means, 'o-', label=f'Model (ECE={ece:.4f})')
-        
-        # Add histogram of predictions with density
-        ax2 = plt.gca().twinx()
-        ax2.bar(bin_centers, bin_densities, width=0.1, alpha=0.3, color='gray', label='Density')
-        ax2.set_ylabel('Density')
-        
-        plt.xlabel('Predicted Probability')
-        plt.ylabel('True Probability')
-        plt.title('Calibration Curve')
-        plt.legend(loc='upper left')
-        ax2.legend(loc='upper right')
-        
-        # Ensure x-label is visible
-        plt.subplots_adjust(bottom=0.2)
-        
-        plt.tight_layout()
-        plt.savefig('auroc_ece_analysis.png')
-        plt.close()
-
-        return auroc, ece
-
-    def is_selective_validator_trained(self) -> bool:
-        print("!!! is_model_trained", self.is_model_trained)
-        return self.is_model_trained
+        logger.info(f"Validation data evaluation - AUROC: {roc_auc_score(y_val.flatten(), y_pred.flatten()):.4f}, ECE: {ece:.4f}")
+        logger.info(f"Data saved to {data_dir} directory with timestamp {timestamp}")
+        return roc_auc_score(y_val.flatten(), y_pred.flatten()), ece

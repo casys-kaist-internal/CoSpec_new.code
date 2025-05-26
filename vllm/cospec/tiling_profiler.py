@@ -6,6 +6,7 @@ import seaborn as sns
 from typing import Dict, Optional, Tuple, List
 from vllm.logger import init_logger
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 from vllm.spec_decode.util import nvtx_range
 import torch
 
@@ -29,16 +30,20 @@ class TilingProfiler:
         self.target_model_latencies_mean: Dict[int, float] = {}
         # Linear regression model
         self.lr_model = None
+        # Polynomial regression model
+        self.poly_model = None
+        self.poly_features = None
 
         self.precomputed_latencies: Optional[List[float]] = None
         self.max_precomputed_tokens: Optional[int] = None
         self.precomputed_latencies_linear: Optional[List[float]] = None
+        self.precomputed_latencies_polynomial: Optional[List[float]] = None
         
     def maybe_load_cached_results(self):
         """Load cached profiling results if they exist and train linear regression model."""
-        print("maybe_load_cached_results")
         if not os.path.exists(self.profile_file):
             return False
+        
         print("Loading cached profiling results from ", self.profile_file)
         try:
             with open(self.profile_file, "r") as f:
@@ -111,11 +116,17 @@ class TilingProfiler:
         X = np.array(X)
         y = np.array(y)
         
-        # Train model
+        # Train linear model
         self.lr_model = LinearRegression()
         self.lr_model.fit(X, y)
         
-        logger.info("Trained linear regression model for latency prediction")
+        # Train polynomial model
+        self.poly_features = PolynomialFeatures(degree=2)
+        X_poly = self.poly_features.fit_transform(X)
+        self.poly_model = LinearRegression()
+        self.poly_model.fit(X_poly, y)
+        
+        logger.info("Trained linear and polynomial regression models for latency prediction")
         
     def _predict_latency(self, num_tokens: int) -> float:
         """Predict latency using linear regression model."""
@@ -124,6 +135,16 @@ class TilingProfiler:
         num_tokens = ((num_tokens - 1) // 8 + 1) * 8
         prediction = self.lr_model.predict([[num_tokens]])[0]
         return prediction 
+    
+    def _predict_latency_polynomial(self, num_tokens: int) -> float:
+        """Predict latency using polynomial regression model."""
+        assert self.poly_model is not None, "Polynomial regression model is not trained"
+        # make the num_tokens a multiple of 8
+        num_tokens = ((num_tokens - 1) // 8 + 1) * 8
+        X = np.array([[num_tokens]])
+        X_poly = self.poly_features.transform(X)
+        prediction = self.poly_model.predict(X_poly)[0]
+        return prediction
     
     def save_results(self):
         """Save profiling results and generate visualizations"""
@@ -177,6 +198,9 @@ class TilingProfiler:
 
         # precompute the linear latencies
         self.precomputed_latencies_linear = [self._predict_latency(t) for t in range(1, self.max_precomputed_tokens + 1)]
+        
+        # precompute the polynomial latencies
+        self.precomputed_latencies_polynomial = [self._predict_latency_polynomial(t) for t in range(1, self.max_precomputed_tokens + 1)]
 
     def _remove_outliers(self, data: List[float]) -> float:
         """Remove outliers using IQR method and return mean of remaining values."""
@@ -247,3 +271,9 @@ class TilingProfiler:
         
         return self.precomputed_latencies_linear[:num_tokens]
     
+    def get_target_model_latencies_polynomial(self, num_tokens: int) -> List[float]:
+        """Get the target model latency for a range of token counts using polynomial regression model."""
+        if num_tokens > self.max_precomputed_tokens:
+            raise ValueError(f"Requested more tokens than precomputed: {num_tokens} > {self.max_precomputed_tokens}")
+        
+        return self.precomputed_latencies_polynomial[:num_tokens]

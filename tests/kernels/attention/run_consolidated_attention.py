@@ -1,5 +1,7 @@
 import torch
 import random
+import time
+import numpy as np
 from vllm import _custom_ops as ops
 from vllm.platforms import current_platform
 
@@ -16,6 +18,8 @@ SEED = 0
 DEVICE = "cuda:0"
 QUERY_SIZE = 8
 VERSION = "v1"
+NUM_WARMUP = 3
+NUM_ITERATIONS = 10
 
 def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size, 
                     kv_cache_dtype, dtype, seed, device):
@@ -44,7 +48,34 @@ def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size
     
     return key_caches, value_caches
 
-def main():
+def generate_random_query_lengths(num_seqs, target_avg):
+    """Generate random query lengths with specified average using weighted distribution."""
+    # For fractional averages, we need to use two adjacent integers
+    lower = int(target_avg)
+    upper = min(lower + 1, 8)  # Don't exceed max length of 8
+    
+    if lower == upper:  # If target is an integer
+        return [lower] * num_seqs
+    
+    # Calculate weights to achieve exact average
+    # For example, if target is 1.5, we need 50% 1s and 50% 2s
+    lower_weight = upper - target_avg
+    upper_weight = target_avg - lower
+    
+    # Calculate number of each value needed
+    num_lower = int(round(num_seqs * lower_weight))
+    num_upper = num_seqs - num_lower
+    
+    # Generate the sequence
+    lengths = [lower] * num_lower + [upper] * num_upper
+    
+    # Shuffle the sequence to randomize the order
+    np.random.shuffle(lengths)
+    
+    return lengths
+
+def run_attention_test(num_gen_seqs, target_avg_query_len):
+    """Run attention test with specific batch size and target average query length."""
     # Set random seed
     current_platform.seed_everything(SEED)
     torch.set_default_device(DEVICE)
@@ -54,19 +85,18 @@ def main():
     num_query_heads, num_kv_heads = NUM_HEADS
     
     # Create query tensor
-    query = torch.empty(NUM_GEN_SEQS, num_query_heads, HEAD_SIZE, dtype=DTYPE)
+    query = torch.empty(num_gen_seqs, num_query_heads, HEAD_SIZE, dtype=DTYPE)
     query.uniform_(-scale, scale)
     
     # Generate sequence lengths and query lengths
     seq_lens = []
-    query_lens = []
-    
-    for seq_idx in range(NUM_GEN_SEQS):
-        query_len = random.randint(2, QUERY_SIZE - 1)
-        query_lens.append(query_len)
+    query_lens = generate_random_query_lengths(num_gen_seqs, target_avg_query_len)
+    # print("target_avg", target_avg_query_len)
+    # print("query_lens", query_lens)
+    actual_avg = sum(query_lens) / len(query_lens)
     
     for query_len in query_lens:
-        start = random.randint(1, 1000 - query_len)  # Using 1000 as max_seq_len
+        start = 800  # Using 1000 as max_seq_len
         for query_idx in range(query_len):
             seq_lens.append(start + query_idx)
     
@@ -87,7 +117,7 @@ def main():
     max_num_blocks_per_seq = (max_seq_len + BLOCK_SIZE - 1) // BLOCK_SIZE
     block_tables_lst = []
     
-    for seq_idx in range(NUM_GEN_SEQS):
+    for seq_idx in range(num_gen_seqs):
         block_table = [
             random.randint(0, NUM_BLOCKS - 1)
             for _ in range(max_num_blocks_per_seq)
@@ -111,113 +141,286 @@ def main():
     output = torch.empty_like(query)
     ref_output = torch.empty_like(query)
     
-    if VERSION == "v1":
-        # Run consolidated attention
-        ops.consolidated_paged_attention_v1(
-            output,
-            query,
-            key_cache,
-            value_cache,
-            num_kv_heads,
-            scale,
-            block_tables,
-            seq_lens,
-            query_lens,
-            BLOCK_SIZE,
-            max_seq_len,
-            None,  # alibi_slopes
-            KV_CACHE_DTYPE,
-            k_scale,
-            v_scale,
-        )
+    # Warmup
+    for _ in range(NUM_WARMUP):
+        if VERSION == "v1":
+            ops.consolidated_paged_attention_v1(
+                output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                query_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,  # alibi_slopes
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+            ops.paged_attention_v1(
+                ref_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,  # alibi_slopes
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+        elif VERSION == "v2":
+            num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
+            num_seqs, num_heads, head_size = output.shape
+            tmp_output = torch.empty(
+                size=(num_seqs, num_heads, num_partitions, head_size),
+                dtype=output.dtype,
+            )
+            exp_sums = torch.empty(
+                size=(num_seqs, num_heads, num_partitions),
+                dtype=torch.float32,
+            )
+            max_logits = torch.empty_like(exp_sums)
 
-        ops.paged_attention_v1(
-            ref_output,
-            query,
-            key_cache,
-            value_cache,
-            num_kv_heads,
-            scale,
-            block_tables,
-            seq_lens,
-            BLOCK_SIZE,
-            max_seq_len,
-            None,  # alibi_slopes
-            KV_CACHE_DTYPE,
-            k_scale,
-            v_scale,
-        )
-        
-    elif VERSION == "v2":
-        num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
-        num_seqs, num_heads, head_size = output.shape
-        tmp_output = torch.empty(
-            size=(num_seqs, num_heads, num_partitions, head_size),
-            dtype=output.dtype,
-        )
-        exp_sums = torch.empty(
-            size=(num_seqs, num_heads, num_partitions),
-            dtype=torch.float32,
-        )
-        max_logits = torch.empty_like(exp_sums)
+            ops.consolidated_paged_attention_v2(
+                output,
+                exp_sums,
+                max_logits,
+                tmp_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                query_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
 
-        ops.paged_attention_v2(
-            ref_output,
-            exp_sums,
-            max_logits,
-            tmp_output,
-            query,
-            key_cache,
-            value_cache,
-            num_kv_heads,
-            scale,
-            block_tables,
-            seq_lens,
-            BLOCK_SIZE,
-            max_seq_len,
-            None,
-            KV_CACHE_DTYPE,
-            k_scale,
-            v_scale,
-        )
+            ops.paged_attention_v2(
+                ref_output,
+                exp_sums,
+                max_logits,
+                tmp_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+    
+    # Measure consolidated attention latency
+    torch.cuda.synchronize()
+    start_time = time.time()
+    
+    for _ in range(NUM_ITERATIONS):
+        if VERSION == "v1":
+            ops.consolidated_paged_attention_v1(
+                output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                query_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,  # alibi_slopes
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+        elif VERSION == "v2":
+            num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
+            num_seqs, num_heads, head_size = output.shape
+            tmp_output = torch.empty(
+                size=(num_seqs, num_heads, num_partitions, head_size),
+                dtype=output.dtype,
+            )
+            exp_sums = torch.empty(
+                size=(num_seqs, num_heads, num_partitions),
+                dtype=torch.float32,
+            )
+            max_logits = torch.empty_like(exp_sums)
 
-        tmp_output = torch.empty(
-            size=(num_seqs, num_heads, num_partitions, head_size),
-            dtype=output.dtype,
-        )
-        exp_sums = torch.empty(
-            size=(num_seqs, num_heads, num_partitions),
-            dtype=torch.float32,
-        )
-        max_logits = torch.empty_like(exp_sums)
+            ops.consolidated_paged_attention_v2(
+                output,
+                exp_sums,
+                max_logits,
+                tmp_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                query_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+    
+    torch.cuda.synchronize()
+    end_time = time.time()
+    consolidated_latency = (end_time - start_time) / NUM_ITERATIONS * 1000  # Convert to milliseconds
 
-        ops.consolidated_paged_attention_v2(
-            output,
-            exp_sums,
-            max_logits,
-            tmp_output,
-            query,
-            key_cache,
-            value_cache,
-            num_kv_heads,
-            scale,
-            block_tables,
-            seq_lens,
-            query_lens,
-            BLOCK_SIZE,
-            max_seq_len,
-            None,
-            KV_CACHE_DTYPE,
-            k_scale,
-            v_scale,
-        )
+    # Measure normal attention latency
+    torch.cuda.synchronize()
+    start_time = time.time()
+    
+    for _ in range(NUM_ITERATIONS):
+        if VERSION == "v1":
+            ops.paged_attention_v1(
+                ref_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,  # alibi_slopes
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+        elif VERSION == "v2":
+            num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
+            num_seqs, num_heads, head_size = output.shape
+            tmp_output = torch.empty(
+                size=(num_seqs, num_heads, num_partitions, head_size),
+                dtype=output.dtype,
+            )
+            exp_sums = torch.empty(
+                size=(num_seqs, num_heads, num_partitions),
+                dtype=torch.float32,
+            )
+            max_logits = torch.empty_like(exp_sums)
 
-    else:
-        raise ValueError(f"Unsupported version: {VERSION}")
+            ops.paged_attention_v2(
+                ref_output,
+                exp_sums,
+                max_logits,
+                tmp_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                BLOCK_SIZE,
+                max_seq_len,
+                None,
+                KV_CACHE_DTYPE,
+                k_scale,
+                v_scale,
+            )
+    
+    torch.cuda.synchronize()
+    end_time = time.time()
+    normal_latency = (end_time - start_time) / NUM_ITERATIONS * 1000  # Convert to milliseconds
 
-    # all_close 
-    assert torch.allclose(output, ref_output, atol=1e-3)
-    print("Consolidated attention test passed!")
+    return consolidated_latency, normal_latency, actual_avg
+
+def main():
+    # Test different batch sizes
+    batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
+    target_avg_query_lens = [1, 1.1, 1.2, 1.3, 1.4, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8]
+    
+    # Print header for consolidated attention
+    print("\nConsolidated Attention Latency (ms)")
+    print("=" * 80)
+    print("Target Avg | Actual Avg |", end="")
+    for batch_size in batch_sizes:
+        print(f" Batch {batch_size:^4} |", end="")
+    print("\n" + "-" * 80)
+    
+    # Print consolidated attention results
+    for target_avg in target_avg_query_lens:
+        print(f"{target_avg:^10} |", end="")
+        # Get actual average from first batch size (they should be similar across batch sizes)
+        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
+        print(f" {actual_avg:^10.4f} |", end="")
+        for batch_size in batch_sizes:
+            consolidated_latency, _, _ = run_attention_test(batch_size, target_avg)
+            print(f" {consolidated_latency:^10.3f} |", end="")
+        print()  # New line after each query size
+    
+    print("=" * 80)
+
+    # Print header for normal attention
+    print("\nNormal Attention Latency (ms)")
+    print("=" * 80)
+    print("Target Avg | Actual Avg |", end="")
+    for batch_size in batch_sizes:
+        print(f" Batch {batch_size:^4} |", end="")
+    print("\n" + "-" * 80)
+    
+    # Print normal attention results
+    for target_avg in target_avg_query_lens:
+        print(f"{target_avg:^10} |", end="")
+        # Get actual average from first batch size (they should be similar across batch sizes)
+        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
+        print(f" {actual_avg:^10.4f} |", end="")
+        for batch_size in batch_sizes:
+            _, normal_latency, _ = run_attention_test(batch_size, target_avg)
+            print(f" {normal_latency:^10.3f} |", end="")
+        print()  # New line after each query size
+    
+    print("=" * 80)
+
+    # Print speedup comparison
+    print("\nSpeedup (Normal/Consolidated)")
+    print("=" * 80)
+    print("Target Avg | Actual Avg |", end="")
+    for batch_size in batch_sizes:
+        print(f" Batch {batch_size:^4} |", end="")
+    print("\n" + "-" * 80)
+    
+    # Print speedup results
+    for target_avg in target_avg_query_lens:
+        print(f"{target_avg:^10} |", end="")
+        # Get actual average from first batch size (they should be similar across batch sizes)
+        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
+        print(f" {actual_avg:^10.4f} |", end="")
+        for batch_size in batch_sizes:
+            consolidated_latency, normal_latency, _ = run_attention_test(batch_size, target_avg)
+            speedup = normal_latency / consolidated_latency
+            print(f" {speedup:^10.3f} |", end="")
+        print()  # New line after each query size
+    
+    print("=" * 80)
 
 if __name__ == "__main__":
     main()

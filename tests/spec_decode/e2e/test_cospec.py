@@ -15,7 +15,7 @@ def init_cospec():
     # Cleanup previous shared memory files on server start
     try:
         import glob
-        shm_files = glob.glob('/dev/shm/cospec*')
+        shm_files = glob.glob('/tmp/cospec*')
         for f in shm_files:
             try:
                 if os.path.isfile(f):

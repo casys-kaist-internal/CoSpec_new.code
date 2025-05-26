@@ -1951,8 +1951,11 @@ class LLMEngine:
     def set_colocation_mode(self, colocation_mode: bool) -> None:
         self.model_executor.set_colocation_mode(colocation_mode)
 
-    def maybe_load_cached_cospec_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_cospec_profile()[0]
+    def set_profile_batch_size(self, batch_size: int) -> None:
+        self.model_executor.set_profile_batch_size(batch_size)
+
+    def maybe_load_cached_colocation_profile(self) -> bool:
+        return self.model_executor.maybe_load_cached_colocation_profile()[0]
     
     def maybe_load_cached_tiling_profile(self) -> bool:
         return self.model_executor.maybe_load_cached_tiling_profile()[0]
@@ -1966,9 +1969,6 @@ class LLMEngine:
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
         self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
-
-    def set_profile_batch_size(self, batch_size: int) -> None:
-        self.model_executor.set_profile_batch_size(batch_size)
 
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (
