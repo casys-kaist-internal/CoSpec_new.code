@@ -311,12 +311,17 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
+    async def get_num_speculative_tokens_ema(self) -> int:
+        """Get the number of speculative tokens ema"""
+        ...
+
+    @abstractmethod
     async def is_selective_validator_trained(self) -> bool:
         """Check if the selective validation model has completed training"""
         ...
 
     @abstractmethod
-    async def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+    async def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
         """Predict the speedup ratio for colocation"""
         ...
 

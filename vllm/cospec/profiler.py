@@ -8,7 +8,6 @@ import seaborn as sns
 from typing import Dict, Optional, Tuple, List, Set
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
-from vllm.cospec.shm import SharedMemory
 
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures

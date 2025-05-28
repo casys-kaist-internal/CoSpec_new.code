@@ -16,7 +16,7 @@ from vllm.lora.request import LoRARequest
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.prompt_adapter.request import PromptAdapterRequest
 from vllm.sequence import ExecuteModelRequest, PoolerOutput
-from vllm.utils import make_async
+from vllm.utils import make_async, run_method
 from vllm.worker.worker_base import WorkerBase
 
 logger = init_logger(__name__)
@@ -199,29 +199,41 @@ class ExecutorBase(ABC):
         self.collective_rpc("stop_profile")
 
     def start_cospec_profile(self, mode: str) -> None:
-        self.collective_rpc("start_cospec_profile", kwargs=dict(mode=mode))
+        run_method(self.driver_worker, "start_cospec_profile", 
+                          args=(mode, ), kwargs={})
 
     def stop_cospec_profile(self) -> None:
-        self.collective_rpc("stop_cospec_profile")
+        run_method(self.driver_worker, "stop_cospec_profile", 
+                          args=(), kwargs={})
 
     def set_colocation_mode(self, colocation_mode: bool) -> None:
-        self.collective_rpc("set_colocation_mode", kwargs=dict(colocation_mode=colocation_mode))
+        run_method(self.driver_worker, "set_colocation_mode", 
+                          args=(colocation_mode, ), kwargs={})
 
     def set_profile_batch_size(self, batch_size: int) -> None:
-        self.collective_rpc("set_profile_batch_size", kwargs=dict(batch_size=batch_size))
+        run_method(self.driver_worker, "set_profile_batch_size", 
+                          args=(batch_size, ), kwargs={})
 
     def maybe_load_cached_colocation_profile(self) -> bool:
-        return self.collective_rpc("maybe_load_cached_colocation_profile")
+        return run_method(self.driver_worker, "maybe_load_cached_colocation_profile", 
+                          args=(), kwargs={})
     
     def maybe_load_cached_tiling_profile(self) -> bool:
-        return self.collective_rpc("maybe_load_cached_tiling_profile")
+        return run_method(self.driver_worker, "maybe_load_cached_tiling_profile", 
+                          args=(), kwargs={})
     
     def is_selective_validator_trained(self) -> bool:
-        return self.collective_rpc("is_selective_validator_trained")
-
-    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
-        return self.collective_rpc("predict_colocation_speedup_ratio", kwargs=dict(total_requests=total_requests))
-
+        return run_method(self.driver_worker, "is_selective_validator_trained", 
+                          args=(), kwargs={})
+        
+    def get_num_speculative_tokens_ema(self) -> int:
+        return run_method(self.driver_worker, "get_num_speculative_tokens_ema", 
+                          args=(), kwargs={})
+                          
+    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
+        return run_method(self.driver_worker, "predict_colocation_speedup_ratio", 
+                          args=(batch_size, ), kwargs={})
+    
     def sleep(self, level: int = 1):
         if self.is_sleeping:
             logger.warning("Executor is already sleeping.")

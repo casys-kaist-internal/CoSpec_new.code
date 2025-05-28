@@ -298,23 +298,6 @@ async def wait_for_server(base_url: str, retry_interval: float = 10.0) -> bool:
             print(f"Waiting for server to start...")
         await asyncio.sleep(retry_interval)
 
-async def wait_for_selective_validator_training(base_url: str, check_interval: float = 5.0) -> None:
-    """Wait for selective validator to be trained by checking the endpoint."""
-    print("Waiting for selective validator to be trained...")
-    while True:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{base_url}/selective_validator_trained") as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        if result.get("is_trained", False):
-                            print("Selective validator is trained!")
-                            return
-        except Exception as e:
-            print(f"Error checking selective validator status: {e}")
-        print("Selective validator not trained yet, waiting...")
-        await asyncio.sleep(check_interval)
-
 async def benchmark(
     backend: str,
     api_url: str,
@@ -761,13 +744,14 @@ def main(args: argparse.Namespace):
             raise RuntimeError("Server failed to start within the timeout period")
     
         # First check if already trained
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{base_url}/selective_validator_trained") as response:
-                if response.status == 200:
-                    result = await response.json()
-                    if result.get("is_trained", False):
-                        print("Don't need to train selective validator")
-                        return result
+        # async with aiohttp.ClientSession() as session:
+        #     async with session.get(f"{base_url}/selective_validator_trained") as response:
+        #         if response.status == 200:
+        #             result = await response.json()
+        #             print("result", result)
+        #             if result.get("is_trained", True):
+        #                 print("Don't need to train selective validator")
+        #                 return result
 
         request_count = 0
         start_time = time.time()
@@ -812,12 +796,16 @@ def main(args: argparse.Namespace):
                 async with session.get(f"{base_url}/selective_validator_trained") as response:
                     if response.status == 200:
                         result = await response.json()
-                        if result.get("is_trained", False):
+                        print("result", result)
+                        if result.get("is_trained", True):
                             training_time = time.time() - start_time  # Keep in seconds
                             print(f"Selective validator trained after {request_count} test requests ({training_time:.2f} seconds)")
+                            time.sleep(60)
                             return result
 
-    asyncio.run(run_test_until_trained())
+    # asyncio.run(run_test_until_trained())
+    # asyncio.run(run_test_until_trained())
+    # asyncio.run(run_test_until_trained())
 
     # Now run the full benchmark
     print("Running full benchmark...")

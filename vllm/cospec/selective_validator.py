@@ -24,7 +24,8 @@ class SelectiveValidator:
         self.regression_model = LinearRegression()  # Use LinearRegression directly
         self.is_model_trained = False
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
-        self.moving_avg_mean_tokens = 7  # Initialize moving average
+        # self.tile_alignment = int(envs.COSPEC_SELECTIVE_VALIDATION_TILE_SIZE)
+        # self.moving_avg_num_spec_tokens = 7  # This is for dynamic colocation.
         self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
         self.has_first_data_point = False  # Flag to track if we have received first data point
         self.profiler = profiler
@@ -59,12 +60,12 @@ class SelectiveValidator:
         # Generate mask based on validation method
         if envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "tile":
             valid_mask = self._generate_tiled_mask(proposals, total_non_proposal_tokens)
-        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "threshold":
-            valid_mask = self._generate_threshold_mask(proposals)
         elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "linear":
             valid_mask = self._generate_linear_mask(proposals, total_non_proposal_tokens)
         elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "polynomial":
             valid_mask = self._generate_polynomial_mask(proposals, total_non_proposal_tokens)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "threshold":
+            valid_mask = self._generate_threshold_mask(proposals)
         elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "random": # For correctness testing purpose 
             valid_mask = self._generate_random_mask(proposals)
         else:
@@ -83,6 +84,8 @@ class SelectiveValidator:
         Returns:
             Modified SpeculativeProposals object
         """
+        # original_proposal_len = proposals.proposal_lens.max().item()
+
         # Calculate new lengths and max length in one operation
         new_proposal_lens = valid_mask.sum(dim=1)
         new_proposal_lens[proposals.proposal_lens == 0] = 0 # what was already 0 should remain 0
@@ -97,14 +100,14 @@ class SelectiveValidator:
         proposals.no_proposals = torch.all(new_proposal_lens == 0)
         
         # Update moving average in one operation
-        if not self.has_first_data_point:
-            self.moving_avg_mean_tokens = new_proposal_lens.float().mean().item()
-            self.has_first_data_point = True
-        else:
-            self.moving_avg_mean_tokens = (
-                (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
-                self.moving_avg_alpha * new_proposal_lens.float().mean().item()
-            )
+        # if not self.has_first_data_point:
+        #     self.moving_avg_mean_tokens = original_proposal_len
+        #     self.has_first_data_point = True
+        # else:
+        #     self.moving_avg_mean_tokens = (
+        #         (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
+        #         self.moving_avg_alpha * original_proposal_len
+        #     )
         
         # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
         
@@ -162,6 +165,68 @@ class SelectiveValidator:
         flat_mask[sorted_original_indices[:optimal_total_length]] = True
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+
+    def _generate_threshold_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int, alignment: int) -> torch.Tensor:
+        # Step 1: Compute acceptance probabilities & apply threshold
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
+        seq_len = proposals.proposal_token_ids.shape[1]
+        device = cumulative_acceptance_probs.device
+        
+        length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        
+        # Get valid positions (within length bounds)
+        valid_positions = length_mask
+        masked_probs = cumulative_acceptance_probs * valid_positions.float()
+        
+        # Flatten and sort by acceptance probability
+        flat_probs = masked_probs.flatten()
+        valid_indices = torch.nonzero(flat_probs > 0, as_tuple=True)[0]
+        
+        if len(valid_indices) == 0:
+            return is_negative_one
+            
+        valid_probs = flat_probs[valid_indices]
+        sorted_probs, sorted_indices = torch.sort(valid_probs, descending=True)
+        
+        # Find where probabilities drop below threshold
+        above_threshold = sorted_probs >= self.selective_validation_threshold
+        if not above_threshold.any():
+            return is_negative_one
+            
+        threshold_cutoff = above_threshold.sum().item()
+        
+        # Calculate alignment decision
+        total_tokens_at_cutoff = threshold_cutoff + total_non_proposal_tokens
+        
+        aligned_total = (total_tokens_at_cutoff // alignment) * alignment
+        # aligned_up = aligned_down + alignment
+        
+        # distance_to_down = total_tokens_at_cutoff - aligned_down
+        # distance_to_up = aligned_up - total_tokens_at_cutoff
+        
+        # Choose closer alignment
+        # if distance_to_down <= distance_to_up:
+        #     aligned_total = aligned_down
+        # else:
+        #     aligned_total = aligned_up
+            
+        final_valid_tokens = aligned_total - total_non_proposal_tokens
+        final_valid_tokens = max(0, min(final_valid_tokens, len(valid_indices)))
+        
+        # Create final mask
+        batch_size = proposals.proposal_token_ids.shape[0]
+        final_mask = torch.zeros(batch_size * seq_len, dtype=torch.bool, device=device)
+        
+        if final_valid_tokens > 0:
+            selected_indices = valid_indices[sorted_indices[:final_valid_tokens]]
+            final_mask[selected_indices] = True
+            
+        final_mask = final_mask.reshape(batch_size, seq_len)
+
+        return final_mask | is_negative_one
 
     def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate mask for threshold-based selective validation."""
@@ -468,6 +533,10 @@ class SelectiveValidator:
         return float(mse)
 
     def is_selective_validator_trained(self) -> bool:
+        # print the progress
+        current_samples = len(self.history_X)
+        samples_left = max(0, self.history_size - current_samples)
+        # print(f"Training progress: {current_samples}/{self.history_size} samples collected. {samples_left} samples left.")
         return self.is_model_trained
 
     def collect_validation_data(self, unscaled_temp_probs: torch.Tensor, acceptance_probs: torch.Tensor):
@@ -542,13 +611,24 @@ class SelectiveValidator:
         raw_data.to_csv(os.path.join(data_dir, f'raw_data_{timestamp}.csv'), index=False)
 
         # Calculate and save ROC curve data
-        fpr, tpr, thresholds = roc_curve(y_val.flatten(), y_pred.flatten())
-        roc_data = pd.DataFrame({
-            'fpr': fpr,
-            'tpr': tpr,
-            'thresholds': thresholds
-        })
-        roc_data.to_csv(os.path.join(data_dir, f'roc_data_{timestamp}.csv'), index=False)
+        # Convert to binary classification by using a threshold
+        threshold = 0.5
+        y_val_binary = (y_val.flatten() >= threshold).astype(int)
+        y_pred_binary = (y_pred.flatten() >= threshold).astype(int)
+        
+        try:
+            fpr, tpr, thresholds = roc_curve(y_val_binary, y_pred.flatten())
+            roc_data = pd.DataFrame({
+                'fpr': fpr,
+                'tpr': tpr,
+                'thresholds': thresholds
+            })
+            roc_data.to_csv(os.path.join(data_dir, f'roc_data_{timestamp}.csv'), index=False)
+            auroc = roc_auc_score(y_val_binary, y_pred.flatten())
+        except ValueError as e:
+            logger.warning(f"Could not calculate ROC curve: {e}")
+            auroc = 0.0
+            fpr, tpr = np.array([0, 1]), np.array([0, 1])
 
         # Calculate and save calibration data
         n_bins = 10
@@ -582,11 +662,13 @@ class SelectiveValidator:
         })
         calibration_data.to_csv(os.path.join(data_dir, f'calibration_data_{timestamp}.csv'), index=False)
 
+        # Calculate ECE
+        ece = sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))
+
         # Save metrics
         metrics_data = pd.DataFrame({
             'metric': ['AUROC', 'ECE'],
-            'value': [roc_auc_score(y_val.flatten(), y_pred.flatten()), 
-                     sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))]
+            'value': [auroc, ece]
         })
         metrics_data.to_csv(os.path.join(data_dir, f'metrics_{timestamp}.csv'), index=False)
 
@@ -595,7 +677,7 @@ class SelectiveValidator:
         
         # Plot 1: ROC curve
         plt.subplot(1, 2, 1)
-        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {roc_auc_score(y_val.flatten(), y_pred.flatten()):.4f})')
+        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {auroc:.4f})')
         plt.plot([0, 1], [0, 1], 'k--', label='Random')
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
@@ -605,9 +687,6 @@ class SelectiveValidator:
         # Plot 2: Calibration curve with histogram
         plt.subplot(1, 2, 2)    
         plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
-        
-        # Calculate ECE explicitly
-        ece = sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))
         plt.plot(bin_means, bin_true_means, 'o-', label=f'Model (ECE={ece:.4f})')
         
         # Calculate density instead of count
@@ -629,6 +708,6 @@ class SelectiveValidator:
         plt.savefig(save_path)
         plt.close()
 
-        logger.info(f"Validation data evaluation - AUROC: {roc_auc_score(y_val.flatten(), y_pred.flatten()):.4f}, ECE: {ece:.4f}")
+        logger.info(f"Validation data evaluation - AUROC: {auroc:.4f}, ECE: {ece:.4f}")
         logger.info(f"Data saved to {data_dir} directory with timestamp {timestamp}")
-        return roc_auc_score(y_val.flatten(), y_pred.flatten()), ece
+        return auroc, ece

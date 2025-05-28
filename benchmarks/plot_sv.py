@@ -106,6 +106,9 @@ for dataset in datasets:
         # Add horizontal line at y=1 (baseline)
         ax.axhline(y=1, color='black', linestyle='--', alpha=0.5)
         
+        # Set y-axis to start from 1
+        # ax.set_ylim(bottom=1)
+        
         # Customize subplot
         ax.set_xlabel('Request Rate (req/s)', fontsize=10)
         ax.set_ylabel('Speedup vs Colocation Consolidated', fontsize=10)

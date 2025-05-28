@@ -43,7 +43,9 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCIsSelectiveValidatorTrainedRequest,
                                          RPCIsSelectiveValidatorTrainedResponse,
                                          RPCMaybeLoadCachedTilingProfileRequest,
-                                         RPCMaybeLoadCachedTilingProfileResponse)
+                                         RPCMaybeLoadCachedTilingProfileResponse,
+                                         RPCGetNumSpeculativeTokensEmaRequest,
+                                         RPCGetNumSpeculativeTokensEmaResponse)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -260,7 +262,8 @@ class MQLLMEngineClient(EngineClient):
                 elif isinstance(
                         request_outputs,
                     (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedColocationProfileResponse,
-                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse, RPCPredictColocationSpeedupRatioResponse)):
+                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse, RPCPredictColocationSpeedupRatioResponse,
+                     RPCGetNumSpeculativeTokensEmaResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -275,7 +278,8 @@ class MQLLMEngineClient(EngineClient):
                                                 RPCMaybeLoadCachedColocationProfileResponse,
                                                 RPCMaybeLoadCachedTilingProfileResponse,
                                                 RPCIsSelectiveValidatorTrainedResponse,
-                                                RPCPredictColocationSpeedupRatioResponse]):
+                                                RPCPredictColocationSpeedupRatioResponse,
+                                                RPCGetNumSpeculativeTokensEmaResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -789,9 +793,9 @@ class MQLLMEngineClient(EngineClient):
             raise request_output
         return request_output.trained
         
-    async def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+    async def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
         """Predict the speedup ratio for colocation"""
-        request = RPCPredictColocationSpeedupRatioRequest(total_requests=total_requests)
+        request = RPCPredictColocationSpeedupRatioRequest(batch_size=batch_size)
 
         queue: asyncio.Queue[Union[BaseException,
                                    RPCPredictColocationSpeedupRatioResponse]] = asyncio.Queue()
@@ -813,6 +817,23 @@ class MQLLMEngineClient(EngineClient):
         await self._send_one_way_rpc_request(
             request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
             socket=self.input_socket)
+
+    async def get_num_speculative_tokens_ema(self) -> int:
+        request = RPCGetNumSpeculativeTokensEmaRequest()
+
+        queue: asyncio.Queue[Union[BaseException,
+                                   RPCGetNumSpeculativeTokensEmaResponse]] = asyncio.Queue()
+        self.output_queues[request.request_id] = queue
+
+        request_bytes = pickle.dumps(request)
+        await self.input_socket.send_multipart((request_bytes, ), copy=False)
+
+        request_output = await queue.get()
+        self.output_queues.pop(request.request_id)
+
+        if isinstance(request_output, BaseException):
+            raise request_output
+        return request_output.num_speculative_tokens_ema
 
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:
@@ -870,6 +891,7 @@ class MQLLMEngineClient(EngineClient):
         # Raise on error, otherwise happily return None
         if isinstance(request_output, BaseException):
             raise request_output
+
 
     def get_num_requests(self) -> int:
         return len(self.output_queues)

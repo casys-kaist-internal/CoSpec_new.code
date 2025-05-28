@@ -138,8 +138,13 @@ class PagedAttention:
             should_run_consolidated_attention = False 
         elif consolidated_lens_tensor is None:
             should_run_consolidated_attention = False
-        elif torch.mean(consolidated_lens_tensor.float()) < 2:
+        elif torch.mean(consolidated_lens_tensor.float()) < 4:
             should_run_consolidated_attention = False
+        if consolidated_lens_tensor is not None:
+            if consolidated_lens_tensor.size(0) < 4:
+                should_run_consolidated_attention = False
+        if should_run_consolidated_attention:
+            use_v1 = False 
 
         if use_v1:
             # Run PagedAttention V1.

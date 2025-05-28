@@ -12,8 +12,8 @@ from fastapi import Request
 import os
 import pandas as pd
 import random
+import math
 
-from vllm.cospec.shm import SharedMemory
 from vllm.config import ModelConfig, VllmConfig, envs
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.logger import RequestLogger
@@ -72,12 +72,69 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         self.dynamic_colocation = envs.COSPEC_DYNAMIC_COLOCATION
         self.colocation_mode = True
         self.selected_engine_idx = 0
+        self.performance_threshold = 0
         self.last_mode_switch_time = time.time()
-        self.dwelling_time = 10  # 10 seconds for dynamic colocation mode switch cooldown
-        self.performance_threshold = 0.05  # 5% performance difference threshold
-        self.consecutive_count_threshold = 5
-        self.consecutive_non_colocation_count = 0
+        self.min_dwelling_time = 30.0  # Minimum time (in seconds) to stay in a mode before switching
+        self._colocation_task = None
+        self._colocation_check_interval = 0.5
+        self._is_running = False  
+        self.consecutive_count_threshold = 10
+        self.consecutive_non_colocation_count = 0  
         self.consecutive_colocation_count = 0
+
+        # EMA related attributes
+        self.batch_size_ema = 0.0
+        self.batch_size_alpha = 0.5  # EMA smoothing factor (0 < alpha < 1)
+        self.batch_size_initialized = False
+
+    async def start(self):
+        """Start the background colocation state management task."""
+        if self.dynamic_colocation and self._colocation_task is None:
+            self._is_running = True
+            self._colocation_task = asyncio.create_task(self._colocation_state_manager())
+            logger.info("[Dynamic Colocation] Started background colocation state manager")
+
+    async def stop(self):
+        """Stop the background colocation state management task."""
+        if self._colocation_task is not None:
+            self._is_running = False
+            try:
+                await self._colocation_task
+            except Exception as e:
+                logger.error(f"[Dynamic Colocation] Error while stopping state manager: {e}")
+            self._colocation_task = None
+            logger.info("[Dynamic Colocation] Stopped background colocation state manager")
+
+    async def _colocation_state_manager(self):
+        """Background task that periodically checks and updates colocation state."""
+        while self._is_running:
+            try:
+                # Check if engine processes are still alive
+                if not self._check_engine_processes():
+                    logger.error("[Dynamic Colocation] Engine processes are not alive")
+                    break
+                logger.info("[Dynamic Colocation] Colocation mode: {}".format(self.colocation_mode))
+                await self._maybe_change_colocation_mode()
+                await asyncio.sleep(self._colocation_check_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                if not self._is_running:  # Check if we should break after an error
+                    break
+                await asyncio.sleep(self._colocation_check_interval)
+
+    def _check_engine_processes(self) -> bool:
+        """Check if both engine processes are still alive."""
+        try:
+            # Check if engine processes are still alive
+            if not self.engine_client.is_running:
+                return False
+            if not self.engine_client2.is_running:
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"[Dynamic Colocation] Error checking engine processes: {e}")
+            return False
 
     async def create_completion(
         self,
@@ -151,7 +208,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         try:
             for i, engine_prompt in enumerate(engine_prompts):
                 # Select engine for this prompt
-                current_engine = await self._select_engine()
+                current_engine = self._select_engine()
                 
                 sampling_params: Union[SamplingParams, BeamSearchParams]
                 default_max_tokens = self.max_model_len - len(
@@ -584,8 +641,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         if envs.COSPEC_DYNAMIC_COLOCATION:
             await self.profile_colocation()
 
-        if envs.COSPEC_SELECTIVE_VALIDATION:
-            await self.profile_tiling()
+        # if envs.COSPEC_SELECTIVE_VALIDATION:
+        #     await self.profile_tiling()
     
     """
     Profiler for dynamic colocation. 
@@ -604,7 +661,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         original_num_speculative_tokens = vllm_config.speculative_config.num_speculative_tokens
         original_num_speculative_tokens2 = vllm_config2.speculative_config.num_speculative_tokens
 
-        batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs + 1, 8)
+        # batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs + 1, 8)
+        batch_sizes = range(8, 65, 8)
         num_speculative_tokens_list = range(1, 8)
 
         # Set tqdm as a single progress bar
@@ -648,7 +706,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64)
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=32)
             generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
             generators.append(generator)
         
@@ -671,7 +729,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64)
+            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=32)
             engine_idx = (engine_idx + 1) % 2
             current_engine = self.engine_client if engine_idx == 0 else self.engine_client2
             generator = current_engine.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
@@ -775,13 +833,16 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
     async def is_selective_validator_trained(self) -> bool:
         if envs.COSPEC_SELECTIVE_VALIDATION:
-            return await self.engine_client.is_selective_validator_trained()
+            engine_client1_trained = await self.engine_client.is_selective_validator_trained()
+            engine_client2_trained = await self.engine_client2.is_selective_validator_trained()
+            is_trained = engine_client1_trained and engine_client2_trained
         else:
-            return True
+            is_trained = True
+        return is_trained
 
-    async def _select_engine(self) -> EngineClient:
+    def _select_engine(self) -> EngineClient:
+        """Select engine based on current colocation state."""
         if self.dynamic_colocation:
-            await self._maybe_change_colocation_mode()
             if self.colocation_mode:
                 return self._load_balance()
             else:
@@ -790,31 +851,45 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             return self._load_balance()
 
     def _load_balance(self) -> EngineClient:
+        # return self.engine_client # This is for dynamic colocation experiment where we always disable colocation
         engine_client1_num_requests = self.engine_client.get_num_requests()
         engine_client2_num_requests = self.engine_client2.get_num_requests()
         return self.engine_client if engine_client1_num_requests < engine_client2_num_requests else self.engine_client2
 
+    def _update_batch_size_ema(self, current_batch_size: float) -> None:
+        """Update the batch size EMA with a new value."""
+        if not self.batch_size_initialized:
+            self.batch_size_ema = current_batch_size
+            self.batch_size_initialized = True
+        else:
+            self.batch_size_ema = (self.batch_size_alpha * current_batch_size + 
+                                 (1 - self.batch_size_alpha) * self.batch_size_ema)
+
     async def _maybe_change_colocation_mode(self):
+        # Before selective validator is trained we stay in colocation mode 
+        if not self.is_selective_validator_trained():
+            return 
+
         current_time = time.time()
         elapsed = current_time - self.last_mode_switch_time
+
+        if elapsed < self.min_dwelling_time:
+            return
         
-        # Enforce minimum dwelling time
-        # if elapsed < self.dwelling_time:
-        #     return
-        
-        total_requests = self.engine_client.get_num_requests() + self.engine_client2.get_num_requests()
-        
-        # start_time = time.perf_counter()
-        # Directly await the async method
-        if self.colocation_mode: 
-            ratio = await self.engine_client.predict_colocation_speedup_ratio(total_requests)
-        else: 
-            selected_engine = self.engine_client if self.selected_engine_idx == 0 else self.engine_client2
-            ratio = await selected_engine.predict_colocation_speedup_ratio(total_requests)
-        # logger.info(f"[Dynamic Colocation] Colocation speedup ratio: {ratio:.2f}")
-        # end_time = time.perf_counter()
-        # logger.info(f"[Dynamic Colocation] Time taken to predict colocation speedup ratio: {end_time - start_time:.2f} seconds")
-        
+        # Calculate current batch size and update EMA
+        current_batch_size = self.engine_client.get_num_requests() + self.engine_client2.get_num_requests()
+        self._update_batch_size_ema(current_batch_size)
+        batch_size = self.batch_size_ema
+
+        ratio = await self.engine_client.predict_colocation_speedup_ratio(batch_size)
+
+        if self.selected_engine_idx == 0:
+            ratio = await self.engine_client.predict_colocation_speedup_ratio(batch_size)
+        else:
+            ratio = await self.engine_client2.predict_colocation_speedup_ratio(batch_size)
+
+        logger.info("batch_size_ema: {:.2f}, ratio: {:.2f}".format(batch_size, ratio)) 
+
         switched = False
         if self.colocation_mode:
             if ratio < (1 - self.performance_threshold):
@@ -833,6 +908,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                     switched = True
                     # Reset counter after switching
                     self.consecutive_non_colocation_count = 0
+                    # get num speculative tokens ema and set it the speculative window size 
+                    num_spec_tokens_ema = await self.engine_client.get_num_speculative_tokens_ema()
+                    num_spec_tokens_ema = math.ceil(num_spec_tokens_ema)
+                    await self.engine_client.set_num_speculative_tokens(num_spec_tokens_ema)
+                    await self.engine_client2.set_num_speculative_tokens(num_spec_tokens_ema)
             else:
                 # Reset counter if prediction doesn't suggest switching
                 self.consecutive_non_colocation_count = 0
@@ -850,6 +930,9 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                     switched = True
                     # Reset counter after switching
                     self.consecutive_colocation_count = 0
+                    # Set num speculative tokens to 7 (maximum)
+                    await self.engine_client.set_num_speculative_tokens(7)
+                    await self.engine_client2.set_num_speculative_tokens(7)
             else:
                 # Reset counter if prediction doesn't suggest switching
                 self.consecutive_colocation_count = 0

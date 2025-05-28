@@ -185,9 +185,18 @@ class RPCMaybeLoadCachedTilingProfileRequest:
 
 @dataclass
 class RPCPredictColocationSpeedupRatioRequest:
-    total_requests: int
+    batch_size: int
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     
+@dataclass
+class RPCGetNumSpeculativeTokensEmaRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
+class RPCGetNumSpeculativeTokensEmaResponse:
+    num_speculative_tokens_ema: int
+    request_id: str
+
 @dataclass
 class RPCPredictColocationSpeedupRatioResponse:
     request_id: str
@@ -218,12 +227,12 @@ RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
                       RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedColocationProfileRequest, 
                       RPCMaybeLoadCachedTilingProfileRequest, RPCIsSelectiveValidatorTrainedRequest,
-                      RPCPredictColocationSpeedupRatioRequest]
+                      RPCPredictColocationSpeedupRatioRequest, RPCGetNumSpeculativeTokensEmaRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
                           RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedColocationProfileResponse, 
                           RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse,
-                          RPCPredictColocationSpeedupRatioResponse]
+                          RPCPredictColocationSpeedupRatioResponse, RPCGetNumSpeculativeTokensEmaResponse]
 
 
 def ENGINE_DEAD_ERROR(

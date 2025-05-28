@@ -67,6 +67,7 @@ for dataset in datasets:
         
         # y axis log scale
         ax.set_yscale('log')
+        # ax.set_ylim(0, 200)
         
         # Customize subplot
         ax.set_xlabel('Request Throughput (req/s)', fontsize=10)

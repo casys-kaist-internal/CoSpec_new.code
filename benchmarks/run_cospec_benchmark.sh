@@ -56,7 +56,7 @@ TEMPERATURES=(0 0.3 0.6 -1)
 export WARMUP_DURATION=1
 export BENCHMARK_DURATION=5  # Duration in minutes
 
-PORT=8000
+PORT=8100
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
@@ -221,19 +221,19 @@ declare -a CONFIG_ORDER=(
 
 TOTAL_RUNS=0
 # Baseline runs
-for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
-    if [ "$spec_tokens" -eq 0 ]; then
-        temperatures=(0)
-    else
-        temperatures=("${TEMPERATURES[@]}")
-    fi
+# for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
+#     if [ "$spec_tokens" -eq 0 ]; then
+#         temperatures=(0)
+#     else
+#         temperatures=("${TEMPERATURES[@]}")
+#     fi
     
-    # Calculate runs for each dataset with its specific request rates
-    for dataset in "${DATASETS[@]}"; do
-        read -ra rates <<< "$(get_request_rates "$dataset")"
-        TOTAL_RUNS=$((TOTAL_RUNS + ${#temperatures[@]} * ${#rates[@]}))
-    done
-done
+#     # Calculate runs for each dataset with its specific request rates
+#     for dataset in "${DATASETS[@]}"; do
+#         read -ra rates <<< "$(get_request_rates "$dataset")"
+#         TOTAL_RUNS=$((TOTAL_RUNS + ${#temperatures[@]} * ${#rates[@]}))
+#     done
+# done
 
 # CoSpec runs
 for config in "${CONFIG_ORDER[@]}"; do
@@ -250,58 +250,60 @@ CURRENT_RUN=0
 echo "Running baseline benchmarks with different configurations..."
 echo "Total runs to complete: $TOTAL_RUNS"
 
-for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
-    # Start server for this spec_tokens configuration
-    server_pid=$(start_server "baseline" $spec_tokens)
-    echo "Server PID: $server_pid"
+# for spec_tokens in "${BASELINE_SPEC_TOKENS[@]}"; do
+#     # Start server for this spec_tokens configuration
+#     server_pid=$(start_server "baseline" $spec_tokens)
+#     echo "Server PID: $server_pid"
 
-    # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
+#     # run_warmup "baseline" "$spec_tokens" 0.5 8 "sharegpt"
     
-    # For spec_tokens=0, only run with temperature=0
-    temperatures=("${TEMPERATURES[@]}")
+#     # For spec_tokens=0, only run with temperature=0
+#     temperatures=("${TEMPERATURES[@]}")
     
-    # Run all temperature and request rate combinations
-    for dataset in "${DATASETS[@]}"; do
-        for temperature in "${temperatures[@]}"; do
-            read -ra rates <<< "$(get_request_rates "$dataset")"
-            for request_rate in "${rates[@]}"; do
-                CURRENT_RUN=$((CURRENT_RUN + 1))
-                ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
-                run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
-            done
-        done
-    done
+#     # Run all temperature and request rate combinations
+#     for dataset in "${DATASETS[@]}"; do
+#         for temperature in "${temperatures[@]}"; do
+#             read -ra rates <<< "$(get_request_rates "$dataset")"
+#             for request_rate in "${rates[@]}"; do
+#                 CURRENT_RUN=$((CURRENT_RUN + 1))
+#                 ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+#                 run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
+#             done
+#         done
+#     done
     
-    # Cleanup server after all request rates are done
-    kill $server_pid
-    wait $server_pid 2>/dev/null
-    sleep 5
-done
+#     # Cleanup server after all request rates are done
+#     kill $server_pid
+#     wait $server_pid 2>/dev/null
+#     sleep 5
+# done
 
 # Run CoSpec ablation studies
 echo "Running CoSpec ablation studies..."
 
 for config in "${CONFIG_ORDER[@]}"; do
     echo "Running $config configuration..."
-    server_pid=$(start_server "$config" $COSPEC_SPEC_TOKENS)
-    echo "Server PID: $server_pid"
     
     # Run all temperature and request rate combinations
     for dataset in "${DATASETS[@]}"; do
         for temperature in "${TEMPERATURES[@]}"; do
+            # Start server for this temperature
+            server_pid=$(start_server "$config" $COSPEC_SPEC_TOKENS)
+            echo "Server PID: $server_pid"
+            
             read -ra rates <<< "$(get_request_rates "$dataset")"
             for request_rate in "${rates[@]}"; do
                 CURRENT_RUN=$((CURRENT_RUN + 1))
                 ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
                 run_benchmark "$config" "$COSPEC_SPEC_TOKENS" "$temperature" "$request_rate" "$dataset"
             done
+            
+            # Cleanup server after all request rates for this temperature are done
+            kill $server_pid
+            wait $server_pid 2>/dev/null
+            sleep 5
         done
     done
-    
-    # Cleanup server after all request rates are done
-    kill $server_pid
-    wait $server_pid 2>/dev/null
-    sleep 5
 done
 
 echo "Benchmark results have been saved to $RESULTS_DIR/benchmark_results.csv" 

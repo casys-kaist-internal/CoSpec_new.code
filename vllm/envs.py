@@ -112,13 +112,14 @@ if TYPE_CHECKING:
     VLLM_MSGPACK_ZERO_COPY_THRESHOLD: int = 256
 
     # CoSpec specific env vars
-    COSPEC: bool = False
-    COSPEC_CORRECTNESS_TEST: bool = False
+    COSPEC: bool = False 
     COSPEC_DYNAMIC_COLOCATION: bool = False
     COSPEC_SELECTIVE_VALIDATION: bool = False
+    COSPEC_SELECTIVE_VALIDATION_METHOD: str = "threshold" # tile, linear, threshold, random
     COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.3
-    COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile" # tile, linear, threshold, random
+    COSPEC_SELECTIVE_VALIDATION_TILE_SIZE: int = 64
     COSPEC_CONSOLIDATED_ATTENTION: bool = False
+    COSPEC_CORRECTNESS_TEST: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -749,7 +750,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     lambda: float(os.getenv("COSPEC_SELECTIVE_VALIDATION_THRESHOLD", "0.3")),
 
     "COSPEC_SELECTIVE_VALIDATION_METHOD":
-    lambda: str(os.getenv("COSPEC_SELECTIVE_VALIDATION_METHOD", "tile")),
+    lambda: str(os.getenv("COSPEC_SELECTIVE_VALIDATION_METHOD", "threshold")),
 
     "COSPEC_CONSOLIDATED_ATTENTION":
     lambda: bool(int(os.getenv("COSPEC_CONSOLIDATED_ATTENTION", "0"))),

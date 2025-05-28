@@ -8,8 +8,8 @@ from vllm.platforms import current_platform
 # Constants
 NUM_BLOCKS = 4321
 PARTITION_SIZE = 512
-NUM_GEN_SEQS = 7
-NUM_HEADS = (40, 40)
+NUM_GEN_SEQS = 64
+NUM_HEADS = (20, 20)
 HEAD_SIZE = 192
 BLOCK_SIZE = 16
 DTYPE = torch.half

@@ -572,3 +572,4 @@ class ColocationProfiler:
         plt.savefig(plot_file, bbox_inches='tight', dpi=300)
         plt.close()
         logger.info(f"Saved ROC curve plot to {plot_file}") 
+        

@@ -1203,6 +1203,10 @@ async def init_app_state_cospec(
 
     # Cospec Profiling
     await state.openai_serving_completion.cospec_profile()
+    
+    # Start the background colocation state manager
+    if state.openai_serving_completion is not None:
+        await state.openai_serving_completion.start()
 
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET
@@ -1255,7 +1259,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 
     async with build_async_engine_client(args) as engine_client:
         app = build_app(args)
-
+        state = app.state
         vllm_config = await engine_client.get_vllm_config()
         await init_app_state(engine_client, vllm_config, app.state, args)
 
@@ -1368,6 +1372,7 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
     async with build_async_engine_client(args, is_primary=True) as engine_client, \
         build_async_engine_client(args, is_primary=False) as engine_client2:
         app = build_app(args)
+        state = app.state
 
         vllm_config = await engine_client.get_vllm_config()
         await init_app_state_cospec(engine_client, engine_client2, vllm_config, app.state, args)
@@ -1404,6 +1409,9 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
     try:
         await shutdown_task
     finally:
+        # Stop the background colocation state manager
+        if state.openai_serving_completion is not None:
+            await state.openai_serving_completion.stop()
         sock.close()
         # Stop MPS control daemon
         try:

@@ -1434,9 +1434,14 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             return self.cospec_manager.is_selective_validator_trained()
         return False
     
-    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
+    def get_num_speculative_tokens_ema(self) -> int:
         if self.cospec_manager is not None:
-            return self.cospec_manager.predict_colocation_speedup_ratio(total_requests)
+            return self.cospec_manager.get_num_speculative_tokens_ema()
+        return 0
+    
+    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
+        if self.cospec_manager is not None:
+            return self.cospec_manager.predict_colocation_speedup_ratio(batch_size)
         return 1.0
 
 

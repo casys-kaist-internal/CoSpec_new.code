@@ -30,6 +30,9 @@ class CospecManager:
         self.profiler = Profiler(vllm_config)
         self.selective_validator = SelectiveValidator(profiler=self.profiler)
 
+        self.num_spec_tokens_ema = 7
+        self.ema_alpha = 0.1  # Smoothing factor for EMA
+
     def start_profile(self, mode:str):
         self.profiler.start_profile(mode)
 
@@ -54,14 +57,11 @@ class CospecManager:
             return self.selective_validator.is_selective_validator_trained()
         return True
     
-    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
-        if not self.is_selective_validator_trained():
-            return 1 
-        
+    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:        
         if self.is_driver:
             torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
-            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(total_requests, 
-                                                                            self.selective_validator.moving_avg_mean_tokens) 
+            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size, 
+                                                                            self.get_num_speculative_tokens_ema()) 
             torch.cuda.nvtx.range_pop()
             return speedup_ratio
         return 1 
@@ -98,6 +98,7 @@ class CospecManager:
             # And reset the flag for the current engine 
             self.shm.put(f"early_exit_{not self.is_primary}", True)
             self.shm.put(f"early_exit_{self.is_primary}", False)
+
     
     def draft_start(self):
         if self.is_driver:
@@ -115,13 +116,14 @@ class CospecManager:
 
         if self.is_driver:
             torch.cuda.synchronize()
-            should_exit = self.shm.get_nowait(f"early_exit_{self.is_primary}")
+            should_exit = self.shm.get(f"early_exit_{self.is_primary}")
             for rank in range(1, self.total_ranks):
                 self.shm.put(f"early_exit_{self.is_primary}_{rank}", should_exit)
         else:
             # wait for driver to set the flag 
             self.shm.wait_for_exists(f"early_exit_{self.is_primary}_{self.rank}")
-            should_exit = self.shm.get_and_delete(f"early_exit_{self.is_primary}_{self.rank}")
+            should_exit = self.shm.get(f"early_exit_{self.is_primary}_{self.rank}")
+            self.shm.delete(f"early_exit_{self.is_primary}_{self.rank}")
 
         return should_exit
 
@@ -164,3 +166,20 @@ class CospecManager:
             torch.cuda.nvtx.range_push("update_proposal_history")
             self.selective_validator.update_proposal_history(proposals, proposal_scores)
             torch.cuda.nvtx.range_pop()
+
+    def update_num_spec_tokens_ema(self, num_spec_tokens: int):
+        """Update the exponential moving average of target number of tokens.
+        
+        Args:
+            num_tokens: Number of tokens in the current batch
+        """
+        if self.num_spec_tokens_ema == 0.0:
+            # Initialize EMA with first value
+            self.num_spec_tokens_ema = float(num_spec_tokens)
+        else:
+            # Update EMA using the formula: EMA = α * current_value + (1 - α) * previous_EMA
+            self.num_spec_tokens_ema = (self.ema_alpha * float(num_spec_tokens) + 
+                                        (1 - self.ema_alpha) * self.num_spec_tokens_ema)
+            
+    def get_num_speculative_tokens_ema(self) -> int:
+        return self.num_spec_tokens_ema

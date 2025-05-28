@@ -241,7 +241,7 @@ class LLMEngine:
         )
 
         if envs.COSPEC:
-            self.cospec_shm = SharedMemory("cospec_kv_cache")
+            self.shm = SharedMemory()
 
         logger.info(
             "Initializing a V0 LLM engine (v%s) with config: %s, "
@@ -435,12 +435,12 @@ class LLMEngine:
                 num_gpu_blocks, num_cpu_blocks = self.model_executor.determine_num_available_blocks()
                 num_gpu_blocks = num_gpu_blocks // 2
                 num_cpu_blocks = num_cpu_blocks // 2
-                self.cospec_shm.put("gpu_blocks", num_gpu_blocks)
-                self.cospec_shm.put("cpu_blocks", num_cpu_blocks)
+                self.shm.put("gpu_blocks", num_gpu_blocks)
+                self.shm.put("cpu_blocks", num_cpu_blocks)
             else:
                 logger.info("Secondary process, getting num of blocks")
-                num_gpu_blocks = self.cospec_shm.get("gpu_blocks")
-                num_cpu_blocks = self.cospec_shm.get("cpu_blocks")
+                num_gpu_blocks = self.shm.get("gpu_blocks")
+                num_cpu_blocks = self.shm.get("cpu_blocks")
         else:
             num_gpu_blocks, num_cpu_blocks = (
                 self.model_executor.determine_num_available_blocks())
@@ -1955,20 +1955,23 @@ class LLMEngine:
         self.model_executor.set_profile_batch_size(batch_size)
 
     def maybe_load_cached_colocation_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_colocation_profile()[0]
+        return self.model_executor.maybe_load_cached_colocation_profile()
     
     def maybe_load_cached_tiling_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_tiling_profile()[0]
+        return self.model_executor.maybe_load_cached_tiling_profile()
     
     def is_selective_validator_trained(self) -> bool:
-        return self.model_executor.is_selective_validator_trained()[0]
+        return self.model_executor.is_selective_validator_trained()
 
-    def predict_colocation_speedup_ratio(self, total_requests: int) -> float:
-        return self.model_executor.predict_colocation_speedup_ratio(total_requests)[0]
+    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
+        return self.model_executor.predict_colocation_speedup_ratio(batch_size)
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
         self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
+
+    def get_num_speculative_tokens_ema(self) -> int:
+        return self.model_executor.get_num_speculative_tokens_ema()
 
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (
