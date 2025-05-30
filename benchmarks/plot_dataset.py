@@ -4,7 +4,7 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset,
                                 HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
-                                OpenMathInstructDataset)
+                                OpenMathInstructDataset, OpenCodeReasoningDataset, Math500Dataset)
 try:
     from vllm.transformers_utils.tokenizer import get_tokenizer
 except ImportError:
@@ -40,6 +40,13 @@ openmath_dataset = OpenMathInstructDataset(random_seed=seed,
 open_code_instruct_dataset = OpenCodeInstructDataset(random_seed=seed,
                     dataset_path="nvidia/OpenCodeInstruct", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
+open_code_reasoning_dataset = OpenCodeReasoningDataset(random_seed=seed,
+                    dataset_path="nvidia/OpenCodeReasoning", 
+                    dataset_split="split_0", 
+                    dataset_subset="split_0").sample_all(tokenizer=tokenizer)
+math500_dataset = Math500Dataset(random_seed=seed,
+                    dataset_path="HuggingFaceH4/MATH-500", 
+                    dataset_split="test").sample_all(tokenizer=tokenizer)
 # open_math_reasoning_dataset = OpenMathReasoningDataset(random_seed=seed,
 #                     dataset_path="nvidia/OpenMathReasoning", 
 #                     dataset_split="cot").sample_all(tokenizer=tokenizer)
@@ -59,8 +66,8 @@ open_code_instruct_dataset = OpenCodeInstructDataset(random_seed=seed,
 
 datasets = {
     'ShareGPT': sharegpt_dataset,
-    'OpenMathInstruct': openmath_dataset,
-    'OpenCodeInstruct': open_code_instruct_dataset,
+    'Math500': math500_dataset,
+    'OpenCodeReasoning': open_code_reasoning_dataset
 }
 
 # Create figure with subplots

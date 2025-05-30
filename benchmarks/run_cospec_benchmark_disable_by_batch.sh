@@ -16,7 +16,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
 export APP_SLACK_ICON_EMOJI=":dog:"
 export APP_SLACK_CHANNEL="malus07"
-export DISABLE_BY_BATCH_SIZE=64
+export DISABLE_BY_BATCH_SIZE=48
 
 # Dataset Configuration
 DATASETS=("math500")

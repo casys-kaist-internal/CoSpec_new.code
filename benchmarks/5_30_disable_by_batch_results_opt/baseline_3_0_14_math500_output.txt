@@ -17,3 +17,32 @@ Traffic request rate: 14.0
 Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
 Benchmark duration: 5.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     2334      
+Benchmark duration (s):                  300.27    
+Total input tokens:                      166134    
+Total generated tokens:                  498068    
+Request throughput (req/s):              7.77      
+Output token throughput (tok/s):         1658.76   
+Total Token throughput (tok/s):          2212.05   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          43290.95  
+Median TTFT (ms):                        44509.90  
+P99 TTFT (ms):                           101434.76 
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          95.03     
+Median TPOT (ms):                        96.11     
+P99 TPOT (ms):                           137.46    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           95.42     
+Median ITL (ms):                         87.31     
+P99 ITL (ms):                            214.78    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          63357.79  
+Median E2EL (ms):                        63267.80  
+P99 E2EL (ms):                           136415.81 
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 456.76    
+Median Token Latency (ms):               307.00    
+P99 Token Latency (ms):                  2170.45   
+==================================================
