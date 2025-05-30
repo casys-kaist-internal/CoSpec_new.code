@@ -158,7 +158,6 @@ urllib3==2.4.0
 uvicorn==0.34.2
 uvloop==0.21.0
 # Editable Git install with no remote (vllm==0.1.dev6067+g79d1678.d20250525)
--e /mnt/sdb/sjchoi/CoSpec_new.code
 watchfiles==1.0.5
 websockets==15.0.1
 wrapt==1.17.2
