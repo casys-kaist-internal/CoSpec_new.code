@@ -800,10 +800,10 @@ def main(args: argparse.Namespace):
                         if result.get("is_trained", True):
                             training_time = time.time() - start_time  # Keep in seconds
                             print(f"Selective validator trained after {request_count} test requests ({training_time:.2f} seconds)")
-                            time.sleep(15)
                             return result
 
     asyncio.run(run_test_until_trained())
+    time.sleep(30)
 
     # Now run the full benchmark
     print("Running full benchmark...")

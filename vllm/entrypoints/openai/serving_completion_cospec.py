@@ -650,7 +650,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     async def profile_colocation(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_colocation_profile()
         if loaded_cached_profile:
-            time.sleep(10)
+            time.sleep(5)
             loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
             assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
             logger.info("Loaded cached profile. Skipping profiling.")
@@ -678,7 +678,9 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             for batch_size in reversed(batch_sizes):
                 for num_speculative_tokens in num_speculative_tokens_list:
                     await self._profile_non_colocation(batch_size, num_speculative_tokens)
+                    # time.sleep(1)
                     await self._profile_colocation(batch_size, num_speculative_tokens)
+                    # time.sleep(1)
                     pbar.update(1)
 
         await self.engine_client.stop_cospec_profile()
@@ -688,7 +690,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-        time.sleep(10)
+        time.sleep(1)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
         assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
 
@@ -699,6 +701,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
         await self.engine_client.set_profile_batch_size(batch_size)
         await self.engine_client2.set_profile_batch_size(batch_size)
+        # time.sleep(1)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
@@ -721,6 +724,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
         await self.engine_client.set_profile_batch_size(batch_size)
         await self.engine_client2.set_profile_batch_size(batch_size)
+        # time.sleep(1)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
@@ -799,7 +803,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
         await self.engine_client.stop_cospec_profile()
 
-        time.sleep(10)
+        time.sleep(5)
 
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
         assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
@@ -910,6 +914,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                     # get num speculative tokens ema and set it the speculative window size 
                     num_spec_tokens_ema = await self.engine_client.get_num_speculative_tokens_ema()
                     num_spec_tokens_ema = math.ceil(num_spec_tokens_ema)
+                    logger.info(f"[Dynamic Colocation] Setting num speculative tokens to {num_spec_tokens_ema}")
                     await self.engine_client.set_num_speculative_tokens(num_spec_tokens_ema)
                     await self.engine_client2.set_num_speculative_tokens(num_spec_tokens_ema)
             else:
@@ -930,6 +935,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                     # Reset counter after switching
                     self.consecutive_colocation_count = 0
                     # Set num speculative tokens to 7 (maximum)
+                    logger.info(f"[Dynamic Colocation] Setting num speculative tokens to 7")
                     await self.engine_client.set_num_speculative_tokens(7)
                     await self.engine_client2.set_num_speculative_tokens(7)
             else:

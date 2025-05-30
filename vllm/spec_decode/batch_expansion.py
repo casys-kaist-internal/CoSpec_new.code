@@ -87,13 +87,13 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
             decode_indicies = non_spec_indices_without_chunked_prefill + spec_indices
             execute_model_req.consolidated_lens_tensor = (proposals.proposal_lens[decode_indicies] + 1).to(torch.int)
             
-        torch.cuda.nvtx.range_push("execute_model")
+        # torch.cuda.nvtx.range_push("execute_model")
         target_sampler_output = self._scorer_worker.execute_model(
             execute_model_req=execute_model_req.clone(
                 seq_group_metadata_list=target_seq_group_metadata_list),
                 is_target=True
             )
-        torch.cuda.nvtx.range_pop()
+        # torch.cuda.nvtx.range_pop()
         assert len(target_sampler_output) == 1, "expected single-step output"
         target_sampler_output = target_sampler_output[0]
     

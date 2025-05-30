@@ -60,40 +60,40 @@ class CospecManager:
     
     def predict_colocation_speedup_ratio(self, batch_size: int) -> float:        
         if self.is_driver:
-            torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
+            # torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
             speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size, 
                                                                             self.get_num_speculative_tokens_ema()) 
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
             return speedup_ratio
         return 1 
     
     def set_colocation_mode(self, colocation_mode: bool):
-        if self.is_driver and self.is_primary:
-            self.profiler.set_colocation_mode(colocation_mode)
+        self.profiler.set_colocation_mode(colocation_mode)
 
     def set_profile_batch_size(self, batch_size: int):
-        if self.is_driver and self.is_primary:
-            self.profiler.set_profile_batch_size(batch_size)
+        self.profiler.set_profile_batch_size(batch_size)
 
     def start_step_marker(self, num_speculative_tokens:int):
+        torch.cuda.synchronize()
         if self.is_driver and self.is_primary:
             self.profiler.start_step_marker(num_speculative_tokens)
 
     def stop_step_marker(self):
+        torch.cuda.synchronize()
         if self.is_driver and self.is_primary:
             self.profiler.stop_step_marker()
 
     def target_start(self):
         torch.cuda.synchronize()
         fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
-        torch.cuda.nvtx.range_push("target_start")
+        # torch.cuda.nvtx.range_push("target_start")
         if self.is_driver:
             self.profiler.start_target_marker()
 
     def target_finish(self, num_tokens: int):
         torch.cuda.synchronize()
         fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
-        torch.cuda.nvtx.range_pop()
+        # torch.cuda.nvtx.range_pop()
         if self.is_driver:
             # print("target_num_tokens, ", num_tokens)
             self.profiler.stop_target_marker(num_tokens)
@@ -106,16 +106,16 @@ class CospecManager:
     def draft_start(self):
         torch.cuda.synchronize()
         fcntl.flock(self.draft_lock_fd, fcntl.LOCK_EX)
-        torch.cuda.nvtx.range_push("draft_start")
+        # torch.cuda.nvtx.range_push("draft_start")
 
     def draft_finish(self):
         torch.cuda.synchronize()
         fcntl.flock(self.draft_lock_fd, fcntl.LOCK_UN)
-        torch.cuda.nvtx.range_pop()
+        # torch.cuda.nvtx.range_pop()
 
     def check_early_exit_draft(self):
+        torch.cuda.synchronize()
         if self.is_driver:
-            torch.cuda.synchronize()
             should_exit = self.shm.get(f"early_exit_{self.is_primary}")
             for rank in range(1, self.total_ranks):
                 self.shm.put(f"early_exit_{self.is_primary}_{rank}", should_exit)
@@ -164,9 +164,9 @@ class CospecManager:
 
         if self.is_driver:
             if not self.is_selective_validator_trained():
-                torch.cuda.nvtx.range_push("update_proposal_history")
+                # torch.cuda.nvtx.range_push("update_proposal_history")
                 self.selective_validator.update_proposal_history(proposals, proposal_scores)
-                torch.cuda.nvtx.range_pop()
+                # torch.cuda.nvtx.range_pop()
 
     def update_num_spec_tokens_ema(self, num_spec_tokens: int):
         """Update the exponential moving average of target number of tokens.
