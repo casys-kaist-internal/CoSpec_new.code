@@ -65,7 +65,7 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset, 
                                 HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
-                                OpenMathInstructDataset, Math500Dataset)
+                                OpenMathInstructDataset, Math500Dataset, OpenCodeReasoningDataset)
 from benchmark_utils import convert_to_pytorch_benchmark_format, write_to_json
 
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
@@ -685,9 +685,13 @@ def main(args: argparse.Namespace):
         full_requests = ShareGPTDataset(random_seed=args.seed,
                     dataset_path="ShareGPT_V3_unfiltered_cleaned_split.json").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "opencode":
-        full_requests = OpenCodeInstructDataset(random_seed=args.seed,
-                    dataset_path="nvidia/OpenCodeInstruct", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
+        # full_requests = OpenCodeInstructDataset(random_seed=args.seed,
+        #             dataset_path="nvidia/OpenCodeInstruct", 
+        #             dataset_split="train").sample_all(tokenizer=tokenizer)
+        full_requests = OpenCodeReasoningDataset(random_seed=args.seed,
+                    dataset_path="nvidia/OpenCodeReasoning", 
+                    dataset_split="split_0", 
+                    dataset_subset="split_0").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "openmath":
         full_requests = OpenMathInstructDataset(random_seed=args.seed,
                     dataset_path="nvidia/OpenMathInstruct-2", 
@@ -803,7 +807,7 @@ def main(args: argparse.Namespace):
                             return result
 
     asyncio.run(run_test_until_trained())
-    time.sleep(30)
+    time.sleep(60) # rest enough time for dynamic colocation to be settled in non-colocation mode
 
     # Now run the full benchmark
     print("Running full benchmark...")

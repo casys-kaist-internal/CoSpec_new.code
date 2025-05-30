@@ -1388,6 +1388,88 @@ class OpenCodeInstructDataset(HuggingFaceDataset):
         return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
     
 
+
+class OpenCodeReasoningDataset(HuggingFaceDataset):
+    """
+    Dataset class for processing a OpenCodeReasoning dataset.
+    """
+    SUPPORTED_DATASET_PATHS = {
+        "nvidia/OpenCodeReasoning"
+    }
+    
+    def sample(self,
+               tokenizer: PreTrainedTokenizerBase,
+               num_requests: int,
+               output_len: Optional[int] = None,
+               **kwargs) -> list:
+        sampled_requests = []
+
+        for item in self.data:
+            if len(sampled_requests) >= num_requests:
+                break
+            prompt = item["input"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["output"]).input_ids)
+            output_len = answer_len if output_len is None else output_len
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+        return sampled_requests
+    
+    def sample_all(self,
+                   tokenizer: PreTrainedTokenizerBase,
+                   **kwargs) -> list:
+        # Try to load from cache first
+        cache_path = self._get_cache_path(tokenizer.name_or_path)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached_data = json.load(f)
+                # Convert cached data back to SampleRequest objects
+                print(f"Loaded {len(cached_data)} samples from cache from {cache_path}")
+                return [SampleRequest(**sample) for sample in cached_data]
+            except Exception as e:
+                print(f"Failed to load cache: {e}. Regenerating samples...")
+
+        sampled_requests = []
+
+        for item in self.data:
+            print(f"Processing {len(sampled_requests)} / 5000")
+            if len(sampled_requests) >= 5000:
+                break
+            prompt = item["input"]
+            prompt_len = len(tokenizer(prompt).input_ids)
+            answer_len = len(tokenizer(item["output"]).input_ids)
+            output_len = answer_len
+            
+            if not is_valid_sequence(prompt_len, 
+                                     output_len, 
+                                     max_prompt_len=2048,
+                                     max_total_len=100000):
+                continue
+            
+            sampled_requests.append(
+                SampleRequest(prompt=prompt, prompt_len=prompt_len, expected_output_len=output_len))
+            
+        
+        # Cache the generated samples
+        try:
+            # Convert SampleRequest objects to dictionaries for JSON serialization
+            cache_data = [sample.__dict__ for sample in sampled_requests]
+            # make directory if it doesn't exist
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f)
+        except Exception as e:
+            print(f"Failed to save cache: {e}")
+
+        return sampled_requests
+    
+    def _get_cache_path(self, tokenizer_name: str) -> str:
+        """Get the cache file path based on tokenizer and output length."""
+        cache_name = f"open_code_reasoning_{tokenizer_name}"
+
+        return os.path.join(os.path.dirname(self.dataset_path), "cache", f"{cache_name}.json")
+
 class OpenMathInstructDataset(HuggingFaceDataset):
     """
     Dataset class for processing a OpenMathReasoning dataset.
