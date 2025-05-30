@@ -215,19 +215,19 @@ run_benchmark() {
 # =============================================
 
 # Define the order of configurations to run
-declare -a CONFIG_ORDER=(
-    "colocation_consolidated"
-    "colocation_consolidated_threshold_0.1"
-    "colocation_consolidated_threshold_0.3"
-    "colocation_consolidated_threshold_0.5"
-    "colocation_consolidated_tile"
-    "colocation_consolidated_linear"
-    "colocation_consolidated_polynomial"
-)
 # declare -a CONFIG_ORDER=(
 #     "colocation_consolidated"
+#     "colocation_consolidated_threshold_0.1"
+#     "colocation_consolidated_threshold_0.3"
+#     "colocation_consolidated_threshold_0.5"
 #     "colocation_consolidated_tile"
+#     "colocation_consolidated_linear"
+#     "colocation_consolidated_polynomial"
 # )
+declare -a CONFIG_ORDER=(
+    "colocation_consolidated_threshold_0.5"
+    "colocation_consolidated_polynomial"
+)
 
 TOTAL_RUNS=0
 # Baseline runs

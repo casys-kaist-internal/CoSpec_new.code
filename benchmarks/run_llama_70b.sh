@@ -18,9 +18,9 @@ export AR=${AR:-0}
 export TARGET_MODEL="meta-llama/Llama-3.1-70B-Instruct"
 export DRAFT_MODEL="meta-llama/Llama-3.2-1B-Instruct"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=4
-export DRAFT_TENSOR_PARALLEL_SIZE=1
-export DOWNLOAD_DIR="/mnt/sdb/huggingface"
+export TENSOR_PARALLEL_SIZE=8
+export DRAFT_TENSOR_PARALLEL_SIZE=4
+export DOWNLOAD_DIR="/workspace"
 
 # Base command
 CMD="python -m vllm.entrypoints.openai.api_server \
@@ -30,7 +30,7 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --seed 42 \
     --enable-chunked-prefill \
     -tp $TENSOR_PARALLEL_SIZE \
-    --gpu_memory_utilization 0.80 \
+    --gpu_memory_utilization 0.75 \
     --disable-log-requests \
     --download-dir $DOWNLOAD_DIR"
 

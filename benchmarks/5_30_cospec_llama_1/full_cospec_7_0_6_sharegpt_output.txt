@@ -1,4 +1,4 @@
-INFO 05-30 19:02:38 [__init__.py:239] Automatically detected platform cuda.
+INFO 05-30 19:26:24 [__init__.py:239] Automatically detected platform cuda.
 Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='huggyllama/llama-13b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=6.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
 Split dataset into 8277 test samples and 74494 training samples
 Temperature:  0.0
@@ -17,31 +17,31 @@ Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
 Benchmark duration: 5.0 minutes
 ============ Serving Benchmark Result ============
-Successful requests:                     1693      
-Benchmark duration (s):                  300.37    
-Total input tokens:                      414564    
-Total generated tokens:                  388214    
-Request throughput (req/s):              5.64      
-Output token throughput (tok/s):         1292.47   
-Total Token throughput (tok/s):          2672.67   
+Successful requests:                     1691      
+Benchmark duration (s):                  300.14    
+Total input tokens:                      413961    
+Total generated tokens:                  388154    
+Request throughput (req/s):              5.63      
+Output token throughput (tok/s):         1293.26   
+Total Token throughput (tok/s):          2672.51   
 ---------------Time to First Token----------------
-Mean TTFT (ms):                          215.39    
-Median TTFT (ms):                        199.60    
-P99 TTFT (ms):                           473.50    
+Mean TTFT (ms):                          213.62    
+Median TTFT (ms):                        196.51    
+P99 TTFT (ms):                           488.20    
 -----Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          40.06     
-Median TPOT (ms):                        33.86     
-P99 TPOT (ms):                           109.50    
+Mean TPOT (ms):                          38.99     
+Median TPOT (ms):                        33.67     
+P99 TPOT (ms):                           105.16    
 ---------------Inter-token Latency----------------
-Mean ITL (ms):                           101.19    
-Median ITL (ms):                         83.67     
-P99 ITL (ms):                            285.64    
+Mean ITL (ms):                           98.56     
+Median ITL (ms):                         81.80     
+P99 ITL (ms):                            273.65    
 ----------------End-to-end Latency----------------
-Mean E2EL (ms):                          6611.28   
-Median E2EL (ms):                        4313.75   
-P99 E2EL (ms):                           35275.59  
+Mean E2EL (ms):                          6396.21   
+Median E2EL (ms):                        4210.16   
+P99 E2EL (ms):                           33302.89  
 -----Token Latency (e2e_latency / output_len)-----
-Mean Token Latency (ms):                 45.44     
-Median Token Latency (ms):               37.49     
-P99 Token Latency (ms):                  135.93    
+Mean Token Latency (ms):                 44.20     
+Median Token Latency (ms):               37.41     
+P99 Token Latency (ms):                  131.90    
 ==================================================

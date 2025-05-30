@@ -49,7 +49,7 @@ for dataset in datasets:
         temp_data = dataset_df[dataset_df['temperature'] == temp]
         
         # Get unique request rates
-        throughputs = sorted(temp_data['request_throughput'].unique())
+        throughputs = sorted(temp_data['request_rate'].unique())
         
         # Get baseline data (colocation_consolidated)
         baseline_data = temp_data[temp_data['config'] == 'colocation_consolidated']
@@ -84,16 +84,15 @@ for dataset in datasets:
             # Calculate x positions for this configuration
             x_pos = x + (i - n_configs/2 + 0.5) * bar_width
             
-            # Calculate throughput speedup values for each throughput
+            # Calculate speedup values for each throughput
             speedup_values = []
             for tp in throughputs:
-                tp_data = data[data['request_throughput'] == tp]
-                tp_baseline = baseline_data[baseline_data['request_throughput'] == tp]
+                tp_data = data[data['request_rate'] == tp]
+                tp_baseline = baseline_data[baseline_data['request_rate'] == tp]
                 
                 if not tp_data.empty and not tp_baseline.empty:
-                    # Throughput speedup = current_throughput / baseline_throughput
-                    # We use request_rate as throughput since it represents the achieved throughput
-                    speedup = tp_data['request_throughput'].iloc[0] / tp_baseline['request_throughput'].iloc[0]
+                    # Speedup = baseline_latency / current_latency
+                    speedup = tp_baseline['mean_token_latency'].iloc[0] / tp_data['mean_token_latency'].iloc[0]
                     speedup_values.append(speedup)
                 else:
                     speedup_values.append(0)
@@ -107,9 +106,12 @@ for dataset in datasets:
         # Add horizontal line at y=1 (baseline)
         ax.axhline(y=1, color='black', linestyle='--', alpha=0.5)
         
+        # Set y-axis to start from 1
+        # ax.set_ylim(bottom=1)
+        
         # Customize subplot
         ax.set_xlabel('Request Rate (req/s)', fontsize=10)
-        ax.set_ylabel('Throughput Speedup vs Colocation Consolidated', fontsize=10)
+        ax.set_ylabel('Speedup vs Colocation Consolidated', fontsize=10)
         # Display "Random" for temperature -1
         temp_title = "Random" if temp == -1 else f"Temperature = {temp}"
         ax.set_title(temp_title, fontsize=12)
@@ -125,7 +127,7 @@ for dataset in datasets:
 
     # Adjust layout and save
     plt.tight_layout()
-    output_path = os.path.join(output_dir, f'throughput_speedup_{dataset}.png')
+    output_path = os.path.join(output_dir, f'speedup_{dataset}.png')
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
