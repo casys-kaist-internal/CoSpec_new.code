@@ -1313,8 +1313,10 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         logger.info("Initializing NVIDIA MPS...")
         
         # Set MPS environment variables
-        mps_dir = f"/tmp/nvidia-mps-{os.getpid()}"
-        log_dir = f"/tmp/nvidia-log-{os.getpid()}"
+        # mps_dir = f"/tmp/nvidia-mps-{os.getpid()}"
+        # log_dir = f"/tmp/nvidia-log-{os.getpid()}"
+        mps_dir = f"/tmp/nvidia-mps"
+        log_dir = f"/tmp/nvidia-log"
         os.environ["CUDA_MPS_PIPE_DIRECTORY"] = mps_dir
         os.environ["CUDA_MPS_LOG_DIRECTORY"] = log_dir
         
@@ -1417,7 +1419,7 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         try:
             subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
             logger.info("NVIDIA MPS daemon stopped successfully")
-            subprocess.run(["rm", "-rf", f"/tmp/nvidia-mps-{os.getpid()}"], check=True)
+            # subprocess.run(["rm", "-rf", f"/tmp/nvidia-mps-{os.getpid()}"], check=True)
             
         except Exception as e:
             logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))

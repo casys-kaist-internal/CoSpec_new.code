@@ -706,7 +706,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         """
         sampler_output = self.scorer_worker.execute_model(execute_model_req, 
                                                           is_target=True)
-
         assert len(sampler_output) == 1
         sampler_output = sampler_output[0]
 
@@ -773,7 +772,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         # In case of prefill, scorer_worker has to be run before proposer so
         # that the hidden states can be propagated to proposer when needed.
         if data["no_spec"]:
-            self.scorer_worker.execute_model()
+            self.scorer_worker.execute_model(is_target=True)
 
         if not data["disable_all_speculation"]:
             # Even if num_lookahead_slots is zero, we want to run the
@@ -782,7 +781,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # We run the proposer once per lookahead slot. In the future we
             # should delegate how many times it runs to the proposer.
             for _ in range(max(num_lookahead_slots, 1)):
-                self.proposer_worker.execute_model()
+                self.proposer_worker.execute_model(is_target=False)
 
                 if num_lookahead_slots != 0:
                     if isinstance(self.proposer_worker, SmallerTpProposerWorker):
@@ -797,9 +796,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                         raise ValueError(f"Unsupported proposer worker type: {type(self.proposer_worker)}")
 
         if not data["no_spec"]:
-            self.scorer_worker.execute_model()
+            self.scorer_worker.execute_model(is_target=True)
             if data["run_spec_proposer_for_prefill"]:
-                self.proposer_worker.execute_model()
+                self.proposer_worker.execute_model(is_target=False)
 
         return True
 

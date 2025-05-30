@@ -84,7 +84,7 @@ class TilingProfiler:
         # print("num_tokens", num_tokens, "target_duration", target_duration)
 
         # Round up to nearest multiple of 8
-        num_tokens = ((num_tokens - 1) // 8 + 1) * 8
+        # num_tokens = ((num_tokens - 1) // 8 + 1) * 8
 
         if num_tokens not in self.input_tokens_capture_list:
             return

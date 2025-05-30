@@ -1,118 +1,94 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import math
+import argparse
+import os
 
-# Read the CSV data into a pandas DataFrame
-csv_file_name = "result.csv"
-data = pd.read_csv(csv_file_name)
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Plot benchmark results from CSV file')
+parser.add_argument('csv', type=str, help='Path to the benchmark results CSV file')
+args = parser.parse_args()
 
-# Convert appropriate columns to numeric and boolean types
-numeric_cols = [
-    'temperature', 'request_rate', 'draft_size', 'budget_token', 'budget_seq',
-    'selective_validation_threshold', 'p50_ttft', 'p99_ttft', 'p50_tpot', 'p99_tpot',
-    'p50_token_latency', 'p99_token_latency', 'token_throughput',
-    'request_throughput', 'token_latency'
-]
-data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric)
+# Read the CSV file
+df = pd.read_csv(args.csv)
 
-boolean_cols = ['colocate', 'consolidated_attention', 'preempt_flag']
-data[boolean_cols] = data[boolean_cols].astype(bool)
+# Create output directory for plots using the input CSV filename
+output_dir = os.path.splitext(os.path.basename(args.csv))[0]
+output_dir = "plot_" + output_dir
+os.makedirs(output_dir, exist_ok=True)
 
-# Filter data for request rate 12
-data = data[data['request_rate'] == 12]
+# Get unique datasets
+datasets = sorted(df['dataset'].unique())
 
-# Ensure that the data is sorted by selective_validation_threshold for plotting
-data = data.sort_values(by='selective_validation_threshold')
+# Plot for each dataset
+for dataset in datasets:
+    print(f"Plotting results for dataset: {dataset}")
+    dataset_df = df[df['dataset'] == dataset]
+    
+    # Get unique temperatures and calculate grid dimensions
+    temperatures = sorted(dataset_df['temperature'].unique())
+    # Move temperature -1 to the end if it exists
+    if -1 in temperatures:
+        temperatures.remove(-1)
+        temperatures.append(-1)
+    n_temps = len(temperatures)
+    n_cols = 5
+    n_rows = math.ceil(n_temps / n_cols)
 
-# Get unique temperatures
-temperatures = [0, 0.25, 0.5, 0.75, -1]  # Including -1 for random
+    # Create figure with subplots for each temperature
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(50, 5*n_rows))
+    axes = axes.flatten()
+    
+    # Plot for each temperature
+    for idx, temp in enumerate(temperatures):
+        ax = axes[idx]
+        
+        # Plot Auto Regressive (baseline with spec_tokens=0)
+        ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0) & (dataset_df['temperature'] == temp)]
+        ax.plot(ar_data['request_throughput'], ar_data['mean_token_latency'],
+                marker='o', label='Auto Regressive', linewidth=2, color='black')
+        
+        # Plot baseline with other spec_tokens for current temperature
+        baseline_data = dataset_df[(dataset_df['config'] == 'baseline') & 
+                          (dataset_df['temperature'] == temp) & 
+                          (dataset_df['spec_tokens'] > 0)]
+        for spec_tokens in sorted(baseline_data['spec_tokens'].unique()):
+            spec_data = baseline_data[baseline_data['spec_tokens'] == spec_tokens]
+            ax.plot(spec_data['request_throughput'], spec_data['mean_token_latency'],
+                    marker='o', label=f'baseline (spec_tokens={spec_tokens})', linewidth=2)
+        
+        # Plot other configs
+        other_configs = [config for config in dataset_df['config'].unique() if config != 'baseline']
+        for config in other_configs:
+            config_data = dataset_df[(dataset_df['config'] == config) & (dataset_df['temperature'] == temp)]
+            ax.plot(config_data['request_throughput'], config_data['mean_token_latency'],
+                    marker='o', label=config, linewidth=2)
+        
+        # y axis log scale
+        ax.set_yscale('log')
+        # ax.set_ylim(0, 750)
+        
+        # Customize subplot
+        ax.set_xlabel('Request Throughput (req/s)', fontsize=10)
+        ax.set_ylabel('Mean Token Latency (ms)', fontsize=10)
+        # Display "Random" for temperature -1
+        temp_title = "Random" if temp == -1 else f"Temperature = {temp}"
+        ax.set_title(temp_title, fontsize=12)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
 
-# Define color palette for temperatures
-colors = ['#D7E2F9', '#72A0FF', '#3B82F6', '#3864B9', '#1B345F']  # Updated bluish palette
-colors = ['#D7E2F9', '#A0C4FF', '#4F8EFF', '#1C6DD0', '#003366']  # More distinguishable bluish palette
+    # Remove any empty subplots
+    for idx in range(len(temperatures), len(axes)):
+        fig.delaxes(axes[idx])
 
-temp_color_map = dict(zip(temperatures, colors))
+    # Add dataset name to the figure
+    fig.suptitle(f'Dataset: {dataset}', fontsize=16, y=1.02)
 
-# Plot settings
-markers = ['o', 's', '^', 'D', 'v']  # Different markers for temperatures
-marker_map = dict(zip(temperatures, markers))
+    # Adjust layout and save
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, f'mean_token_latency_{dataset}.png')
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
 
-# Initialize the figure and axes
-fig, axes = plt.subplots(1, 2, figsize=(6, 2.8), sharex=True)
-fig.subplots_adjust(hspace=0.3)
-
-# Set x-ticks with a granularity of 0.1
-x_ticks = [round(x * 0.1, 1) for x in range(0, 11)]  # Adjust this based on the range of your selective_validation_threshold values
-
-# Plot Token Throughput vs. Drop Threshold
-ax_throughput = axes[0]
-ax_throughput.set_xticks(x_ticks)  # Set x-ticks with 0.1 granularity
-
-for temp in temperatures:
-    # Filter data for this temperature
-    temp_data = data[data['temperature'] == temp]
-    if temp_data.empty:
-        continue  # Skip if no data for this temperature
-
-    label = f'Temp {temp}' if temp != -1 else 'Random'
-
-    # Plot the thicker black line as the "edge"
-    ax_throughput.plot(
-        temp_data['selective_validation_threshold'], temp_data['request_throughput'],
-        marker=marker_map[temp], color='black', linestyle='-', linewidth=2, alpha=0.7
-    )
-
-    # Overlay the actual colored line with a thinner width
-    ax_throughput.plot(
-        temp_data['selective_validation_threshold'], temp_data['request_throughput'],
-        marker=marker_map[temp], label=f'{label}', color=temp_color_map[temp],
-        linestyle='-', linewidth=1.5, markersize=6, markeredgewidth=1, markeredgecolor='black'
-    )
-
-ax_throughput.set_ylabel('Request Throughput\n(requests/s)', fontsize=10)
-ax_throughput.grid(True, linestyle='--', linewidth=0.5)
-ax_throughput.set_xlabel('Drop Threshold', fontsize=10)
-
-# Plot Token Latency vs. Drop Threshold
-ax_latency = axes[1]
-ax_latency.set_xticks(x_ticks)  # Set x-ticks with 0.1 granularity
-
-for temp in temperatures:
-    # Filter data for this temperature
-    temp_data = data[data['temperature'] == temp]
-    if temp_data.empty:
-        continue  # Skip if no data for this temperature
-    label = f'Temp {temp}' if temp != -1 else 'Random'
-
-    # Plot the thicker black line as the "edge"
-    ax_latency.plot(
-        temp_data['selective_validation_threshold'], temp_data['token_latency'],
-        marker=marker_map[temp], color='black', linestyle='-', linewidth=2, alpha=0.7
-    )
-
-    # Overlay the actual colored line with a thinner width
-    ax_latency.plot(
-        temp_data['selective_validation_threshold'], temp_data['token_latency'],
-        marker=marker_map[temp], label=f'{label}', color=temp_color_map[temp],
-        linestyle='-', linewidth=1.5, markersize=6, markeredgewidth=1, markeredgecolor='black'
-    )
-
-ax_latency.set_xlabel('Drop Threshold', fontsize=10)
-ax_latency.set_ylabel('Token Latency (s/token)', fontsize=10)
-ax_latency.grid(True, linestyle='--', linewidth=0.5)
-
-
-# Add a single legend for temperatures with bigger font size and closer spacing
-handles, labels = ax_throughput.get_legend_handles_labels()
-fig.legend(handles, labels, loc='upper center', ncol=len(temperatures),
-           bbox_to_anchor=(0.5, 1.05), fontsize=11, frameon=False, columnspacing=0.5)
-
-# Adjust layout to make room for the legend
-plt.tight_layout(rect=[0, 0, 1, 0.95])
-
-# space between subplots
-plt.subplots_adjust(wspace=0.36)
-
-# Save and show the plot
-plt.savefig('token_throughput_latency_vs_selective_validation_threshold_request_rate_12.pdf', bbox_inches='tight', format='pdf')
-plt.show()
+print(f"Plots have been saved to the '{output_dir}' directory")

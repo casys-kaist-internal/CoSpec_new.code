@@ -21,7 +21,7 @@ class SelectiveValidator:
         self.history_size = 10000  # Minimum number of samples needed to train the model
         self.history_X = deque(maxlen=self.history_size)  # Pre-temperature probabilities
         self.history_y = deque(maxlen=self.history_size)  # Actual acceptance probabilities
-        self.regression_model = LinearRegression()  # Use LinearRegression directly
+        self.regression_model = LinearRegression()
         self.is_model_trained = False
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
         # self.tile_alignment = int(envs.COSPEC_SELECTIVE_VALIDATION_TILE_SIZE)
@@ -230,7 +230,6 @@ class SelectiveValidator:
 
     def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate mask for threshold-based selective validation."""
-        # Get predictions and create masks in one go
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
         cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
         seq_len = proposals.proposal_token_ids.shape[1]
@@ -534,8 +533,8 @@ class SelectiveValidator:
 
     def is_selective_validator_trained(self) -> bool:
         # print the progress
-        current_samples = len(self.history_X)
-        samples_left = max(0, self.history_size - current_samples)
+        # current_samples = len(self.history_X)
+        # samples_left = max(0, self.history_size - current_samples)
         # print(f"Training progress: {current_samples}/{self.history_size} samples collected. {samples_left} samples left.")
         return self.is_model_trained
 

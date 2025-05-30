@@ -4,7 +4,7 @@ from UltraDict import UltraDict
 
 class SharedMemory:    
     def __init__(self):
-        self.shared_dict = UltraDict(name="cospec_shared_1", shared_lock=True)
+        self.shared_dict = UltraDict(name="cospec_shared_3", shared_lock=True)
             
     def put(self, key: str, value: Any) -> None:
         with self.shared_dict.lock:

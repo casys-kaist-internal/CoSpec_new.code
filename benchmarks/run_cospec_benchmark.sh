@@ -21,7 +21,7 @@ export APP_SLACK_CHANNEL="malus07"
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second) for each dataset
-MATH500_RATES=(2 4 6 8 10 12 14)
+MATH500_RATES=(2 4 6 8 10 12 14 16)
 SHAREGPT_RATES=(1 2 3 4 5 6 7 8)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
@@ -50,7 +50,7 @@ BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
 COSPEC_SPEC_TOKENS=7
 
 # Temperature Configuration
-TEMPERATURES=(0 0.3 0.6 -1)
+TEMPERATURES=(0)
 
 # Benchmark Configuration
 export WARMUP_DURATION=1
@@ -64,7 +64,7 @@ declare -A COSPEC_CONFIGS=(
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
+    ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile"
 )
 
 # Set nvidia-smi EXCLUSIVE_PROCESS 
@@ -77,6 +77,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
+RESULTS_DIR="5_30_cospec_opt"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -214,9 +215,6 @@ run_benchmark() {
 # Define the order of configurations to run
 declare -a CONFIG_ORDER=(
     "full_cospec"
-    "colocation"
-    "colocation_dynamic"
-    "colocation_dynamic_selective"
 )
 
 TOTAL_RUNS=0

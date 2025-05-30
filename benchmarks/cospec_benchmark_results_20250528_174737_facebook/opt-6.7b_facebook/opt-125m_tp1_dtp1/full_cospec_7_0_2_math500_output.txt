@@ -1,0 +1,4407 @@
+INFO 05-28 17:47:46 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='math500', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=2.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Loaded 500 samples from cache from HuggingFaceH4/cache/math500_facebook/opt-6.7b.json
+Split dataset into 50 test samples and 450 training samples
+Temperature:  0.0
+Running test split to train selective validator...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+result {'is_trained': False}
+Running test requests 1 to 128 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 129 to 256 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 257 to 384 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 385 to 512 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 513 to 640 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 641 to 768 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 769 to 896 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 897 to 1024 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1025 to 1152 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1153 to 1280 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1281 to 1408 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1409 to 1536 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1537 to 1664 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1665 to 1792 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1793 to 1920 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 1921 to 2048 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2049 to 2176 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2177 to 2304 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2305 to 2432 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2433 to 2560 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2561 to 2688 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2689 to 2816 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2817 to 2944 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 2945 to 3072 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3073 to 3200 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3201 to 3328 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3329 to 3456 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3457 to 3584 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3585 to 3712 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3713 to 3840 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3841 to 3968 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 3969 to 4096 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4097 to 4224 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4225 to 4352 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4353 to 4480 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4481 to 4608 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4609 to 4736 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4737 to 4864 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4865 to 4992 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 4993 to 5120 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5121 to 5248 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5249 to 5376 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5377 to 5504 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5505 to 5632 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5633 to 5760 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5761 to 5888 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 5889 to 6016 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6017 to 6144 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6145 to 6272 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6273 to 6400 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6401 to 6528 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6529 to 6656 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6657 to 6784 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6785 to 6912 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 6913 to 7040 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7041 to 7168 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7169 to 7296 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7297 to 7424 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7425 to 7552 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7553 to 7680 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7681 to 7808 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7809 to 7936 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 7937 to 8064 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8065 to 8192 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8193 to 8320 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8321 to 8448 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8449 to 8576 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8577 to 8704 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8705 to 8832 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8833 to 8960 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 8961 to 9088 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9089 to 9216 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9217 to 9344 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9345 to 9472 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9473 to 9600 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9601 to 9728 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9729 to 9856 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9857 to 9984 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 9985 to 10112 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10113 to 10240 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10241 to 10368 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10369 to 10496 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10497 to 10624 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10625 to 10752 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10753 to 10880 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 10881 to 11008 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11009 to 11136 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11137 to 11264 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11265 to 11392 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11393 to 11520 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11521 to 11648 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11649 to 11776 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11777 to 11904 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 11905 to 12032 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12033 to 12160 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12161 to 12288 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12289 to 12416 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12417 to 12544 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12545 to 12672 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12673 to 12800 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12801 to 12928 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 12929 to 13056 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13057 to 13184 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13185 to 13312 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13313 to 13440 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13441 to 13568 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13569 to 13696 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13697 to 13824 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13825 to 13952 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 13953 to 14080 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14081 to 14208 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14209 to 14336 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14337 to 14464 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14465 to 14592 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14593 to 14720 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14721 to 14848 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14849 to 14976 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 14977 to 15104 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15105 to 15232 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15233 to 15360 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15361 to 15488 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15489 to 15616 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15617 to 15744 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15745 to 15872 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 15873 to 16000 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16001 to 16128 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16129 to 16256 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16257 to 16384 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16385 to 16512 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16513 to 16640 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16641 to 16768 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16769 to 16896 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 16897 to 17024 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17025 to 17152 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17153 to 17280 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17281 to 17408 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17409 to 17536 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17537 to 17664 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17665 to 17792 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17793 to 17920 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 17921 to 18048 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18049 to 18176 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18177 to 18304 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18305 to 18432 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18433 to 18560 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18561 to 18688 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18689 to 18816 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18817 to 18944 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 18945 to 19072 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19073 to 19200 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19201 to 19328 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19329 to 19456 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19457 to 19584 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19585 to 19712 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19713 to 19840 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19841 to 19968 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 19969 to 20096 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20097 to 20224 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20225 to 20352 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20353 to 20480 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20481 to 20608 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20609 to 20736 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20737 to 20864 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20865 to 20992 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 20993 to 21120 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21121 to 21248 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21249 to 21376 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21377 to 21504 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21505 to 21632 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21633 to 21760 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21761 to 21888 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 21889 to 22016 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22017 to 22144 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22145 to 22272 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22273 to 22400 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22401 to 22528 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22529 to 22656 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22657 to 22784 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22785 to 22912 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 22913 to 23040 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23041 to 23168 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23169 to 23296 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23297 to 23424 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23425 to 23552 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23553 to 23680 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23681 to 23808 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23809 to 23936 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 23937 to 24064 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24065 to 24192 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24193 to 24320 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24321 to 24448 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24449 to 24576 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24577 to 24704 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24705 to 24832 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24833 to 24960 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 24961 to 25088 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25089 to 25216 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25217 to 25344 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25345 to 25472 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25473 to 25600 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25601 to 25728 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25729 to 25856 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25857 to 25984 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 25985 to 26112 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26113 to 26240 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26241 to 26368 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26369 to 26496 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26497 to 26624 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26625 to 26752 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26753 to 26880 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 26881 to 27008 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27009 to 27136 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27137 to 27264 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27265 to 27392 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27393 to 27520 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27521 to 27648 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27649 to 27776 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27777 to 27904 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 27905 to 28032 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28033 to 28160 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28161 to 28288 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28289 to 28416 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28417 to 28544 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28545 to 28672 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28673 to 28800 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28801 to 28928 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 28929 to 29056 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29057 to 29184 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29185 to 29312 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29313 to 29440 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29441 to 29568 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29569 to 29696 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29697 to 29824 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29825 to 29952 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 29953 to 30080 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30081 to 30208 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30209 to 30336 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30337 to 30464 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30465 to 30592 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30593 to 30720 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30721 to 30848 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30849 to 30976 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 30977 to 31104 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31105 to 31232 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31233 to 31360 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31361 to 31488 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31489 to 31616 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31617 to 31744 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31745 to 31872 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 31873 to 32000 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32001 to 32128 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32129 to 32256 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32257 to 32384 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32385 to 32512 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32513 to 32640 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32641 to 32768 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32769 to 32896 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 32897 to 33024 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33025 to 33152 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33153 to 33280 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33281 to 33408 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33409 to 33536 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33537 to 33664 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33665 to 33792 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33793 to 33920 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 33921 to 34048 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34049 to 34176 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34177 to 34304 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34305 to 34432 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34433 to 34560 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34561 to 34688 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34689 to 34816 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34817 to 34944 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 34945 to 35072 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35073 to 35200 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35201 to 35328 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35329 to 35456 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35457 to 35584 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35585 to 35712 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35713 to 35840 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35841 to 35968 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 35969 to 36096 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36097 to 36224 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36225 to 36352 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36353 to 36480 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36481 to 36608 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36609 to 36736 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36737 to 36864 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36865 to 36992 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 36993 to 37120 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37121 to 37248 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37249 to 37376 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37377 to 37504 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37505 to 37632 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37633 to 37760 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37761 to 37888 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 37889 to 38016 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38017 to 38144 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38145 to 38272 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38273 to 38400 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38401 to 38528 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38529 to 38656 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38657 to 38784 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38785 to 38912 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 38913 to 39040 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39041 to 39168 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39169 to 39296 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39297 to 39424 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39425 to 39552 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39553 to 39680 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39681 to 39808 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39809 to 39936 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 39937 to 40064 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40065 to 40192 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40193 to 40320 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40321 to 40448 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40449 to 40576 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40577 to 40704 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40705 to 40832 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40833 to 40960 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 40961 to 41088 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41089 to 41216 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41217 to 41344 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41345 to 41472 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41473 to 41600 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41601 to 41728 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41729 to 41856 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41857 to 41984 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 41985 to 42112 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42113 to 42240 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42241 to 42368 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42369 to 42496 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42497 to 42624 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42625 to 42752 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42753 to 42880 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 42881 to 43008 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43009 to 43136 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43137 to 43264 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43265 to 43392 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43393 to 43520 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43521 to 43648 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43649 to 43776 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43777 to 43904 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 43905 to 44032 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44033 to 44160 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44161 to 44288 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44289 to 44416 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44417 to 44544 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44545 to 44672 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44673 to 44800 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44801 to 44928 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 44929 to 45056 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45057 to 45184 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45185 to 45312 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45313 to 45440 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45441 to 45568 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45569 to 45696 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45697 to 45824 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45825 to 45952 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 45953 to 46080 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46081 to 46208 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46209 to 46336 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46337 to 46464 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46465 to 46592 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46593 to 46720 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46721 to 46848 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46849 to 46976 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 46977 to 47104 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47105 to 47232 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47233 to 47360 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47361 to 47488 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47489 to 47616 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47617 to 47744 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47745 to 47872 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 47873 to 48000 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48001 to 48128 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48129 to 48256 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48257 to 48384 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48385 to 48512 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48513 to 48640 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48641 to 48768 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48769 to 48896 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 48897 to 49024 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49025 to 49152 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49153 to 49280 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49281 to 49408 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49409 to 49536 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49537 to 49664 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49665 to 49792 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49793 to 49920 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 49921 to 50048 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50049 to 50176 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50177 to 50304 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50305 to 50432 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50433 to 50560 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50561 to 50688 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50689 to 50816 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50817 to 50944 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 50945 to 51072 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51073 to 51200 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51201 to 51328 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51329 to 51456 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51457 to 51584 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51585 to 51712 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51713 to 51840 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51841 to 51968 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 51969 to 52096 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52097 to 52224 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52225 to 52352 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52353 to 52480 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52481 to 52608 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52609 to 52736 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52737 to 52864 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52865 to 52992 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 52993 to 53120 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53121 to 53248 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53249 to 53376 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53377 to 53504 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53505 to 53632 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53633 to 53760 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53761 to 53888 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 53889 to 54016 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54017 to 54144 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54145 to 54272 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54273 to 54400 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54401 to 54528 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54529 to 54656 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54657 to 54784 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54785 to 54912 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 54913 to 55040 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55041 to 55168 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55169 to 55296 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55297 to 55424 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55425 to 55552 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55553 to 55680 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55681 to 55808 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55809 to 55936 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 55937 to 56064 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56065 to 56192 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56193 to 56320 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56321 to 56448 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56449 to 56576 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56577 to 56704 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56705 to 56832 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56833 to 56960 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 56961 to 57088 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57089 to 57216 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57217 to 57344 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57345 to 57472 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57473 to 57600 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57601 to 57728 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57729 to 57856 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57857 to 57984 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 57985 to 58112 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58113 to 58240 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58241 to 58368 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58369 to 58496 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58497 to 58624 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58625 to 58752 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58753 to 58880 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 58881 to 59008 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59009 to 59136 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59137 to 59264 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59265 to 59392 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59393 to 59520 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59521 to 59648 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59649 to 59776 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59777 to 59904 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 59905 to 60032 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60033 to 60160 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60161 to 60288 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60289 to 60416 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60417 to 60544 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60545 to 60672 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60673 to 60800 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60801 to 60928 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 60929 to 61056 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61057 to 61184 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61185 to 61312 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61313 to 61440 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61441 to 61568 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61569 to 61696 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61697 to 61824 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61825 to 61952 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 61953 to 62080 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 2.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None

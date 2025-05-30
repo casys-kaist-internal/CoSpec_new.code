@@ -8,16 +8,16 @@ export AR=${AR:-0}
 # export DRAFT_MODEL="facebook/opt-1.3b"
 # export TARGET_MODEL="facebook/opt-6.7b"
 # export DRAFT_MODEL="facebook/opt-125m"
-export TARGET_MODEL="facebook/opt-13b"
-export DRAFT_MODEL="facebook/opt-350m"
+# export TARGET_MODEL="facebook/opt-13b"
+# export DRAFT_MODEL="facebook/opt-350m"
 # export TARGET_MODEL="meta-llama/Llama-2-7b-hf"
 # export DRAFT_MODEL="JackFram/llama-160m"
-# export TARGET_MODEL="huggyllama/llama-13b"
+export TARGET_MODEL="huggyllama/llama-13b"
 # export TARGET_MODEL="huggyllama/llama-7b"
-# export DRAFT_MODEL="double7/vicuna-68m"
-export NUM_SPEC_TOKENS=7
+export DRAFT_MODEL="double7/vicuna-68m"
+export NUM_SPEC_TOKENS=3
 export TENSOR_PARALLEL_SIZE=2
-export DRAFT_TENSOR_PARALLEL_SIZE=2
+export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/mnt/sdb/huggingface"
 
 # Base command
@@ -26,7 +26,6 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --port 8011 \
     --model $TARGET_MODEL \
     --seed 42 \
-    --enforce-eager \
     --enable-chunked-prefill \
     -tp $TENSOR_PARALLEL_SIZE \
     --gpu_memory_utilization 0.80 \

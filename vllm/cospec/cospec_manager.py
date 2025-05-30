@@ -22,8 +22,9 @@ class CospecManager:
         self.total_ranks = vllm_config.parallel_config.world_size
         self.current_batch_size = 0
 
-        self.target_lock_fd = os.open(f"/tmp/cospec_target.lock", os.O_CREAT | os.O_RDWR)
-        self.draft_lock_fd = os.open(f"/tmp/cospec_draft.lock", os.O_CREAT | os.O_RDWR)
+        # Create rank-specific lock files
+        self.target_lock_fd = os.open(f"/tmp/cospec_target_rank_{self.rank}.lock", os.O_CREAT | os.O_RDWR)
+        self.draft_lock_fd = os.open(f"/tmp/cospec_draft_rank_{self.rank}.lock", os.O_CREAT | os.O_RDWR)
         self.shm.put(f"early_exit_{not self.is_primary}", False)
         self.shm.put(f"early_exit_{self.is_primary}", False)
 
@@ -83,16 +84,18 @@ class CospecManager:
             self.profiler.stop_step_marker()
 
     def target_start(self):
+        torch.cuda.synchronize()
+        fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
+        torch.cuda.nvtx.range_push("target_start")
         if self.is_driver:
-            torch.cuda.synchronize()
-            fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
             self.profiler.start_target_marker()
 
     def target_finish(self, num_tokens: int):
+        torch.cuda.synchronize()
+        fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
+        torch.cuda.nvtx.range_pop()
         if self.is_driver:
             # print("target_num_tokens, ", num_tokens)
-            torch.cuda.synchronize()
-            fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
             self.profiler.stop_target_marker(num_tokens)
             # Signal the other engine to early exit draft model execution
             # And reset the flag for the current engine 
@@ -101,19 +104,16 @@ class CospecManager:
 
     
     def draft_start(self):
-        if self.is_driver:
-            torch.cuda.synchronize()
-            fcntl.flock(self.draft_lock_fd, fcntl.LOCK_EX)
+        torch.cuda.synchronize()
+        fcntl.flock(self.draft_lock_fd, fcntl.LOCK_EX)
+        torch.cuda.nvtx.range_push("draft_start")
 
     def draft_finish(self):
-        if self.is_driver:
-            torch.cuda.synchronize()
-            fcntl.flock(self.draft_lock_fd, fcntl.LOCK_UN)
+        torch.cuda.synchronize()
+        fcntl.flock(self.draft_lock_fd, fcntl.LOCK_UN)
+        torch.cuda.nvtx.range_pop()
 
     def check_early_exit_draft(self):
-        if self.profiler.is_profiling():
-            return False
-
         if self.is_driver:
             torch.cuda.synchronize()
             should_exit = self.shm.get(f"early_exit_{self.is_primary}")
@@ -159,13 +159,14 @@ class CospecManager:
             proposals: SpeculativeProposals object containing the proposal data
             proposal_scores: Tensor containing the actual acceptance scores
         """
-        if self.profiler.profiling:
+        if self.profiler.is_profiling():
             return
 
         if self.is_driver:
-            torch.cuda.nvtx.range_push("update_proposal_history")
-            self.selective_validator.update_proposal_history(proposals, proposal_scores)
-            torch.cuda.nvtx.range_pop()
+            if not self.is_selective_validator_trained():
+                torch.cuda.nvtx.range_push("update_proposal_history")
+                self.selective_validator.update_proposal_history(proposals, proposal_scores)
+                torch.cuda.nvtx.range_pop()
 
     def update_num_spec_tokens_ema(self, num_spec_tokens: int):
         """Update the exponential moving average of target number of tokens.

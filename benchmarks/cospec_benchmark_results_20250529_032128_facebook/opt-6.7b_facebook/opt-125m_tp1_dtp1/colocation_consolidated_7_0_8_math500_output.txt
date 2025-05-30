@@ -1,0 +1,79 @@
+INFO 05-29 03:21:37 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='math500', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, num_samples=1000, logprobs=None, request_rate=8.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Loaded 500 samples from cache from HuggingFaceH4/cache/math500_facebook/opt-6.7b.json
+Split dataset into 50 test samples and 450 training samples
+Temperature:  0.0
+Running test split to train selective validator...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+result {'is_trained': False}
+Running test requests 1 to 128 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 8.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': True}
+Selective validator trained after 128 test requests (25.01 seconds)
+Running full benchmark...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 8.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Number of samples to process: 1000
+============ Serving Benchmark Result ============
+Successful requests:                     965       
+Benchmark duration (s):                  128.22    
+Total input tokens:                      69500     
+Total generated tokens:                  212017    
+Request throughput (req/s):              7.53      
+Output token throughput (tok/s):         1653.51   
+Total Token throughput (tok/s):          2195.53   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          161.93    
+Median TTFT (ms):                        156.86    
+P99 TTFT (ms):                           321.41    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          24.77     
+Median TPOT (ms):                        22.31     
+P99 TPOT (ms):                           49.00     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           88.45     
+Median ITL (ms):                         87.72     
+P99 ITL (ms):                            157.53    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          4961.56   
+Median E2EL (ms):                        3992.26   
+P99 E2EL (ms):                           16896.70  
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 25.81     
+Median Token Latency (ms):               23.14     
+P99 Token Latency (ms):                  52.11     
+==================================================

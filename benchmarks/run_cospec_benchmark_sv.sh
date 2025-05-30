@@ -13,10 +13,6 @@ export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
-export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
-export APP_SLACK_ICON_EMOJI=":dog:"
-export APP_SLACK_CHANNEL="malus07"
-
 # Dataset Configuration
 DATASETS=("math500")
 
@@ -50,7 +46,7 @@ BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
 COSPEC_SPEC_TOKENS=7
 
 # Temperature Configuration
-TEMPERATURES=(0 0.3 0.6)
+TEMPERATURES=(0)
 
 # Benchmark Configuration
 export WARMUP_DURATION=1
@@ -64,6 +60,9 @@ declare -A COSPEC_CONFIGS=(
     ["colocation_consolidated_threshold_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
     ["colocation_consolidated_threshold_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
     ["colocation_consolidated_threshold_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
+    ["colocation_consolidated_tile"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile"
+    ["colocation_consolidated_linear"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear"
+    ["colocation_consolidated_polynomial"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial"
 )
 
 # Set nvidia-smi EXCLUSIVE_PROCESS 
@@ -76,6 +75,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
+RESULTS_DIR="5_30_cospec_selective_validation_result_opt_1"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -211,11 +211,18 @@ run_benchmark() {
 # =============================================
 
 # Define the order of configurations to run
+# declare -a CONFIG_ORDER=(
+#     "colocation_consolidated"
+#     "colocation_consolidated_threshold_0.1"
+#     "colocation_consolidated_threshold_0.3"
+#     "colocation_consolidated_threshold_0.5"
+#     "colocation_consolidated_tile"
+#     "colocation_consolidated_linear"
+#     "colocation_consolidated_polynomial"
+# )
 declare -a CONFIG_ORDER=(
     "colocation_consolidated"
-    "colocation_consolidated_threshold_0.1"
-    "colocation_consolidated_threshold_0.3"
-    "colocation_consolidated_threshold_0.5"
+    "colocation_consolidated_tile"
 )
 
 TOTAL_RUNS=0
@@ -265,7 +272,7 @@ echo "Total runs to complete: $TOTAL_RUNS"
 #             read -ra rates <<< "$(get_request_rates "$dataset")"
 #             for request_rate in "${rates[@]}"; do
 #                 CURRENT_RUN=$((CURRENT_RUN + 1))
-#                 ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+#                 slack "[$CURRENT_RUN/$TOTAL_RUNS]"
 #                 run_benchmark "baseline" "$spec_tokens" "$temperature" "$request_rate" "$dataset"
 #             done
 #         done
@@ -292,7 +299,7 @@ for dataset in "${DATASETS[@]}"; do
             read -ra rates <<< "$(get_request_rates "$dataset")"
             for request_rate in "${rates[@]}"; do
                 CURRENT_RUN=$((CURRENT_RUN + 1))
-                ./slack "[$CURRENT_RUN/$TOTAL_RUNS]"
+                slack "[$CURRENT_RUN/$TOTAL_RUNS]"
                 run_benchmark "$config" "$COSPEC_SPEC_TOKENS" "$temperature" "$request_rate" "$dataset"
             done
             

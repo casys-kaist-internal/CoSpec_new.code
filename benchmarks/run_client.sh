@@ -1,9 +1,12 @@
 #!/bin/bash
-MODEL="facebook/opt-6.7b"
-DATASET="math500"
+# MODEL="facebook/opt-6.7b"
+# MODEL="facebook/opt-13b"
+MODEL="huggyllama/llama-13b"
+# DATASET="math500"
+DATASET="sharegpt"
 REQUEST_RATE=8
-TEMPERATURE=0.3
-DURATION=3
+TEMPERATURE=0
+DURATION=5
 PORT=8011
 
 echo "Starting benchmark with configuration:"

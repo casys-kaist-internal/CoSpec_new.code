@@ -744,19 +744,19 @@ def main(args: argparse.Namespace):
             raise RuntimeError("Server failed to start within the timeout period")
     
         # First check if already trained
-        # async with aiohttp.ClientSession() as session:
-        #     async with session.get(f"{base_url}/selective_validator_trained") as response:
-        #         if response.status == 200:
-        #             result = await response.json()
-        #             print("result", result)
-        #             if result.get("is_trained", True):
-        #                 print("Don't need to train selective validator")
-        #                 return result
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{base_url}/selective_validator_trained") as response:
+                if response.status == 200:
+                    result = await response.json()
+                    print("result", result)
+                    if result.get("is_trained", True):
+                        print("Don't need to train selective validator")
+                        return result
 
         request_count = 0
         start_time = time.time()
         batch_size = 128
-        while True:  # Keep cycling until training is complete
+        for _ in range(10): # 10 batches 
             # Get next batch of requests
             batch_requests = []
             for i in range(batch_size):
@@ -800,12 +800,10 @@ def main(args: argparse.Namespace):
                         if result.get("is_trained", True):
                             training_time = time.time() - start_time  # Keep in seconds
                             print(f"Selective validator trained after {request_count} test requests ({training_time:.2f} seconds)")
-                            time.sleep(60)
+                            time.sleep(15)
                             return result
 
-    # asyncio.run(run_test_until_trained())
-    # asyncio.run(run_test_until_trained())
-    # asyncio.run(run_test_until_trained())
+    asyncio.run(run_test_until_trained())
 
     # Now run the full benchmark
     print("Running full benchmark...")

@@ -641,8 +641,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         if envs.COSPEC_DYNAMIC_COLOCATION:
             await self.profile_colocation()
 
-        # if envs.COSPEC_SELECTIVE_VALIDATION:
-        #     await self.profile_tiling()
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            await self.profile_tiling()
     
     """
     Profiler for dynamic colocation. 
@@ -661,8 +661,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         original_num_speculative_tokens = vllm_config.speculative_config.num_speculative_tokens
         original_num_speculative_tokens2 = vllm_config2.speculative_config.num_speculative_tokens
 
-        # batch_sizes = range(8, vllm_config.scheduler_config.max_num_seqs + 1, 8)
-        batch_sizes = range(8, 65, 8)
+        batch_sizes = range(8, 129, 8)
         num_speculative_tokens_list = range(1, 8)
 
         # Set tqdm as a single progress bar
@@ -867,7 +866,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
     async def _maybe_change_colocation_mode(self):
         # Before selective validator is trained we stay in colocation mode 
-        if not self.is_selective_validator_trained():
+        if not await self.is_selective_validator_trained():
             return 
 
         current_time = time.time()
