@@ -3,8 +3,8 @@
 # MODEL="facebook/opt-13b"
 MODEL="meta-llama/Llama-3.1-70B-Instruct"
 # DATASET="math500"
-DATASET="sharegpt"
-REQUEST_RATE=4
+DATASET="opencode"
+REQUEST_RATE=8
 TEMPERATURE=0
 DURATION=5
 PORT=8011
