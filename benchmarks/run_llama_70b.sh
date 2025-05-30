@@ -28,7 +28,7 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --port 8011 \
     --model $TARGET_MODEL \
     --seed 42 \
-    --max-num-seqs 1024 \
+    --max-num-seqs 512 \
     --max-num-batched-tokens 8192 \
     --enable-chunked-prefill \
     -tp $TENSOR_PARALLEL_SIZE \
