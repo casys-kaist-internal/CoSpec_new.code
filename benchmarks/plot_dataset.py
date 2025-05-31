@@ -67,7 +67,7 @@ math500_dataset = Math500Dataset(random_seed=seed,
 datasets = {
     'ShareGPT': sharegpt_dataset,
     'Math500': math500_dataset,
-    'OpenCodeReasoning': open_code_reasoning_dataset
+    'OpenCodeInstruct': open_code_instruct_dataset
 }
 
 # Create figure with subplots

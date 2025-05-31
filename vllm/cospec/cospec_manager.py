@@ -115,6 +115,7 @@ class CospecManager:
 
     def check_early_exit_draft(self):
         torch.cuda.synchronize()
+        return False
         if self.is_driver:
             should_exit = self.shm.get(f"early_exit_{self.is_primary}")
             for rank in range(1, self.total_ranks):

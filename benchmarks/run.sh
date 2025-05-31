@@ -4,21 +4,21 @@
 export COSPEC=${COSPEC:-0} 
 export PROFILE=${PROFILE:-0}
 export AR=${AR:-0}
-#export TARGET_MODEL="facebook/opt-30b"
+export TARGET_MODEL="facebook/opt-30b"
 # export DRAFT_MODEL="facebook/opt-1.3b"
 # export TARGET_MODEL="facebook/opt-6.7b"
 # export DRAFT_MODEL="facebook/opt-125m"
 # export TARGET_MODEL="facebook/opt-13b"
-# export DRAFT_MODEL="facebook/opt-350m"
+export DRAFT_MODEL="facebook/opt-350m"
 # export TARGET_MODEL="meta-llama/Llama-2-7b-hf"
 # export DRAFT_MODEL="JackFram/llama-160m"
-export TARGET_MODEL="huggyllama/llama-13b"
+# export TARGET_MODEL="huggyllama/llama-13b"
 # export TARGET_MODEL="huggyllama/llama-7b"
-export DRAFT_MODEL="double7/vicuna-68m"
+# export DRAFT_MODEL="double7/vicuna-68m"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=2
+export TENSOR_PARALLEL_SIZE=4
 export DRAFT_TENSOR_PARALLEL_SIZE=1
-export DOWNLOAD_DIR="/mnt/sdb/huggingface"
+export DOWNLOAD_DIR="/workspace"
 
 # Base command
 CMD="python -m vllm.entrypoints.openai.api_server \
