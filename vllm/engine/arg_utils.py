@@ -1585,9 +1585,9 @@ class EngineArgs:
         # For correctness test there is chunked prefill test that fails when max_num_seq is divided 
         # by 2 because the max_num_seq is so small and has to match max_num_batched_tokens
         # For normal case since we are using two engines, we halve the max_num_seqs.
-        # if envs.COSPEC and not envs.COSPEC_CORRECTNESS_TEST:
-        #     self.max_num_seqs = self.max_num_seqs // 2
-        #     logger.info("Cospec half the max_num_seqs: %d", self.max_num_seqs)
+        if envs.COSPEC and not envs.COSPEC_CORRECTNESS_TEST:
+            self.max_num_seqs = self.max_num_seqs // 2
+            logger.info("Cospec half the max_num_seqs: %d", self.max_num_seqs)
 
     def _set_default_args_v1(self, usage_context: UsageContext) -> None:
         """Set Default Arguments for V1 Engine."""

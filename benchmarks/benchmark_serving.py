@@ -807,7 +807,7 @@ def main(args: argparse.Namespace):
                             return result
 
     asyncio.run(run_test_until_trained())
-    time.sleep(60) # rest enough time for dynamic colocation to be settled in non-colocation mode
+    time.sleep(10) # rest enough time for dynamic colocation to be settled in non-colocation mode
 
     # Now run the full benchmark
     print("Running full benchmark...")

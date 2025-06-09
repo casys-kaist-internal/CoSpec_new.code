@@ -1843,7 +1843,7 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
 
         logits = self.model.compute_logits(hidden_or_intermediate_states,
                                            model_input.sampling_metadata)
-
+        
         if cospec_manager is not None:
             if is_target:
                 cospec_manager.target_finish(model_input.input_tokens.shape[0])

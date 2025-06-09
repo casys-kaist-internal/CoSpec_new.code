@@ -1514,9 +1514,7 @@ class RunaiModelStreamerLoader(BaseModelLoader):
         return model.eval()
 
 
-class SharedMemoryModelLoader(BaseModelLoader):
-    """Model-specific CUDA IPC implementation"""
-    
+class SharedMemoryModelLoader(BaseModelLoader):    
     SHARED_HANDLES_FILE = "/tmp/cospec_{model}_shm_rank_{rank}.pkl"
     LOCK_FILE = "/tmp/cospec_{model}_lock_rank_{rank}.lock"
 

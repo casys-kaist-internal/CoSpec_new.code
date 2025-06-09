@@ -70,7 +70,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                         source, self.default_sampling_params)
         
         self.dynamic_colocation = envs.COSPEC_DYNAMIC_COLOCATION
-        self.colocation_mode = True
+        self.colocation_mode = True # Initially enable colocation
         self.selected_engine_idx = 0
         self.performance_threshold = 0
         self.last_mode_switch_time = time.time()
@@ -643,14 +643,47 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
         if envs.COSPEC_SELECTIVE_VALIDATION:
             await self.profile_tiling()
-    
+
+    """
+    Initial warmup
+    """
+    async def warmup(self) -> None:
+        generators: list[AsyncGenerator[RequestOutput, None]] = []
+
+        for i in range(16):
+            request_id = f"profile_{i}"
+            dummy_prompt = TokensPrompt(prompt_token_ids=[1])
+            sampling_params = SamplingParams(temperature=0, ignore_eos=True, max_tokens=32)
+            generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
+            generators.append(generator)
+        
+        result_generator = merge_async_iterators(*generators)
+
+        async for _ in result_generator:
+            pass
+
+        generators: list[AsyncGenerator[RequestOutput, None]] = []
+
+        for i in range(16):
+            request_id = f"profile_{i}"
+            dummy_prompt = TokensPrompt(prompt_token_ids=[1])
+            sampling_params = SamplingParams(temperature=0, ignore_eos=True, max_tokens=32)
+            generator = self.engine_client2.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
+            generators.append(generator)
+        
+        result_generator = merge_async_iterators(*generators)
+
+        async for _ in result_generator:
+            pass
+
+
     """
     Profiler for dynamic colocation. 
     """
     async def profile_colocation(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_colocation_profile()
         if loaded_cached_profile:
-            time.sleep(5)
+            time.sleep(10)
             loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
             assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
             logger.info("Loaded cached profile. Skipping profiling.")
@@ -678,9 +711,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             for batch_size in reversed(batch_sizes):
                 for num_speculative_tokens in num_speculative_tokens_list:
                     await self._profile_non_colocation(batch_size, num_speculative_tokens)
-                    # time.sleep(1)
                     await self._profile_colocation(batch_size, num_speculative_tokens)
-                    # time.sleep(1)
                     pbar.update(1)
 
         await self.engine_client.stop_cospec_profile()
@@ -690,7 +721,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-        time.sleep(1)
+        time.sleep(10)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
         assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
 
@@ -701,14 +732,13 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
         await self.engine_client.set_profile_batch_size(batch_size)
         await self.engine_client2.set_profile_batch_size(batch_size)
-        # time.sleep(1)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=32)
+            sampling_params = SamplingParams(temperature=0, ignore_eos=True, max_tokens=32)
             generator = self.engine_client.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
             generators.append(generator)
         
@@ -724,7 +754,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client2.set_num_speculative_tokens(num_speculative_tokens)
         await self.engine_client.set_profile_batch_size(batch_size)
         await self.engine_client2.set_profile_batch_size(batch_size)
-        # time.sleep(1)
 
         generators: list[AsyncGenerator[RequestOutput, None]] = []
 
@@ -732,7 +761,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         for i in range(batch_size):
             request_id = f"profile_{i}"
             dummy_prompt = TokensPrompt(prompt_token_ids=[1])
-            sampling_params = SamplingParams(temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=32)
+            sampling_params = SamplingParams(temperature=0, ignore_eos=True, max_tokens=32)
             engine_idx = (engine_idx + 1) % 2
             current_engine = self.engine_client if engine_idx == 0 else self.engine_client2
             generator = current_engine.generate(prompt=dummy_prompt, sampling_params=sampling_params, request_id=request_id)
@@ -803,8 +832,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
 
         await self.engine_client.stop_cospec_profile()
 
-        time.sleep(5)
-
+        time.sleep(10)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
         assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
 

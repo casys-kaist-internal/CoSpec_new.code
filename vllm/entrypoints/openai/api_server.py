@@ -1201,6 +1201,9 @@ async def init_app_state_cospec(
     state.enable_server_load_tracking = args.enable_server_load_tracking
     state.server_load_metrics = 0
 
+    # Cospec Warmup
+    await state.openai_serving_completion.warmup()
+
     # Cospec Profiling
     await state.openai_serving_completion.cospec_profile()
     

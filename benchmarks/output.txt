@@ -1,0 +1,1165 @@
+INFO 06-07 19:26:13 [__init__.py:239] Automatically detected platform cuda.
+INFO 06-07 19:26:15 [api_server.py:1452] Cleaned up 12 shared memory files from previous runs
+INFO 06-07 19:26:15 [api_server.py:1305] vLLM API server version 0.1.dev6067+g79d1678.d20250525
+INFO 06-07 19:26:15 [api_server.py:1306] args: Namespace(host='0.0.0.0', port=8011, uvicorn_log_level='info', disable_uvicorn_access_log=False, allow_credentials=False, allowed_origins=['*'], allowed_methods=['*'], allowed_headers=['*'], api_key=None, lora_modules=None, prompt_adapters=None, chat_template=None, chat_template_content_format='auto', response_role='assistant', ssl_keyfile=None, ssl_certfile=None, ssl_ca_certs=None, enable_ssl_refresh=False, ssl_cert_reqs=0, root_path=None, middleware=[], return_tokens_as_token_ids=False, disable_frontend_multiprocessing=False, enable_request_id_headers=False, enable_auto_tool_choice=False, tool_call_parser=None, tool_parser_plugin='', model='facebook/opt-13b', task='auto', tokenizer=None, hf_config_path=None, skip_tokenizer_init=False, revision=None, code_revision=None, tokenizer_revision=None, tokenizer_mode='auto', trust_remote_code=False, allowed_local_media_path=None, load_format='auto', download_dir='/mnt/sdb/huggingface', model_loader_extra_config={}, use_tqdm_on_load=True, config_format=<ConfigFormat.AUTO: 'auto'>, dtype='auto', max_model_len=None, guided_decoding_backend='auto', reasoning_parser=None, logits_processor_pattern=None, model_impl='auto', distributed_executor_backend=None, pipeline_parallel_size=1, tensor_parallel_size=2, data_parallel_size=1, enable_expert_parallel=False, max_parallel_loading_workers=None, ray_workers_use_nsight=False, disable_custom_all_reduce=False, block_size=None, gpu_memory_utilization=0.8, swap_space=4, kv_cache_dtype='auto', num_gpu_blocks_override=None, enable_prefix_caching=None, prefix_caching_hash_algo='builtin', cpu_offload_gb=0, calculate_kv_scales=False, disable_sliding_window=False, use_v2_block_manager=True, seed=42, max_logprobs=20, disable_log_stats=False, quantization=None, rope_scaling=None, rope_theta=None, hf_token=None, hf_overrides=None, enforce_eager=False, max_seq_len_to_capture=8192, tokenizer_pool_size=0, tokenizer_pool_type='ray', tokenizer_pool_extra_config={}, limit_mm_per_prompt={}, mm_processor_kwargs=None, disable_mm_preprocessor_cache=False, enable_lora=None, enable_lora_bias=False, max_loras=1, max_lora_rank=16, lora_extra_vocab_size=256, lora_dtype='auto', long_lora_scaling_factors=None, max_cpu_loras=None, fully_sharded_loras=False, enable_prompt_adapter=None, max_prompt_adapters=1, max_prompt_adapter_token=0, device='auto', speculative_config={'model': 'facebook/opt-350m', 'num_speculative_tokens': 7, 'draft_tensor_parallel_size': 2}, ignore_patterns=[], served_model_name=None, qlora_adapter_name_or_path=None, show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, disable_async_output_proc=False, max_num_batched_tokens=None, max_num_seqs=None, max_num_partial_prefills=1, max_long_partial_prefills=1, long_prefill_token_threshold=0, num_lookahead_slots=0, scheduler_delay_factor=0.0, preemption_mode=None, num_scheduler_steps=1, multi_step_stream_outputs=True, scheduling_policy='fcfs', enable_chunked_prefill=True, disable_chunked_mm_input=False, scheduler_cls='vllm.core.scheduler.Scheduler', override_neuron_config=None, override_pooler_config=None, compilation_config=None, kv_transfer_config=None, worker_cls='auto', worker_extension_cls='', generation_config='auto', override_generation_config=None, enable_sleep_mode=False, additional_config=None, enable_reasoning=False, disable_cascade_attn=False, disable_log_requests=True, max_log_len=None, disable_fastapi_docs=False, enable_prompt_tokens_details=False, enable_server_load_tracking=False)
+ERROR 06-07 19:26:15 [api_server.py:1313] No running MPS daemon found
+INFO 06-07 19:26:15 [api_server.py:1316] Initializing NVIDIA MPS...
+INFO 06-07 19:26:15 [api_server.py:1339] NVIDIA MPS daemon started successfully as a background process
+INFO 06-07 19:26:24 [config.py:716] This model supports multiple tasks: {'embed', 'classify', 'reward', 'score', 'generate'}. Defaulting to 'generate'.
+WARNING 06-07 19:26:24 [arg_utils.py:1685] Speculative Decoding is not supported by the V1 Engine. Falling back to V0. 
+INFO 06-07 19:26:24 [arg_utils.py:1590] Cospec half the max_num_seqs: 128
+INFO 06-07 19:26:25 [config.py:1737] Defaulting to use mp for distributed inference
+INFO 06-07 19:26:26 [config.py:458] Overriding HF config with <function SpeculativeConfig.hf_config_override at 0x7f8d5e8a1620>
+INFO 06-07 19:26:27 [config.py:1970] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 06-07 19:26:27 [arg_utils.py:1043] For CoSpec, using shared memory to load models
+INFO 06-07 19:26:27 [api_server.py:172] Using CoSpec.
+INFO 06-07 19:26:27 [api_server.py:212] Started engine process with PID 2465739
+INFO 06-07 19:26:31 [__init__.py:239] Automatically detected platform cuda.
+INFO 06-07 19:26:42 [llm_engine.py:247] Initializing a V0 LLM engine (v0.1.dev6067+g79d1678.d20250525) with config: model='facebook/opt-13b', speculative_config=SpeculativeConfig(method='draft_model', model='facebook/opt-350m', num_spec_tokens=7), tokenizer='facebook/opt-13b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=2048, download_dir='/mnt/sdb/huggingface', load_format=LoadFormat.SHARED_MEMORY, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=42, served_model_name=facebook/opt-13b, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=True, use_async_output_proc=False, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"splitting_ops":[],"compile_sizes":[],"cudagraph_capture_sizes":[128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"max_capture_size":128}, use_cached_outputs=True, 
+WARNING 06-07 19:26:43 [multiproc_worker_utils.py:306] Reducing Torch parallelism from 32 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+INFO 06-07 19:26:44 [cuda.py:231] Using XFormers backend.
+INFO 06-07 19:26:45 [cuda.py:231] Using XFormers backend.
+INFO 06-07 19:26:45 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+INFO 06-07 19:26:45 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+INFO 06-07 19:26:45 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+INFO 06-07 19:26:45 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+INFO 06-07 19:26:45 [spec_decode_worker.py:246] [Speculative Decoding] Disabling MQA scorer as the target model is not running in eager mode.
+INFO 06-07 19:26:45 [colocation_profiler.py:101] Colocation profile file: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:26:45 [profiler.py:59] Profile directory: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m
+INFO 06-07 19:26:45 [selective_validator.py:41] Selective validation disabled
+INFO 06-07 19:26:45 [spec_decode_worker.py:367] SpecDecodeWorker initialized
+INFO 06-07 19:26:47 [__init__.py:239] Automatically detected platform cuda.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:49 [multiproc_worker_utils.py:225] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:50 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:51 [spec_decode_worker.py:246] [Speculative Decoding] Disabling MQA scorer as the target model is not running in eager mode.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:52 [colocation_profiler.py:101] Colocation profile file: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:52 [profiler.py:59] Profile directory: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:52 [selective_validator.py:41] Selective validation disabled
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:52 [spec_decode_worker.py:367] SpecDecodeWorker initialized
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:54 [utils.py:1048] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:54 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 06-07 19:26:54 [utils.py:1048] Found nccl from library libnccl.so.2
+INFO 06-07 19:26:54 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 06-07 19:26:55 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:55 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 06-07 19:26:55 [shm_broadcast.py:266] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_30a43b30'), local_subscribe_addr='ipc:///tmp/2f440964-322c-433b-b283-00fd4980537f', remote_subscribe_addr=None, remote_addr_ipv6=False)
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:55 [parallel_state.py:946] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1
+INFO 06-07 19:26:55 [parallel_state.py:946] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:56 [model_runner.py:1127] Starting to load model facebook/opt-13b...
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:56 [loader.py:1542] Using model identifier: facebook_opt-13b
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:56 [loader.py:1586] Primary process - initializing model
+INFO 06-07 19:26:56 [model_runner.py:1127] Starting to load model facebook/opt-13b...
+INFO 06-07 19:26:56 [loader.py:1542] Using model identifier: facebook_opt-13b
+INFO 06-07 19:26:56 [loader.py:1586] Primary process - initializing model
+INFO 06-07 19:26:58 [weight_utils.py:265] Using model weights format ['*.bin']
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:26:58 [weight_utils.py:265] Using model weights format ['*.bin']
+INFO 06-07 19:27:13 [model_runner.py:1163] Model loading took 12.0604 GiB and 16.423887 seconds
+INFO 06-07 19:27:13 [model_runner.py:1127] Starting to load model facebook/opt-350m...
+INFO 06-07 19:27:13 [loader.py:1542] Using model identifier: facebook_opt-350m
+INFO 06-07 19:27:13 [loader.py:1586] Primary process - initializing model
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:13 [model_runner.py:1163] Model loading took 12.0604 GiB and 16.436962 seconds
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:13 [model_runner.py:1127] Starting to load model facebook/opt-350m...
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:13 [loader.py:1542] Using model identifier: facebook_opt-350m
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:13 [loader.py:1586] Primary process - initializing model
+INFO 06-07 19:27:13 [weight_utils.py:265] Using model weights format ['*.bin']
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:14 [weight_utils.py:265] Using model weights format ['*.bin']
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:14 [model_runner.py:1163] Model loading took 0.3175 GiB and 1.618948 seconds
+INFO 06-07 19:27:14 [model_runner.py:1163] Model loading took 0.3175 GiB and 1.637159 seconds
+INFO 06-07 19:27:14 [spec_decode_worker.py:403] [Speculative Decoding] Use batch expansion for scoring proposals.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:15 [spec_decode_worker.py:403] [Speculative Decoding] Use batch expansion for scoring proposals.
+INFO 06-07 19:27:15 [llm_engine.py:433] Using CoSpec for KV cache allocation
+INFO 06-07 19:27:15 [llm_engine.py:435] Primary process, determining num of blocks
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:19 [worker.py:265] Memory profiling takes 3.46 seconds
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:19 [worker.py:265] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.80) = 38.03GiB
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:19 [worker.py:265] model weights take 12.06GiB; non_torch_memory takes 0.38GiB; PyTorch activation peak memory takes 0.16GiB; the rest of the memory reserved for KV Cache is 25.43GiB.
+INFO 06-07 19:27:19 [worker.py:265] Memory profiling takes 3.94 seconds
+INFO 06-07 19:27:19 [worker.py:265] the current vLLM instance can use total_gpu_memory (47.54GiB) x gpu_memory_utilization (0.80) = 38.03GiB
+INFO 06-07 19:27:19 [worker.py:265] model weights take 12.06GiB; non_torch_memory takes 0.39GiB; PyTorch activation peak memory takes 0.28GiB; the rest of the memory reserved for KV Cache is 25.30GiB.
+INFO 06-07 19:27:19 [executor_base.py:112] # cuda blocks: 1850, # CPU blocks: 327
+INFO 06-07 19:27:19 [executor_base.py:117] Maximum concurrency for 2048 tokens per request: 14.45x
+INFO 06-07 19:27:27 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:29 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 06-07 19:27:43 [custom_all_reduce.py:195] Registering 1539 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:46 [custom_all_reduce.py:195] Registering 1539 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:46 [model_runner.py:1617] Graph capturing finished in 17 secs, took 0.78 GiB
+INFO 06-07 19:27:46 [model_runner.py:1617] Graph capturing finished in 18 secs, took 0.75 GiB
+INFO 06-07 19:27:48 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:27:48 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 06-07 19:28:05 [custom_all_reduce.py:195] Registering 931 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:28:06 [custom_all_reduce.py:195] Registering 931 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:28:06 [model_runner.py:1617] Graph capturing finished in 18 secs, took 0.48 GiB
+INFO 06-07 19:28:06 [model_runner.py:1617] Graph capturing finished in 19 secs, took 0.48 GiB
+INFO 06-07 19:28:06 [llm_engine.py:462] init engine (profile, create kv cache, warmup model) took 51.59 seconds
+INFO 06-07 19:28:07 [config.py:716] This model supports multiple tasks: {'embed', 'classify', 'reward', 'score', 'generate'}. Defaulting to 'generate'.
+INFO 06-07 19:28:07 [arg_utils.py:1590] Cospec half the max_num_seqs: 128
+INFO 06-07 19:28:07 [config.py:1737] Defaulting to use mp for distributed inference
+INFO 06-07 19:28:08 [config.py:458] Overriding HF config with <function SpeculativeConfig.hf_config_override at 0x7f8d5e8a1620>
+INFO 06-07 19:28:08 [config.py:1970] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 06-07 19:28:08 [arg_utils.py:1043] For CoSpec, using shared memory to load models
+INFO 06-07 19:28:08 [api_server.py:172] Using CoSpec.
+WARNING 06-07 19:28:08 [api_server.py:181] Found PROMETHEUS_MULTIPROC_DIR was set by user. This directory must be wiped between vLLM runs or you will find inaccurate metrics. Unset the variable and vLLM will properly handle cleanup.
+INFO 06-07 19:28:08 [api_server.py:212] Started engine process with PID 2467400
+INFO 06-07 19:28:12 [__init__.py:239] Automatically detected platform cuda.
+INFO 06-07 19:28:15 [llm_engine.py:247] Initializing a V0 LLM engine (v0.1.dev6067+g79d1678.d20250525) with config: model='facebook/opt-13b', speculative_config=SpeculativeConfig(method='draft_model', model='facebook/opt-350m', num_spec_tokens=7), tokenizer='facebook/opt-13b', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=2048, download_dir='/mnt/sdb/huggingface', load_format=LoadFormat.SHARED_MEMORY, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=42, served_model_name=facebook/opt-13b, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=None, chunked_prefill_enabled=True, use_async_output_proc=False, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={"splitting_ops":[],"compile_sizes":[],"cudagraph_capture_sizes":[128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],"max_capture_size":128}, use_cached_outputs=True, 
+WARNING 06-07 19:28:16 [multiproc_worker_utils.py:306] Reducing Torch parallelism from 32 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.
+INFO 06-07 19:28:17 [cuda.py:231] Using XFormers backend.
+INFO 06-07 19:28:18 [cuda.py:231] Using XFormers backend.
+INFO 06-07 19:28:18 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+INFO 06-07 19:28:18 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+INFO 06-07 19:28:18 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+INFO 06-07 19:28:18 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+INFO 06-07 19:28:18 [spec_decode_worker.py:246] [Speculative Decoding] Disabling MQA scorer as the target model is not running in eager mode.
+INFO 06-07 19:28:18 [colocation_profiler.py:101] Colocation profile file: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:28:18 [profiler.py:59] Profile directory: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m
+INFO 06-07 19:28:18 [selective_validator.py:41] Selective validation disabled
+INFO 06-07 19:28:18 [spec_decode_worker.py:367] SpecDecodeWorker initialized
+INFO 06-07 19:28:19 [__init__.py:239] Automatically detected platform cuda.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:21 [multiproc_worker_utils.py:225] Worker ready; awaiting tasks
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:22 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [cuda.py:231] Using XFormers backend.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [spec_decode_worker.py:211] Configuring SpecDecodeWorker with proposer=<class 'vllm.spec_decode.multi_step_worker.MultiStepWorker'>
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [rejection_sampler.py:60] Use pytorch for rejection sampling.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [spec_decode_worker.py:223] [Speculative Decoding] Configuring SpecDecodeWorker with sampler=<class 'vllm.model_executor.layers.rejection_sampler.RejectionSampler'>
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [spec_decode_worker.py:231] [Speculative Decoding] Disabling MQA scorer as the MQA is only available with flash attn backend.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:24 [spec_decode_worker.py:246] [Speculative Decoding] Disabling MQA scorer as the target model is not running in eager mode.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:25 [colocation_profiler.py:101] Colocation profile file: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:25 [profiler.py:59] Profile directory: profile/NVIDIA_RTX_A6000_opt-13b_opt-350m
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:25 [selective_validator.py:41] Selective validation disabled
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:25 [spec_decode_worker.py:367] SpecDecodeWorker initialized
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:27 [utils.py:1048] Found nccl from library libnccl.so.2
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:27 [pynccl.py:69] vLLM is using nccl==2.21.5
+INFO 06-07 19:28:27 [utils.py:1048] Found nccl from library libnccl.so.2
+INFO 06-07 19:28:27 [pynccl.py:69] vLLM is using nccl==2.21.5
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:29 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 06-07 19:28:29 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/sjchoi/.cache/vllm/gpu_p2p_access_cache_for_0,1.json
+INFO 06-07 19:28:29 [shm_broadcast.py:266] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_a0ddf9b2'), local_subscribe_addr='ipc:///tmp/90ac710f-8c1b-4c00-8542-7b839717519b', remote_subscribe_addr=None, remote_addr_ipv6=False)
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:29 [parallel_state.py:946] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1
+INFO 06-07 19:28:29 [parallel_state.py:946] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0
+INFO 06-07 19:28:30 [model_runner.py:1127] Starting to load model facebook/opt-13b...
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:30 [model_runner.py:1127] Starting to load model facebook/opt-13b...
+INFO 06-07 19:28:30 [loader.py:1542] Using model identifier: facebook_opt-13b
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:30 [loader.py:1542] Using model identifier: facebook_opt-13b
+INFO 06-07 19:28:30 [loader.py:1566] Secondary process - loading model from shared memory
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:30 [loader.py:1566] Secondary process - loading model from shared memory
+INFO 06-07 19:28:32 [model_runner.py:1163] Model loading took 0.0001 GiB and 1.497119 seconds
+INFO 06-07 19:28:32 [model_runner.py:1127] Starting to load model facebook/opt-350m...
+INFO 06-07 19:28:32 [loader.py:1542] Using model identifier: facebook_opt-350m
+INFO 06-07 19:28:32 [loader.py:1566] Secondary process - loading model from shared memory
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:32 [model_runner.py:1163] Model loading took 0.0001 GiB and 1.951717 seconds
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:32 [model_runner.py:1127] Starting to load model facebook/opt-350m...
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:32 [loader.py:1542] Using model identifier: facebook_opt-350m
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:32 [loader.py:1566] Secondary process - loading model from shared memory
+INFO 06-07 19:28:32 [model_runner.py:1163] Model loading took 0.0001 GiB and 0.276746 seconds
+INFO 06-07 19:28:32 [spec_decode_worker.py:403] [Speculative Decoding] Use batch expansion for scoring proposals.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:33 [model_runner.py:1163] Model loading took 0.0001 GiB and 0.779291 seconds
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:33 [spec_decode_worker.py:403] [Speculative Decoding] Use batch expansion for scoring proposals.
+INFO 06-07 19:28:33 [llm_engine.py:433] Using CoSpec for KV cache allocation
+INFO 06-07 19:28:33 [llm_engine.py:442] Secondary process, getting num of blocks
+INFO 06-07 19:28:33 [executor_base.py:112] # cuda blocks: 1850, # CPU blocks: 327
+INFO 06-07 19:28:33 [executor_base.py:117] Maximum concurrency for 2048 tokens per request: 14.45x
+INFO 06-07 19:28:43 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:28:45 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 06-07 19:29:01 [custom_all_reduce.py:195] Registering 1539 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:29:03 [custom_all_reduce.py:195] Registering 1539 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:29:03 [model_runner.py:1617] Graph capturing finished in 18 secs, took 0.79 GiB
+INFO 06-07 19:29:03 [model_runner.py:1617] Graph capturing finished in 19 secs, took 0.76 GiB
+INFO 06-07 19:29:04 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:29:04 [model_runner.py:1475] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 06-07 19:29:19 [custom_all_reduce.py:195] Registering 931 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:29:20 [custom_all_reduce.py:195] Registering 931 cuda graph addresses
+[1;36m(VllmWorkerProcess pid=2467642)[0;0m INFO 06-07 19:29:20 [model_runner.py:1617] Graph capturing finished in 15 secs, took 0.48 GiB
+INFO 06-07 19:29:20 [model_runner.py:1617] Graph capturing finished in 15 secs, took 0.47 GiB
+INFO 06-07 19:29:20 [llm_engine.py:462] init engine (profile, create kv cache, warmup model) took 46.41 seconds
+INFO 06-07 19:29:22 [metrics.py:497] [primary] Avg prompt throughput: 3.0 tokens/s, Avg generation throughput: 5.9 tokens/s, Running: 16 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.9%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:26 [metrics.py:497] [secondary] Avg prompt throughput: 2.7 tokens/s, Avg generation throughput: 5.4 tokens/s, Running: 16 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.9%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:27 [colocation_profiler.py:108] Loading cached profiling results from profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:29:27 [colocation_profiler.py:126] Loaded cached profiling results from profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:29:27 [colocation_profiler.py:307] Split data into 89 training and 23 test configurations.
+INFO 06-07 19:29:27 [colocation_profiler.py:322] Trained colocation model on 89 data points
+INFO 06-07 19:29:27 [colocation_profiler.py:328] Trained non-colocation model on 89 data points
+INFO 06-07 19:29:27 [colocation_profiler.py:495] Saved speedup heatmap to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/speedup_heatmap.png
+INFO 06-07 19:29:28 [colocation_profiler.py:551] Saved predicted speedup heatmap to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/predicted_speedup_heatmap.png
+INFO 06-07 19:29:28 [colocation_profiler.py:552] Model metrics: {'MAE': np.float64(0.09575642958074768), 'RMSE': np.float64(0.12389780576012746), 'R²': np.float64(0.44348910612469516), 'ECE': np.float64(0.0053649086277270655), 'AUROC': np.float64(0.9222222222222223)}
+INFO 06-07 19:29:28 [colocation_profiler.py:574] Saved ROC curve plot to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/roc_curve.png
+INFO 06-07 19:29:28 [metrics.py:497] [primary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 22.9 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:37 [metrics.py:497] [secondary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 13.3 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:38 [colocation_profiler.py:108] Loading cached profiling results from profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:29:38 [colocation_profiler.py:126] Loaded cached profiling results from profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/colocation_results.csv
+INFO 06-07 19:29:38 [colocation_profiler.py:307] Split data into 89 training and 23 test configurations.
+INFO 06-07 19:29:38 [metrics.py:497] [primary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:38 [colocation_profiler.py:322] Trained colocation model on 89 data points
+INFO 06-07 19:29:38 [colocation_profiler.py:328] Trained non-colocation model on 89 data points
+INFO 06-07 19:29:39 [colocation_profiler.py:495] Saved speedup heatmap to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/speedup_heatmap.png
+INFO 06-07 19:29:40 [colocation_profiler.py:551] Saved predicted speedup heatmap to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/predicted_speedup_heatmap.png
+INFO 06-07 19:29:40 [colocation_profiler.py:552] Model metrics: {'MAE': np.float64(0.09575642958074768), 'RMSE': np.float64(0.12389780576012746), 'R²': np.float64(0.44348910612469516), 'ECE': np.float64(0.0053649086277270655), 'AUROC': np.float64(0.9222222222222223)}
+INFO 06-07 19:29:40 [colocation_profiler.py:574] Saved ROC curve plot to profile/NVIDIA_RTX_A6000_opt-13b_opt-350m/roc_curve.png
+INFO 06-07 19:29:40 [serving_completion_cospec.py:689] Loaded cached profile. Skipping profiling.
+INFO 06-07 19:29:40 [serving_completion_cospec.py:95] [Dynamic Colocation] Started background colocation state manager
+INFO 06-07 19:29:40 [api_server.py:1391] Starting vLLM API server on http://0.0.0.0:8011
+INFO 06-07 19:29:40 [launcher.py:28] Available routes are:
+INFO 06-07 19:29:40 [launcher.py:36] Route: /openapi.json, Methods: GET, HEAD
+INFO 06-07 19:29:40 [launcher.py:36] Route: /docs, Methods: GET, HEAD
+INFO 06-07 19:29:40 [launcher.py:36] Route: /docs/oauth2-redirect, Methods: GET, HEAD
+INFO 06-07 19:29:40 [launcher.py:36] Route: /redoc, Methods: GET, HEAD
+INFO 06-07 19:29:40 [launcher.py:36] Route: /health, Methods: GET
+INFO 06-07 19:29:40 [launcher.py:36] Route: /load, Methods: GET
+INFO 06-07 19:29:40 [launcher.py:36] Route: /selective_validator_trained, Methods: GET
+INFO 06-07 19:29:40 [launcher.py:36] Route: /ping, Methods: GET, POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /tokenize, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /detokenize, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/models, Methods: GET
+INFO 06-07 19:29:40 [launcher.py:36] Route: /version, Methods: GET
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/chat/completions, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/completions, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/embeddings, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /pooling, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /score, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/score, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/audio/transcriptions, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /rerank, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v1/rerank, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /v2/rerank, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /invocations, Methods: POST
+INFO 06-07 19:29:40 [launcher.py:36] Route: /metrics, Methods: GET
+INFO 06-07 19:29:40 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:41 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:41 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:42 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:42 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:43 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:43 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:44 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:44 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:45 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:45 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:46 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:46 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:47 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:47 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:48 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:36952 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36962 - "GET /selective_validator_trained HTTP/1.1" 200 OK
+INFO 06-07 19:29:48 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:49 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:49 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:50 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:50 [metrics.py:497] [secondary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:29:50 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:50 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:51 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:51 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:51 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:51 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:52 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:52 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:52 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:52 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:53 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:53 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:53 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:53 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:54 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:54 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:54 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:54 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:55 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:29:55 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:29:55 [serving_completion_cospec.py:933] [Dynamic Colocation] Switching to non-colocation mode after 10 consecutive predictions
+INFO 06-07 19:29:55 [serving_completion_cospec.py:945] [Dynamic Colocation] Setting num speculative tokens to 7
+INFO 06-07 19:29:55 [serving_completion_cospec.py:975] [Dynamic Colocation] Mode switched to non-colocation
+INFO 06-07 19:29:55 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:56 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:56 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:57 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:57 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:58 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:58 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:59 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:29:59 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:00 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:00 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:01 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:01 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:02 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:02 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:03 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:03 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:04 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:04 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:05 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:05 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:06 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:06 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:07 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:07 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:08 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:08 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:09 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:09 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:10 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:10 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:11 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:11 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:12 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:12 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:13 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:13 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:14 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:14 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:15 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:15 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:16 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:16 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:17 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:17 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:18 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:18 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:19 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:19 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:20 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:20 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:21 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:21 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:22 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:22 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:23 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:23 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:24 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:24 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:25 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:25 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:25 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:25 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:26 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:26 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:26 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:26 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:27 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:27 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:27 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:27 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:28 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:28 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:28 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:28 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:29 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:29 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:29 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:29 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:30 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:30 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:30 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:30 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:31 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:31 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:31 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:31 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:32 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:32 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:32 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:32 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:33 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:33 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:33 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:33 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:34 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:34 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:34 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:34 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:35 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:35 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:35 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:35 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:36 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:36 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:36 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:36 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:37 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:37 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:37 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:37 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:38 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:38 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:38 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:38 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:39 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:39 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:39 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:39 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:40 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:40 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:40 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:40 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:41 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:41 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:41 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:41 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:42 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:42 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:42 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:42 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:43 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:43 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:43 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:43 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:44 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:44 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:44 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:44 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:45 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:45 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:45 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:45 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:46 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:46 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:46 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:47 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:47 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:47 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO 06-07 19:30:48 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:48 [serving_completion_cospec.py:922] batch_size_ema: 0.00, ratio: 0.95
+INFO:     127.0.0.1:55764 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55772 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:48 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:49 [serving_completion_cospec.py:922] batch_size_ema: 0.50, ratio: 0.96
+INFO 06-07 19:30:49 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:49 [serving_completion_cospec.py:922] batch_size_ema: 0.75, ratio: 0.96
+INFO 06-07 19:30:50 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:50 [serving_completion_cospec.py:922] batch_size_ema: 0.88, ratio: 0.96
+INFO 06-07 19:30:50 [metrics.py:497] [primary] Avg prompt throughput: 13.9 tokens/s, Avg generation throughput: 4.8 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.7%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:30:50 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:50 [serving_completion_cospec.py:922] batch_size_ema: 0.94, ratio: 0.96
+INFO 06-07 19:30:51 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO 06-07 19:30:51 [serving_completion_cospec.py:922] batch_size_ema: 0.97, ratio: 0.96
+INFO:     127.0.0.1:37620 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37636 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37652 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37658 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37670 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:51 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:37678 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37692 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37696 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37708 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:52 [serving_completion_cospec.py:922] batch_size_ema: 2.98, ratio: 0.99
+INFO:     127.0.0.1:37720 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37736 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37752 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:53 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:37766 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37776 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37788 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37800 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37802 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37804 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:53 [serving_completion_cospec.py:922] batch_size_ema: 7.49, ratio: 1.05
+INFO:     127.0.0.1:37820 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37822 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:54 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:37836 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:54 [serving_completion_cospec.py:922] batch_size_ema: 13.25, ratio: 1.10
+INFO:     127.0.0.1:37838 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:54 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:37852 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37868 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37870 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37872 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37886 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37902 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37908 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:55 [metrics.py:497] [primary] Avg prompt throughput: 983.1 tokens/s, Avg generation throughput: 23.9 tokens/s, Running: 20 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 17.4%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:30:55 [serving_completion_cospec.py:922] batch_size_ema: 17.12, ratio: 1.12
+INFO:     127.0.0.1:37912 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37916 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37924 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37930 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37938 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37944 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:56 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:37950 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37964 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37974 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37990 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38006 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38020 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38030 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38040 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:57 [serving_completion_cospec.py:922] batch_size_ema: 24.06, ratio: 1.15
+INFO:     127.0.0.1:38050 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38058 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38064 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38078 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38094 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38102 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:57 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:38110 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38118 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38130 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38144 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:58 [serving_completion_cospec.py:922] batch_size_ema: 34.03, ratio: 1.19
+INFO:     127.0.0.1:38154 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38166 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38178 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38194 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:30:58 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:38204 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38206 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38208 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38222 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38232 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38246 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38256 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38262 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38268 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38276 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38292 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38298 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38304 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38316 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38322 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38330 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:00 [serving_completion_cospec.py:922] batch_size_ema: 40.02, ratio: 1.20
+INFO:     127.0.0.1:56920 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:00 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:56932 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56934 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56946 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56962 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56968 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56972 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56978 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56992 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57002 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57006 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:01 [metrics.py:497] [primary] Avg prompt throughput: 2389.1 tokens/s, Avg generation throughput: 77.4 tokens/s, Running: 57 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 51.7%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:57010 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57016 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57018 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57034 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57040 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:01 [serving_completion_cospec.py:922] batch_size_ema: 49.01, ratio: 1.22
+INFO:     127.0.0.1:57044 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57048 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57050 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:02 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:57060 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57062 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57070 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57076 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57078 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57094 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57104 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57118 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57134 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57140 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57150 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57166 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57168 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57172 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57184 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57194 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57200 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57214 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:04 [serving_completion_cospec.py:922] batch_size_ema: 60.00, ratio: 1.24
+INFO:     127.0.0.1:57220 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57236 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57238 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:04 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:57246 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57256 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57266 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57274 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57280 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57286 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57294 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57300 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:06 [serving_completion_cospec.py:922] batch_size_ema: 75.00, ratio: 1.25
+INFO:     127.0.0.1:57314 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57316 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:06 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: False
+INFO:     127.0.0.1:57328 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:06 [metrics.py:497] [primary] Avg prompt throughput: 2181.5 tokens/s, Avg generation throughput: 97.5 tokens/s, Running: 81 reqs, Swapped: 0 reqs, Pending: 5 reqs, GPU KV cache usage: 73.7%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:57330 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57342 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57358 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57370 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57380 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57394 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57410 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57420 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57430 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57434 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57444 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57458 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57462 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57476 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57478 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:08 [serving_completion_cospec.py:922] batch_size_ema: 83.00, ratio: 1.26
+INFO 06-07 19:31:08 [serving_completion_cospec.py:960] [Dynamic Colocation] Switching to colocation mode after 10 consecutive predictions
+INFO 06-07 19:31:08 [serving_completion_cospec.py:966] [Dynamic Colocation] Setting num speculative tokens to 7
+INFO 06-07 19:31:08 [serving_completion_cospec.py:975] [Dynamic Colocation] Mode switched to colocation
+INFO:     127.0.0.1:57484 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57496 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57506 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57520 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:08 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:57536 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57550 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57566 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:09 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:57576 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57590 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57594 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:09 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:57602 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:10 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:31:10 [metrics.py:497] [secondary] Avg prompt throughput: 507.0 tokens/s, Avg generation throughput: 7.6 tokens/s, Running: 10 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 6.5%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:60026 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60028 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:10 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60038 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60044 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60056 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60064 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:11 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60076 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60088 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60094 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:11 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60100 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60106 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60108 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60118 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:11 [metrics.py:497] [primary] Avg prompt throughput: 677.7 tokens/s, Avg generation throughput: 146.7 tokens/s, Running: 88 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 77.5%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:60132 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:12 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60144 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:12 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60148 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60156 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60166 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60182 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:13 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60186 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60190 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60196 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60198 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60204 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60214 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60216 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60218 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:13 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60222 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60228 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:14 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60236 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60248 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60256 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60268 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60278 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60292 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:14 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60304 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60320 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60332 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60334 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:15 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60338 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60354 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60362 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60374 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60376 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:15 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60386 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60400 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60402 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60406 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:16 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60410 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60418 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60430 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60434 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60446 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60452 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60458 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60462 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:16 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60470 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60474 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60488 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:16 [metrics.py:497] [secondary] Avg prompt throughput: 1456.6 tokens/s, Avg generation throughput: 38.6 tokens/s, Running: 43 reqs, Swapped: 0 reqs, Pending: 2 reqs, GPU KV cache usage: 33.8%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:31:17 [metrics.py:497] [primary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 213.1 tokens/s, Running: 66 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 72.1%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:60494 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:17 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:31:17 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60504 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60514 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60516 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60518 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60530 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60532 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:18 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60544 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60550 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60562 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60574 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:18 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60576 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60584 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60586 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:19 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60592 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60594 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60600 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:19 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60608 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60610 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60614 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:20 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:60630 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60632 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60634 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60646 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48770 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48782 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48790 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48800 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:20 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48814 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48822 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48830 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48836 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48842 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:21 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48850 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48854 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48858 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48866 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48870 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48872 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48874 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:21 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48886 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48894 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48908 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:22 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48918 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:22 [metrics.py:497] [primary] Avg prompt throughput: 780.6 tokens/s, Avg generation throughput: 161.0 tokens/s, Running: 68 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 75.1%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:48920 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:22 [metrics.py:497] [secondary] Avg prompt throughput: 1259.5 tokens/s, Avg generation throughput: 55.6 tokens/s, Running: 65 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 49.1%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:31:22 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48934 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48942 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48946 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48956 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:23 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48960 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48974 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48976 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48984 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48990 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:23 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49006 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49018 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49024 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:24 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49040 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49042 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49050 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49064 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:24 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49076 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49088 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:25 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49094 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49108 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49122 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:25 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49130 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:26 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49134 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49142 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:26 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49156 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49164 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49176 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:27 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49182 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49196 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49204 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49228 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:27 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO 06-07 19:31:27 [metrics.py:497] [secondary] Avg prompt throughput: 495.9 tokens/s, Avg generation throughput: 91.6 tokens/s, Running: 64 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 47.5%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:31:27 [metrics.py:497] [primary] Avg prompt throughput: 903.0 tokens/s, Avg generation throughput: 176.0 tokens/s, Running: 62 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 73.5%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:49244 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49248 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49250 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:28 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49252 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49262 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49272 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49286 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49294 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49308 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49318 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:28 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49328 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49330 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:29 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49340 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:29 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49352 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49360 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:30 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:49362 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49370 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49382 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49384 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49400 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49410 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48254 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48258 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48266 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:30 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48268 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48274 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48284 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48300 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48304 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48314 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48316 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:31 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48330 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48342 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48344 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48346 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48360 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:31 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48368 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48378 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48394 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48400 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48414 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48416 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:32 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48428 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48442 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48452 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48454 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48468 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48470 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:32 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48486 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:32 [metrics.py:497] [secondary] Avg prompt throughput: 908.7 tokens/s, Avg generation throughput: 118.5 tokens/s, Running: 73 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 53.2%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:48498 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:33 [metrics.py:497] [primary] Avg prompt throughput: 1228.7 tokens/s, Avg generation throughput: 128.5 tokens/s, Running: 72 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 87.2%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:48502 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48506 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:33 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48512 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48530 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48542 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48558 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48574 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48576 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:33 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48592 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48596 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48606 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:34 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48618 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48624 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48636 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48644 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48646 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48650 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:34 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48664 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48666 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48680 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48682 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:35 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48694 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48696 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48704 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:35 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48710 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48726 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48728 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48734 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:36 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48744 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48752 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:36 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48766 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48772 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48788 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48802 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:37 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48810 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48812 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48816 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48824 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48838 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:37 [serving_completion_cospec.py:922] batch_size_ema: 122.50, ratio: 1.28
+INFO:     127.0.0.1:48842 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48856 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48858 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:38 [metrics.py:497] [primary] Avg prompt throughput: 1375.8 tokens/s, Avg generation throughput: 143.2 tokens/s, Running: 79 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 89.8%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:31:38 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48868 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48880 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:38 [metrics.py:497] [secondary] Avg prompt throughput: 631.2 tokens/s, Avg generation throughput: 67.1 tokens/s, Running: 80 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 64.5%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:48888 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48898 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:39 [serving_completion_cospec.py:922] batch_size_ema: 144.25, ratio: 1.29
+INFO:     127.0.0.1:48912 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48914 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:39 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:48928 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48936 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48950 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48954 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48958 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48960 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48978 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48992 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48996 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:40 [serving_completion_cospec.py:922] batch_size_ema: 152.63, ratio: 1.29
+INFO:     127.0.0.1:51408 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51412 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51426 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51430 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51438 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51454 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:41 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:51466 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51480 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:41 [serving_completion_cospec.py:922] batch_size_ema: 162.81, ratio: 1.29
+INFO:     127.0.0.1:51494 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51500 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51502 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51508 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51512 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:42 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:51518 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51526 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51534 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51544 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51546 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51558 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51574 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51576 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51586 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51600 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51602 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51606 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51620 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:43 [serving_completion_cospec.py:922] batch_size_ema: 166.41, ratio: 1.30
+INFO:     127.0.0.1:51624 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51630 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51638 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51648 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:43 [metrics.py:497] [primary] Avg prompt throughput: 1077.4 tokens/s, Avg generation throughput: 161.7 tokens/s, Running: 76 reqs, Swapped: 0 reqs, Pending: 9 reqs, GPU KV cache usage: 92.7%, CPU KV cache usage: 0.0%.
+INFO 06-07 19:31:43 [serving_completion_cospec.py:116] [Dynamic Colocation] Colocation mode: True
+INFO:     127.0.0.1:51658 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO 06-07 19:31:44 [metrics.py:497] [secondary] Avg prompt throughput: 541.2 tokens/s, Avg generation throughput: 77.9 tokens/s, Running: 89 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 75.4%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:51660 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51672 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51684 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51696 - "POST /v1/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51710 - "POST /v1/completions HTTP/1.1" 200 OK
+ERROR 06-07 19:31:44 [engine.py:172] OutOfMemoryError('CUDA out of memory. Tried to allocate 122.00 MiB. GPU 0 has a total capacity of 47.54 GiB of which 31.31 MiB is free. Process 2465960 has 28.06 MiB memory in use. Process 2465739 has 31.31 GiB memory in use. Process 2466119 has 258.00 MiB memory in use. Including non-PyTorch memory, this process has 15.63 GiB memory in use. Process 2467642 has 258.00 MiB memory in use. Of the allocated memory 13.21 GiB is allocated by PyTorch, with 32.00 MiB allocated in private pools (e.g., CUDA Graphs), and 614.74 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)')
+ERROR 06-07 19:31:44 [engine.py:172] Traceback (most recent call last):
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/engine/multiprocessing/engine.py", line 170, in start
+ERROR 06-07 19:31:44 [engine.py:172]     self.run_engine_loop()
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/engine/multiprocessing/engine.py", line 233, in run_engine_loop
+ERROR 06-07 19:31:44 [engine.py:172]     request_outputs = self.engine_step()
+ERROR 06-07 19:31:44 [engine.py:172]                       ^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/engine/multiprocessing/engine.py", line 259, in engine_step
+ERROR 06-07 19:31:44 [engine.py:172]     raise e
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/engine/multiprocessing/engine.py", line 242, in engine_step
+ERROR 06-07 19:31:44 [engine.py:172]     return self.engine.step()
+ERROR 06-07 19:31:44 [engine.py:172]            ^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/engine/llm_engine.py", line 1438, in step
+ERROR 06-07 19:31:44 [engine.py:172]     outputs = self.model_executor.execute_model(
+ERROR 06-07 19:31:44 [engine.py:172]               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/executor/executor_base.py", line 335, in execute_model
+ERROR 06-07 19:31:44 [engine.py:172]     driver_outputs = self._driver_execute_model(execute_model_req)
+ERROR 06-07 19:31:44 [engine.py:172]                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/executor/mp_distributed_executor.py", line 144, in _driver_execute_model
+ERROR 06-07 19:31:44 [engine.py:172]     return self.driver_worker.execute_model(execute_model_req)
+ERROR 06-07 19:31:44 [engine.py:172]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/env/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+ERROR 06-07 19:31:44 [engine.py:172]     return func(*args, **kwargs)
+ERROR 06-07 19:31:44 [engine.py:172]            ^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/spec_decode/spec_decode_worker.py", line 573, in execute_model
+ERROR 06-07 19:31:44 [engine.py:172]     result =  self._run_speculative_decoding_step(execute_model_req,
+ERROR 06-07 19:31:44 [engine.py:172]               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/home/sjchoi/.local/share/uv/python/cpython-3.12.10-linux-x86_64-gnu/lib/python3.12/contextlib.py", line 81, in inner
+ERROR 06-07 19:31:44 [engine.py:172]     return func(*args, **kwds)
+ERROR 06-07 19:31:44 [engine.py:172]            ^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/spec_decode/spec_decode_worker.py", line 834, in _run_speculative_decoding_step
+ERROR 06-07 19:31:44 [engine.py:172]     proposals = self.proposer_worker.get_spec_proposals(
+ERROR 06-07 19:31:44 [engine.py:172]                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/spec_decode/multi_step_worker.py", line 259, in get_spec_proposals
+ERROR 06-07 19:31:44 [engine.py:172]     return self._proposer.get_spec_proposals(
+ERROR 06-07 19:31:44 [engine.py:172]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/spec_decode/top1_proposer.py", line 107, in get_spec_proposals
+ERROR 06-07 19:31:44 [engine.py:172]     proposal_tokens, proposal_probs, proposal_lens, unscaled_temp_probs = self._merge_outputs(
+ERROR 06-07 19:31:44 [engine.py:172]                                                                           ^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172]   File "/mnt/sdb/sjchoi/CoSpec_new.code/vllm/spec_decode/top1_proposer.py", line 274, in _merge_outputs
+ERROR 06-07 19:31:44 [engine.py:172]     entire_proposal_probs = proposal_probs.new_zeros(
+ERROR 06-07 19:31:44 [engine.py:172]                             ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 06-07 19:31:44 [engine.py:172] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 122.00 MiB. GPU 0 has a total capacity of 47.54 GiB of which 31.31 MiB is free. Process 2465960 has 28.06 MiB memory in use. Process 2465739 has 31.31 GiB memory in use. Process 2466119 has 258.00 MiB memory in use. Including non-PyTorch memory, this process has 15.63 GiB memory in use. Process 2467642 has 258.00 MiB memory in use. Of the allocated memory 13.21 GiB is allocated by PyTorch, with 32.00 MiB allocated in private pools (e.g., CUDA Graphs), and 614.74 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+INFO 06-07 19:31:44 [serving_completion_cospec.py:922] batch_size_ema: 173.20, ratio: 1.30
+INFO:     127.0.0.1:51712 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51726 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51742 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51750 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51754 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51768 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+ERROR 06-07 19:31:45 [serving_completion_cospec.py:114] [Dynamic Colocation] Engine processes are not alive
+INFO:     127.0.0.1:51778 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51794 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51804 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51806 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51818 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+ERROR 06-07 19:31:46 [multiproc_worker_utils.py:120] Worker VllmWorkerProcess pid 2467642 died, exit code: -15
+INFO 06-07 19:31:46 [multiproc_worker_utils.py:124] Killing local vLLM worker processes
+INFO:     127.0.0.1:51832 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51836 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51840 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51856 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51860 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51872 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51876 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51884 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51886 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51902 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51918 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51926 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51930 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO 06-07 19:31:48 [metrics.py:497] [primary] Avg prompt throughput: 944.9 tokens/s, Avg generation throughput: 212.7 tokens/s, Running: 60 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 80.9%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:51946 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51956 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51970 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51980 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:51996 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52002 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52008 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52020 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52036 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52048 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52050 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52060 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52074 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52084 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52098 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:52104 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59286 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59292 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59306 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59314 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59330 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59344 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59360 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59374 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59390 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59398 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59402 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59404 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59408 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59416 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59426 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59428 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59430 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO 06-07 19:31:53 [metrics.py:497] [primary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 212.1 tokens/s, Running: 35 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 67.8%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:59442 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59454 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59458 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59474 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59490 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59500 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59514 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59520 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59528 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59536 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59544 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59552 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59558 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59572 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59584 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+ERROR 06-07 19:31:55 [client.py:323] RuntimeError('Engine process (pid 2467400) died.')
+ERROR 06-07 19:31:55 [client.py:323] NoneType: None
+INFO:     127.0.0.1:59598 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59608 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59616 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59618 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59626 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59636 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59642 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59658 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59674 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59680 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59686 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59694 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59702 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59708 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59718 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59720 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59724 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59734 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59746 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59748 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59750 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59752 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59762 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59764 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59774 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59790 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59800 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59812 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59820 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59836 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59852 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59860 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59868 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59874 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59888 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59904 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO 06-07 19:31:58 [metrics.py:497] [primary] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 165.9 tokens/s, Running: 14 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 41.5%, CPU KV cache usage: 0.0%.
+INFO:     127.0.0.1:59918 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59924 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59926 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59940 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59956 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59962 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59978 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:59994 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60002 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60012 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60028 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60102 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60108 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60120 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60136 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60150 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60160 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60168 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60184 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60196 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:60202 - "POST /v1/completions HTTP/1.1" 500 Internal Server Error
+[1;36m(VllmWorkerProcess pid=2466119)[0;0m INFO 06-07 19:32:01 [multiproc_worker_utils.py:259] Worker exiting
+INFO 06-07 19:32:01 [launcher.py:79] Shutting down FastAPI HTTP server.
+INFO 06-07 19:32:03 [serving_completion_cospec.py:106] [Dynamic Colocation] Stopped background colocation state manager
+INFO 06-07 19:32:05 [api_server.py:1424] NVIDIA MPS daemon stopped successfully

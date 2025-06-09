@@ -69,7 +69,7 @@ def plot_speedup_heatmap_from_csv(csv_file):
     plt.xticks(rotation=45)
     
     # Save plot
-    plot_file = os.path.join(os.path.dirname(csv_file), "speedup_heatmap.png")
+    plot_file = os.path.join(os.path.dirname(csv_file), "speedup_heatmap.pdf")
     plt.savefig(plot_file, bbox_inches='tight', dpi=300)
     plt.close()
     

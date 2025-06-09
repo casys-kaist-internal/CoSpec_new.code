@@ -423,12 +423,6 @@ class LocalOrDistributedWorkerBase(WorkerBase):
                 orig_model_execute_time = intermediate_tensors.tensors.get(
                     "model_execute_time", torch.tensor(0)).item()
 
-        # if self.cospec_manager is not None:
-        #     if is_target:
-        #         self.cospec_manager.target_start()
-        #     else:
-        #         self.cospec_manager.draft_start()
-
         output = self.model_runner.execute_model(
             model_input=model_input,
             kv_caches=self.kv_cache[worker_input.virtual_engine]

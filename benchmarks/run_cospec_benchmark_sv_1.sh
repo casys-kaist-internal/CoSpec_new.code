@@ -60,13 +60,13 @@ PORT=8100
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
-    ["colocation_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1"
-    ["colocation_consolidated_threshold_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
-    ["colocation_consolidated_threshold_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
-    ["colocation_consolidated_threshold_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
-    ["colocation_consolidated_tile"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile"
-    ["colocation_consolidated_linear"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear"
-    ["colocation_consolidated_polynomial"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial"
+    ["colocation_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=1"
+    ["colocation_consolidated_threshold_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
+    ["colocation_consolidated_threshold_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
+    ["colocation_consolidated_threshold_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
+    ["colocation_consolidated_tile"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile"
+    ["colocation_consolidated_linear"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear"
+    ["colocation_consolidated_polynomial"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial"
 )
 
 # Set nvidia-smi EXCLUSIVE_PROCESS 
@@ -79,7 +79,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="5_30_cospec_selective_validation_result_llama_1"
+RESULTS_DIR="6_1_cospec_selective_validation_result_llama_1"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -214,18 +214,13 @@ run_benchmark() {
 # Main Execution
 # =============================================
 
-# Define the order of configurations to run
-# declare -a CONFIG_ORDER=(
-#     "colocation_consolidated"
-#     "colocation_consolidated_threshold_0.1"
-#     "colocation_consolidated_threshold_0.3"
-#     "colocation_consolidated_threshold_0.5"
-#     "colocation_consolidated_tile"
-#     "colocation_consolidated_linear"
-#     "colocation_consolidated_polynomial"
-# )
 declare -a CONFIG_ORDER=(
+    "colocation_consolidated"
+    "colocation_consolidated_threshold_0.1"
+    "colocation_consolidated_threshold_0.3"
     "colocation_consolidated_threshold_0.5"
+    "colocation_consolidated_tile"
+    "colocation_consolidated_linear"
     "colocation_consolidated_polynomial"
 )
 
