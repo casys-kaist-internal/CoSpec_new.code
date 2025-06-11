@@ -77,7 +77,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_9_cospec_selective_validation_result_opt_6.7b"
+RESULTS_DIR="6_11_cospec_selective_validation_result_opt_6.7b"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header

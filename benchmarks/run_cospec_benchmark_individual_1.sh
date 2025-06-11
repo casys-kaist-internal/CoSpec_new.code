@@ -17,8 +17,8 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second) for each dataset
-MATH500_RATES=(12)
-SHAREGPT_RATES=(8)
+MATH500_RATES=(8 10 12)
+SHAREGPT_RATES=(6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
 
@@ -73,7 +73,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_1_cospec_individual_result_llama"
+RESULTS_DIR="6_11_cospec_individual_result_llama_13b"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header

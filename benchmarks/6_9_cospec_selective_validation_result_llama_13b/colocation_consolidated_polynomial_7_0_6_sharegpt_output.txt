@@ -1,8 +1,14 @@
-INFO 06-10 21:11:09 [__init__.py:239] Automatically detected platform cuda.
+INFO 06-11 14:47:00 [__init__.py:239] Automatically detected platform cuda.
 Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='sharegpt', dataset_path=None, max_concurrency=None, model='huggyllama/llama-13b', tokenizer=None, use_beam_search=False, duration_minutes=5.0, logprobs=None, request_rate=6.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
 Split dataset into 8277 test samples and 74494 training samples
 Temperature:  0.0
 Running test split to train selective validator...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
+Checking server health at http://127.0.0.1:8100/health
+Waiting for server to start...
 Checking server health at http://127.0.0.1:8100/health
 Waiting for server to start...
 Checking server health at http://127.0.0.1:8100/health
@@ -55,7 +61,7 @@ Traffic request rate: 6.0
 Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
 result {'is_trained': True}
-Selective validator trained after 384 test requests (109.73 seconds)
+Selective validator trained after 384 test requests (109.58 seconds)
 Running full benchmark...
 Checking server health at http://127.0.0.1:8100/health
 Server is ready!
@@ -66,31 +72,31 @@ Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
 Benchmark duration: 5.0 minutes
 ============ Serving Benchmark Result ============
-Successful requests:                     1686      
-Benchmark duration (s):                  300.14    
-Total input tokens:                      413943    
-Total generated tokens:                  384640    
+Successful requests:                     1688      
+Benchmark duration (s):                  300.12    
+Total input tokens:                      414646    
+Total generated tokens:                  384930    
 Request throughput (req/s):              5.62      
-Output token throughput (tok/s):         1281.55   
-Total Token throughput (tok/s):          2660.73   
+Output token throughput (tok/s):         1282.60   
+Total Token throughput (tok/s):          2664.22   
 ---------------Time to First Token----------------
-Mean TTFT (ms):                          222.04    
-Median TTFT (ms):                        203.38    
-P99 TTFT (ms):                           529.85    
+Mean TTFT (ms):                          218.39    
+Median TTFT (ms):                        204.49    
+P99 TTFT (ms):                           477.62    
 -----Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          41.76     
-Median TPOT (ms):                        36.25     
-P99 TPOT (ms):                           114.76    
+Mean TPOT (ms):                          40.73     
+Median TPOT (ms):                        35.25     
+P99 TPOT (ms):                           114.59    
 ---------------Inter-token Latency----------------
-Mean ITL (ms):                           103.35    
-Median ITL (ms):                         85.65     
-P99 ITL (ms):                            285.47    
+Mean ITL (ms):                           103.18    
+Median ITL (ms):                         85.39     
+P99 ITL (ms):                            274.01    
 ----------------End-to-end Latency----------------
-Mean E2EL (ms):                          6726.93   
-Median E2EL (ms):                        4489.70   
-P99 E2EL (ms):                           36041.89  
+Mean E2EL (ms):                          6531.06   
+Median E2EL (ms):                        4304.60   
+P99 E2EL (ms):                           34841.45  
 -----Token Latency (e2e_latency / output_len)-----
-Mean Token Latency (ms):                 47.14     
-Median Token Latency (ms):               39.17     
-P99 Token Latency (ms):                  138.55    
+Mean Token Latency (ms):                 46.00     
+Median Token Latency (ms):               38.13     
+P99 Token Latency (ms):                  138.00    
 ==================================================

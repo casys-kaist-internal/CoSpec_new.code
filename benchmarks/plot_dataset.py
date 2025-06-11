@@ -4,7 +4,7 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset,
                                 HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
-                                OpenMathInstructDataset, OpenCodeReasoningDataset, Math500Dataset)
+                                OpenMathInstructDataset, OpenCodeReasoningDataset, Math500Dataset, AlpacaDataset)
 try:
     from vllm.transformers_utils.tokenizer import get_tokenizer
 except ImportError:
@@ -51,6 +51,10 @@ math500_dataset = Math500Dataset(random_seed=seed,
 #                     dataset_path="nvidia/OpenMathReasoning", 
 #                     dataset_split="cot").sample_all(tokenizer=tokenizer)
 
+alpaca_dataset = AlpacaDataset(random_seed=seed,
+                    dataset_path="vicgalle/alpaca-gpt4", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
+
 # # Extract input and output lengths
 # datasets = {
 #     'ShareGPT': sharegpt_dataset,
@@ -67,7 +71,7 @@ math500_dataset = Math500Dataset(random_seed=seed,
 datasets = {
     'ShareGPT': sharegpt_dataset,
     'Math500': math500_dataset,
-    'OpenCodeInstruct': open_code_instruct_dataset
+    'Alpaca': alpaca_dataset
 }
 
 # Create figure with subplots
