@@ -1970,6 +1970,9 @@ class LLMEngine:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
         self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
 
+    def set_max_num_seqs(self, max_num_seqs: int) -> None:
+        self.vllm_config.scheduler_config.max_num_seqs = max_num_seqs
+
     def get_num_speculative_tokens_ema(self) -> int:
         return self.model_executor.get_num_speculative_tokens_ema()
 

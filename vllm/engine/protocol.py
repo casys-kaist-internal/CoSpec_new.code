@@ -311,6 +311,11 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
+    async def set_max_num_seqs(self, max_num_seqs: int) -> None:
+        """Set the maximum number of sequences"""
+        ...
+
+    @abstractmethod
     async def get_num_speculative_tokens_ema(self) -> int:
         """Get the number of speculative tokens ema"""
         ...

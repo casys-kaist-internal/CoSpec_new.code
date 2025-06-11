@@ -15,8 +15,8 @@ CSV_FILES = [
 
 # Specify request rates for each CSV file
 REQUEST_RATES = {
-    'selective_validation_opt_A6000.csv': 10,    # Change this value for OPT-6.7B
-    'selective_validation_llama_A6000.csv': 10,  # Change this value for Llama-13B
+    'selective_validation_opt_A6000.csv': 12,    # Change this value for OPT-6.7B
+    'selective_validation_llama_A6000.csv': 6,  # Change this value for Llama-13B
     'selective_validation_opt_A100.csv': 5,     # Change this value for OPT-30B
 }
 

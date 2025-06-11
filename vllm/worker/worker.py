@@ -337,6 +337,10 @@ class Worker(LocalOrDistributedWorkerBase):
         # Reset the seed to ensure that the random state is not affected by
         # the model initialization and profiling.
         set_random_seed(self.model_config.seed)
+    
+    def profile_tiling(self, max_batch_size:int):
+        for batch_size in range(max_batch_size):
+            self.model_runner._profile_tiling(batch_size)
 
     @property
     def do_metadata_broadcast(self) -> bool:

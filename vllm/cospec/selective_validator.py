@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from collections import deque
 from vllm.config import envs
@@ -18,9 +19,10 @@ logger = init_logger(__name__)
 
 class SelectiveValidator:
     def __init__(self, profiler: Profiler):
-        self.history_size = 10000  # Minimum number of samples needed to train the model
+        self.history_size = 50000  # Minimum number of samples needed to train the model
         self.history_X = deque(maxlen=self.history_size)  # Pre-temperature probabilities
         self.history_y = deque(maxlen=self.history_size)  # Actual acceptance probabilities
+        self.poly = PolynomialFeatures(degree=1)
         self.regression_model = LinearRegression()
         self.is_model_trained = False
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
@@ -30,10 +32,10 @@ class SelectiveValidator:
         self.has_first_data_point = False  # Flag to track if we have received first data point
         self.profiler = profiler
 
-        self.validation_size = 10000  # Size of validation dataset
+        self.validation_size = 20000  # Size of validation dataset
         self.validation_X = []
         self.validation_y = []
-        self.has_enough_validation_data = False
+        self.validation_completed = False
 
         if envs.COSPEC_SELECTIVE_VALIDATION:
             logger.info(f"Selective validation enabled with method: {envs.COSPEC_SELECTIVE_VALIDATION_METHOD}")
@@ -50,12 +52,8 @@ class SelectiveValidator:
         Returns:
             Modified SpeculativeProposals object with tokens to validate selected
         """
-        if proposals.no_proposals or proposals.unscaled_temp_probs is None or not self.is_model_trained:
+        if proposals.no_proposals or proposals.unscaled_temp_probs is None or not self.is_model_trained or not self.validation_completed:
             return proposals
-        
-        # Skip until validation set
-        # if not self.has_enough_validation_data:
-        #     return proposals
         
         # Generate mask based on validation method
         if envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "tile":
@@ -127,44 +125,71 @@ class SelectiveValidator:
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
 
-        # Get shape and device info
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
         device = cumulative_acceptance_probs.device
         
-        # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
         masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
-        # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
-        non_zero_mask = flat_acceptance_probs > 0
-        
-        if not non_zero_mask.any():
-            return torch.zeros_like(length_mask)
-            
-        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
-        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
-        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
-        sorted_original_indices = non_zero_indices[sorted_indices]
-        
-        # Calculate expected throughput more efficiently
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs, descending=True)
+
         total_valid_tokens = len(sorted_values)
         latencies = torch.tensor(
             self.profiler.get_target_model_latencies(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
             device=device
         )
-        
-        # Calculate expected throughput in one operation
         expected_throughput = (torch.cumsum(sorted_values, dim=0)) / latencies
         
         # Find optimal validation length
         optimal_total_length = torch.argmax(expected_throughput).item() + 1
-        
+
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
-        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        flat_mask[sorted_indices[:optimal_total_length]] = True
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+
+    # def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+    #     acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+    #     is_negative_one = (proposals.unscaled_temp_probs == -1)
+
+    #     batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+    #     device = acceptance_probs.device
+        
+    #     # Create masks and probabilities in one go
+    #     length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+    #     masked_acceptance_probs = acceptance_probs * length_mask.float()
+
+    #     # Vectorized expected tokens calculation
+    #     cumsum_prods = torch.cumsum(masked_acceptance_probs, dim=1)
+    #     expected_tokens = torch.empty((batch_size, max_proposal_len + 1), device=device)
+    #     expected_tokens[:, 0] = 1.0  # Base case: no validation
+    #     expected_tokens[:, 1:] = cumsum_prods + masked_acceptance_probs[:, :max_proposal_len]
+
+    #     # Vectorized latency lookup
+    #     x_values = torch.arange(max_proposal_len + 1, device=device)
+    #     total_tokens = x_values + total_non_proposal_tokens
+    #     latencies = torch.tensor(
+    #         self.profiler.get_target_model_latencies(total_tokens.max().item() + 1),
+    #         device=device
+    #     )
+    #     clamped_tokens = torch.clamp(total_tokens, max=len(latencies)-1)
+    #     latency_per_x = latencies[clamped_tokens]
+
+    #     # Vectorized throughput calculation
+    #     throughput = expected_tokens / latency_per_x.unsqueeze(0)
+
+    #     # Find optimal x using masked argmax
+    #     valid_x_mask = x_values <= proposals.proposal_lens[:, None]
+    #     masked_throughput = torch.where(valid_x_mask, throughput, -torch.inf)
+    #     optimal_x = torch.argmax(masked_throughput, dim=1)
+
+    #     # Vectorized mask creation
+    #     indices = torch.arange(max_proposal_len, device=device).expand(batch_size, -1)
+    #     valid_mask = indices < optimal_x[:, None]
+        
+    #     return (valid_mask & length_mask) | is_negative_one
 
     def _generate_threshold_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int, alignment: int) -> torch.Tensor:
         # Step 1: Compute acceptance probabilities & apply threshold
@@ -235,7 +260,6 @@ class SelectiveValidator:
         seq_len = proposals.proposal_token_ids.shape[1]
         device = cumulative_acceptance_probs.device
         
-        # Create all masks in one go
         length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
         is_negative_one = (proposals.unscaled_temp_probs == -1)
         threshold_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
@@ -387,8 +411,11 @@ class SelectiveValidator:
         # Convert to numpy and reshape
         unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy().reshape(-1, 1)
 
+        # Transform features to polynomial features
+        unscaled_temp_probs_poly = self.poly.transform(unscaled_temp_probs_np)
+
         # Get predictions and clip to valid range
-        predictions = self.regression_model.predict(unscaled_temp_probs_np)
+        predictions = self.regression_model.predict(unscaled_temp_probs_poly)
         predictions = np.clip(predictions, 0, 1)
 
         # Reshape back to original shape
@@ -465,9 +492,14 @@ class SelectiveValidator:
             acceptance_probs: Tensor of actual acceptance probabilities
         """
         if self.is_model_trained:
-            # if not self.has_enough_validation_data:
-            #     self.collect_validation_data(unscaled_temp_probs, acceptance_probs)
+            if not self.validation_completed:
+                self.collect_validation_data(unscaled_temp_probs, acceptance_probs)
             return
+        
+        # print(f"unscaled_temp_probs: {unscaled_temp_probs.shape}")
+        # print(f"acceptance_probs: {acceptance_probs.shape}")
+        # print(f"unscaled_temp_probs: {unscaled_temp_probs}")
+        # print(f"acceptance_probs: {acceptance_probs}")
         
         # Convert to numpy and flatten
         unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
@@ -504,12 +536,15 @@ class SelectiveValidator:
         X = np.array(list(self.history_X)).reshape(-1, 1)
         y = np.array(list(self.history_y))
 
+        # Transform features to polynomial features
+        X_poly = self.poly.fit_transform(X)
+
         # Train the model
-        self.regression_model.fit(X, y)
+        self.regression_model.fit(X_poly, y)
         self.is_model_trained = True
 
         logger.info(
-            f"Trained acceptance prediction model. "
+            f"Trained polynomial regression model (degree 2). "
             f"Model coefficients: {self.regression_model.coef_}, "
             f"intercept: {self.regression_model.intercept_:.4f}, "
         )
@@ -524,7 +559,8 @@ class SelectiveValidator:
         y_true = np.array(list(self.history_y))
 
         # Get predictions
-        y_pred = self.regression_model.predict(X_val)
+        y_pred = self.predict_acceptance_probabilities(torch.from_numpy(X_val).to(torch.device('cpu')))
+        y_pred = y_pred.cpu().numpy()
         y_pred = np.clip(y_pred, 0, 1)
 
         # Calculate mean squared error
@@ -536,7 +572,7 @@ class SelectiveValidator:
         # current_samples = len(self.history_X)
         # samples_left = max(0, self.history_size - current_samples)
         # print(f"Training progress: {current_samples}/{self.history_size} samples collected. {samples_left} samples left.")
-        return self.is_model_trained
+        return self.is_model_trained and self.validation_completed
 
     def collect_validation_data(self, unscaled_temp_probs: torch.Tensor, acceptance_probs: torch.Tensor):
         """Collect validation data for model evaluation.
@@ -709,4 +745,8 @@ class SelectiveValidator:
 
         logger.info(f"Validation data evaluation - AUROC: {auroc:.4f}, ECE: {ece:.4f}")
         logger.info(f"Data saved to {data_dir} directory with timestamp {timestamp}")
+        
+        # Set validation plot completed flag
+        self.validation_completed = True
+        
         return auroc, ece

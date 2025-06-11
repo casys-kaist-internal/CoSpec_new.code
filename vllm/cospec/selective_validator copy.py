@@ -1,0 +1,747 @@
+import torch
+import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from collections import deque
+from vllm.config import envs
+from vllm.cospec.profiler import Profiler
+from vllm.logger import init_logger
+from vllm.sequence import VLLM_INVALID_TOKEN_ID
+from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
+from vllm.spec_decode.util import nvtx_range
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score, roc_curve
+import pandas as pd
+import os
+from datetime import datetime
+
+logger = init_logger(__name__)
+
+class SelectiveValidator:
+    def __init__(self, profiler: Profiler):
+        self.history_size = 50000  # Minimum number of samples needed to train the model
+        self.history_X = deque(maxlen=self.history_size)  # Pre-temperature probabilities
+        self.history_y = deque(maxlen=self.history_size)  # Actual acceptance probabilities
+        self.poly = PolynomialFeatures(degree=1)
+        self.regression_model = LinearRegression()
+        self.is_model_trained = False
+        self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
+        # self.tile_alignment = int(envs.COSPEC_SELECTIVE_VALIDATION_TILE_SIZE)
+        # self.moving_avg_num_spec_tokens = 7  # This is for dynamic colocation.
+        self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
+        self.has_first_data_point = False  # Flag to track if we have received first data point
+        self.profiler = profiler
+
+        self.validation_size = 20000  # Size of validation dataset
+        self.validation_X = []
+        self.validation_y = []
+        self.validation_completed = False
+
+        if envs.COSPEC_SELECTIVE_VALIDATION:
+            logger.info(f"Selective validation enabled with method: {envs.COSPEC_SELECTIVE_VALIDATION_METHOD}")
+        else:
+            logger.info("Selective validation disabled")
+
+    def selective_validation(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> SpeculativeProposals:
+        """Main entry point for selective validation.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            total_non_proposal_tokens: Total number of non-proposal tokens
+            
+        Returns:
+            Modified SpeculativeProposals object with tokens to validate selected
+        """
+        if proposals.no_proposals or proposals.unscaled_temp_probs is None or not self.is_model_trained or not self.validation_completed:
+            return proposals
+        
+        # Generate mask based on validation method
+        if envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "tile":
+            valid_mask = self._generate_tiled_mask(proposals, total_non_proposal_tokens)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "linear":
+            valid_mask = self._generate_linear_mask(proposals, total_non_proposal_tokens)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "polynomial":
+            valid_mask = self._generate_polynomial_mask(proposals, total_non_proposal_tokens)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "threshold":
+            valid_mask = self._generate_threshold_mask(proposals)
+        elif envs.COSPEC_SELECTIVE_VALIDATION_METHOD == "random": # For correctness testing purpose 
+            valid_mask = self._generate_random_mask(proposals)
+        else:
+            raise ValueError(f"Invalid selective validation method: {envs.COSPEC_SELECTIVE_VALIDATION_METHOD}")
+        
+        # Apply common token masking logic
+        return self._apply_validation_mask(proposals, valid_mask)
+
+    def _apply_validation_mask(self, proposals: SpeculativeProposals, valid_mask: torch.Tensor) -> SpeculativeProposals:
+        """Apply validation mask to proposals and update proposal properties.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            valid_mask: Boolean tensor mask indicating which tokens to validate
+            
+        Returns:
+            Modified SpeculativeProposals object
+        """
+        # original_proposal_len = proposals.proposal_lens.max().item()
+
+        # Calculate new lengths and max length in one operation
+        new_proposal_lens = valid_mask.sum(dim=1)
+        new_proposal_lens[proposals.proposal_lens == 0] = 0 # what was already 0 should remain 0
+        
+        max_proposal_len = new_proposal_lens.max().item()
+
+        # total_tokens = new_proposal_lens.sum().item()
+
+        # Update proposal lengths and no_proposals flag
+        proposals.proposal_lens = new_proposal_lens
+
+        proposals.no_proposals = torch.all(new_proposal_lens == 0)
+        
+        # Update moving average in one operation
+        # if not self.has_first_data_point:
+        #     self.moving_avg_mean_tokens = original_proposal_len
+        #     self.has_first_data_point = True
+        # else:
+        #     self.moving_avg_mean_tokens = (
+        #         (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
+        #         self.moving_avg_alpha * original_proposal_len
+        #     )
+        
+        # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
+        
+        # Mask invalid tokens and truncate in-place
+        proposals.proposal_token_ids[~valid_mask] = 0
+        proposals.proposal_token_ids = proposals.proposal_token_ids[:, :max_proposal_len]
+        proposals.proposal_probs[~valid_mask] = 0
+        proposals.proposal_probs = proposals.proposal_probs[:, :max_proposal_len]
+        
+        return proposals
+
+    def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+        # Get predicted acceptance probabilities for all proposals
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
+        # This is for chunked prefill all tokens are filled with negative one but we should pass them 
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+
+        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+        device = cumulative_acceptance_probs.device
+        
+        length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
+        
+        flat_acceptance_probs = masked_acceptance_probs.flatten()
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs, descending=True)
+
+        total_valid_tokens = len(sorted_values)
+        latencies = torch.tensor(
+            self.profiler.get_target_model_latencies(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
+            device=device
+        )
+        expected_throughput = (torch.cumsum(sorted_values, dim=0)) / latencies
+        
+        # Find optimal validation length
+        optimal_total_length = torch.argmax(expected_throughput).item() + 1
+
+        # Create final mask in one operation
+        flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
+        flat_mask[sorted_indices[:optimal_total_length]] = True
+        
+        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+
+    # def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+    #     acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+    #     is_negative_one = (proposals.unscaled_temp_probs == -1)
+
+    #     batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+    #     device = acceptance_probs.device
+        
+    #     # Create masks and probabilities in one go
+    #     length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+    #     masked_acceptance_probs = acceptance_probs * length_mask.float()
+
+    #     # Vectorized expected tokens calculation
+    #     cumsum_prods = torch.cumsum(masked_acceptance_probs, dim=1)
+    #     expected_tokens = torch.empty((batch_size, max_proposal_len + 1), device=device)
+    #     expected_tokens[:, 0] = 1.0  # Base case: no validation
+    #     expected_tokens[:, 1:] = cumsum_prods + masked_acceptance_probs[:, :max_proposal_len]
+
+    #     # Vectorized latency lookup
+    #     x_values = torch.arange(max_proposal_len + 1, device=device)
+    #     total_tokens = x_values + total_non_proposal_tokens
+    #     latencies = torch.tensor(
+    #         self.profiler.get_target_model_latencies(total_tokens.max().item() + 1),
+    #         device=device
+    #     )
+    #     clamped_tokens = torch.clamp(total_tokens, max=len(latencies)-1)
+    #     latency_per_x = latencies[clamped_tokens]
+
+    #     # Vectorized throughput calculation
+    #     throughput = expected_tokens / latency_per_x.unsqueeze(0)
+
+    #     # Find optimal x using masked argmax
+    #     valid_x_mask = x_values <= proposals.proposal_lens[:, None]
+    #     masked_throughput = torch.where(valid_x_mask, throughput, -torch.inf)
+    #     optimal_x = torch.argmax(masked_throughput, dim=1)
+
+    #     # Vectorized mask creation
+    #     indices = torch.arange(max_proposal_len, device=device).expand(batch_size, -1)
+    #     valid_mask = indices < optimal_x[:, None]
+        
+    #     return (valid_mask & length_mask) | is_negative_one
+
+    def _generate_threshold_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int, alignment: int) -> torch.Tensor:
+        # Step 1: Compute acceptance probabilities & apply threshold
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
+        seq_len = proposals.proposal_token_ids.shape[1]
+        device = cumulative_acceptance_probs.device
+        
+        length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        
+        # Get valid positions (within length bounds)
+        valid_positions = length_mask
+        masked_probs = cumulative_acceptance_probs * valid_positions.float()
+        
+        # Flatten and sort by acceptance probability
+        flat_probs = masked_probs.flatten()
+        valid_indices = torch.nonzero(flat_probs > 0, as_tuple=True)[0]
+        
+        if len(valid_indices) == 0:
+            return is_negative_one
+            
+        valid_probs = flat_probs[valid_indices]
+        sorted_probs, sorted_indices = torch.sort(valid_probs, descending=True)
+        
+        # Find where probabilities drop below threshold
+        above_threshold = sorted_probs >= self.selective_validation_threshold
+        if not above_threshold.any():
+            return is_negative_one
+            
+        threshold_cutoff = above_threshold.sum().item()
+        
+        # Calculate alignment decision
+        total_tokens_at_cutoff = threshold_cutoff + total_non_proposal_tokens
+        
+        aligned_total = (total_tokens_at_cutoff // alignment) * alignment
+        # aligned_up = aligned_down + alignment
+        
+        # distance_to_down = total_tokens_at_cutoff - aligned_down
+        # distance_to_up = aligned_up - total_tokens_at_cutoff
+        
+        # Choose closer alignment
+        # if distance_to_down <= distance_to_up:
+        #     aligned_total = aligned_down
+        # else:
+        #     aligned_total = aligned_up
+            
+        final_valid_tokens = aligned_total - total_non_proposal_tokens
+        final_valid_tokens = max(0, min(final_valid_tokens, len(valid_indices)))
+        
+        # Create final mask
+        batch_size = proposals.proposal_token_ids.shape[0]
+        final_mask = torch.zeros(batch_size * seq_len, dtype=torch.bool, device=device)
+        
+        if final_valid_tokens > 0:
+            selected_indices = valid_indices[sorted_indices[:final_valid_tokens]]
+            final_mask[selected_indices] = True
+            
+        final_mask = final_mask.reshape(batch_size, seq_len)
+
+        return final_mask | is_negative_one
+
+    def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
+        """Generate mask for threshold-based selective validation."""
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+        seq_len = proposals.proposal_token_ids.shape[1]
+        device = cumulative_acceptance_probs.device
+        
+        length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        threshold_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
+        
+        return (threshold_mask & length_mask) | is_negative_one
+    
+    def _generate_linear_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+        # Get predicted acceptance probabilities for all proposals
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
+        # This is for chunked prefill all tokens are filled with negative one but we should pass them 
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        
+        # Get shape and device info
+        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+        device = cumulative_acceptance_probs.device
+        
+        # Create length mask and apply it to acceptance probabilities in one step
+        length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
+        
+        # Flatten and get non-zero elements more efficiently
+        flat_acceptance_probs = masked_acceptance_probs.flatten()
+        non_zero_mask = flat_acceptance_probs > 0
+        
+        if not non_zero_mask.any():
+            return torch.zeros_like(length_mask)
+            
+        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
+        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
+        sorted_original_indices = non_zero_indices[sorted_indices]
+        
+        # Calculate expected throughput more efficiently
+        total_valid_tokens = len(sorted_values)
+        latencies = torch.tensor(
+            self.profiler.get_target_model_latencies_linear(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
+            device=device
+        )
+        
+        # Calculate expected throughput in one operation
+        expected_throughput = torch.cumsum(sorted_values, dim=0) / latencies
+        
+        # Find optimal validation length
+        optimal_total_length = torch.argmax(expected_throughput).item() + 1
+        
+        # Create final mask in one operation
+        flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
+        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        
+        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+    
+    def _generate_polynomial_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
+        # Get predicted acceptance probabilities for all proposals
+        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
+        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
+
+        # This is for chunked prefill all tokens are filled with negative one but we should pass them 
+        is_negative_one = (proposals.unscaled_temp_probs == -1)
+        
+        # Get shape and device info
+        batch_size, max_proposal_len = proposals.proposal_token_ids.shape
+        device = cumulative_acceptance_probs.device
+        
+        # Create length mask and apply it to acceptance probabilities in one step
+        length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
+        masked_acceptance_probs = cumulative_acceptance_probs * length_mask
+        
+        # Flatten and get non-zero elements more efficiently
+        flat_acceptance_probs = masked_acceptance_probs.flatten()
+        non_zero_mask = flat_acceptance_probs > 0
+        
+        if not non_zero_mask.any():
+            return torch.zeros_like(length_mask)
+            
+        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
+        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
+        sorted_original_indices = non_zero_indices[sorted_indices]
+        
+        # Calculate expected throughput more efficiently
+        total_valid_tokens = len(sorted_values)
+        latencies = torch.tensor(
+            self.profiler.get_target_model_latencies_polynomial(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
+            device=device
+        )
+        
+        # Calculate expected throughput in one operation
+        expected_throughput = torch.cumsum(sorted_values, dim=0) / latencies
+        
+        # Find optimal validation length
+        optimal_total_length = torch.argmax(expected_throughput).item() + 1
+        
+        # Create final mask in one operation
+        flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
+        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        
+        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+
+    def _generate_random_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
+        """Perform random drop for testing purpose"""
+        # Create random mask with 50% probability of dropping each token
+        random_acceptance_probs = self.random_predict_acceptance_probability(proposals)
+        cumulative_acceptance_probs = torch.cumprod(random_acceptance_probs, dim=1)
+
+        # Create mask for proposals that meet the threshold
+        valid_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
+        
+        # Create a mask for tokens within proposal lengths
+        length_mask = torch.arange(proposals.proposal_token_ids.shape[1], 
+                                 device=proposals.proposal_token_ids.device)[None, :] < proposals.proposal_lens[:, None]
+        # Combine with valid_mask to get final valid tokens
+        final_mask = valid_mask & length_mask
+
+        return final_mask
+
+    @nvtx_range("update_proposal_history")
+    def update_proposal_history(self, proposals: SpeculativeProposals, proposal_scores: SpeculativeScores):
+        """Update the history of proposal acceptance data for training the regression model.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            proposal_scores: Tensor containing the actual acceptance scores
+        """
+        if proposals.no_proposals or proposals.unscaled_temp_probs is None:
+            return
+        
+        # Calculate actual acceptance probabilities
+        acceptance_probs = self._calculate_acceptance_probabilities(
+            proposals, proposal_scores)
+        
+        unscaled_temp_probs = proposals.unscaled_temp_probs
+
+        # Update history and train model if needed
+        self._update_history(unscaled_temp_probs, acceptance_probs)
+
+    @nvtx_range("predict_acceptance_probabilities")
+    def predict_acceptance_probabilities(
+        self, unscaled_temp_probs: torch.Tensor
+    ) -> torch.Tensor:
+        """Predict acceptance probabilities for each token."""
+        if not self.is_model_trained:
+            return torch.ones_like(unscaled_temp_probs)
+
+        # Store original shape
+        original_shape = unscaled_temp_probs.shape
+
+        # Convert to numpy and reshape
+        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy().reshape(-1, 1)
+
+        # Transform features to polynomial features
+        unscaled_temp_probs_poly = self.poly.transform(unscaled_temp_probs_np)
+
+        # Get predictions and clip to valid range
+        predictions = self.regression_model.predict(unscaled_temp_probs_poly)
+        predictions = np.clip(predictions, 0, 1)
+
+        # Reshape back to original shape
+        predictions = predictions.reshape(original_shape)
+
+        # Convert back to tensor
+        return torch.from_numpy(predictions).to(unscaled_temp_probs.device)
+
+    def random_predict_acceptance_probability(self, proposals: SpeculativeProposals) -> torch.Tensor:
+        """Generate random acceptance probabilities for testing purposes.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+        
+        Returns:
+            Tensor of shape [batch_size, max_proposal_len] containing random
+            cumulative acceptance probabilities
+        """
+        batch_size, seq_len = proposals.proposal_token_ids.shape
+        
+        # Generate random probabilities between 0 and 1
+        random_probs = torch.rand(batch_size, seq_len, device=proposals.proposal_token_ids.device)
+        
+        return random_probs
+
+    @nvtx_range("_calculate_acceptance_probabilities")
+    def _calculate_acceptance_probabilities(self, proposals: SpeculativeProposals, proposal_scores: SpeculativeScores) -> torch.Tensor:
+        """Calculate actual acceptance probabilities for proposals.
+        
+        Args:
+            proposals: SpeculativeProposals object containing the proposal data
+            proposal_scores: Tensor containing the actual acceptance scores
+            
+        Returns:
+            Tensor of acceptance probabilities
+        """
+        target_probs = proposal_scores.probs
+        draft_probs = proposals.proposal_probs
+        draft_token_ids = proposals.proposal_token_ids
+        # Create a mask for rows that don't contain any invalid tokens
+        valid_rows = ~torch.any(draft_token_ids == VLLM_INVALID_TOKEN_ID, dim=1)
+        
+        # Update tensors in-place by masking invalid rows
+        target_probs = target_probs[valid_rows]
+        draft_probs = draft_probs[valid_rows]
+        draft_token_ids = draft_token_ids[valid_rows]
+
+        # Get probabilities for proposed tokens
+        selected_target_probs = torch.gather(
+            target_probs,
+            dim=-1,
+            index=draft_token_ids.unsqueeze(-1)
+        ).squeeze(-1)
+
+        selected_draft_probs = torch.gather(
+            draft_probs,
+            dim=-1,
+            index=draft_token_ids.unsqueeze(-1)
+        ).squeeze(-1)
+
+        # Calculate acceptance probability as min(target_prob/draft_prob, 1)
+        acceptance_probability = torch.minimum(
+            selected_target_probs / selected_draft_probs,
+            torch.full((1, ), 1, device=target_probs.device))
+
+        return acceptance_probability
+
+    @nvtx_range("_update_history")
+    def _update_history(self, unscaled_temp_probs, acceptance_probs):
+        """Update the history of proposal acceptance data and train model if enough data is available.
+        
+        Args:
+            unscaled_temp_probs: Tensor of pre-temperature probabilities
+            acceptance_probs: Tensor of actual acceptance probabilities
+        """
+        if self.is_model_trained:
+            if not self.validation_completed:
+                self.collect_validation_data(unscaled_temp_probs, acceptance_probs)
+            return
+        
+        # Convert to numpy and flatten
+        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
+        acceptance_probs_np = acceptance_probs.cpu().numpy()
+        
+        # Flatten both arrays
+        unscaled_temp_probs_np = unscaled_temp_probs_np.flatten()
+        acceptance_probs_np = acceptance_probs_np.flatten()
+
+        # Filter out -1 values
+        valid_mask = unscaled_temp_probs_np != -1
+        unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+
+        assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
+
+        # Assert there is no nan in the data
+        assert not np.isnan(unscaled_temp_probs_np).any()
+        assert not np.isnan(acceptance_probs_np).any()
+
+        # Add new data to history
+        self.history_X.extend(unscaled_temp_probs_np)
+        self.history_y.extend(acceptance_probs_np)
+
+        # Check if we have enough data in each bin
+        if len(self.history_X) >= self.history_size:
+            self.train_model()
+
+    def train_model(self):
+        """Train the polynomial regression model on historical data."""
+        if len(self.history_X) < 2:
+            return
+
+        # Convert history to numpy arrays
+        X = np.array(list(self.history_X)).reshape(-1, 1)
+        y = np.array(list(self.history_y))
+
+        # Transform features to polynomial features
+        X_poly = self.poly.fit_transform(X)
+
+        # Train the model
+        self.regression_model.fit(X_poly, y)
+        self.is_model_trained = True
+
+        logger.info(
+            f"Trained polynomial regression model (degree 2). "
+            f"Model coefficients: {self.regression_model.coef_}, "
+            f"intercept: {self.regression_model.intercept_:.4f}, "
+        )
+
+    def evaluate_model(self) -> float:
+        """Evaluate the model on historical data."""
+        if not self.is_model_trained or len(self.history_X) < 2:
+            return 0.0
+
+        # Convert history to numpy arrays
+        X_val = np.array(list(self.history_X)).reshape(-1, 1)
+        y_true = np.array(list(self.history_y))
+
+        # Get predictions
+        y_pred = self.predict_acceptance_probabilities(torch.from_numpy(X_val).to(torch.device('cpu')))
+        y_pred = y_pred.cpu().numpy()
+        y_pred = np.clip(y_pred, 0, 1)
+
+        # Calculate mean squared error
+        mse = np.mean((y_true - y_pred) ** 2)
+        return float(mse)
+
+    def is_selective_validator_trained(self) -> bool:
+        # print the progress
+        # current_samples = len(self.history_X)
+        # samples_left = max(0, self.history_size - current_samples)
+        # print(f"Training progress: {current_samples}/{self.history_size} samples collected. {samples_left} samples left.")
+        return self.is_model_trained and self.validation_completed
+
+    def collect_validation_data(self, unscaled_temp_probs: torch.Tensor, acceptance_probs: torch.Tensor):
+        """Collect validation data for model evaluation.
+        
+        Args:
+            unscaled_temp_probs: Tensor of pre-temperature probabilities
+            acceptance_probs: Tensor of actual acceptance probabilities
+        """
+        if not self.is_model_trained:
+            logger.warning("Model is not trained yet. Cannot collect validation data.")
+            return
+        
+        # Convert to numpy and flatten
+        unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
+        acceptance_probs_np = acceptance_probs.cpu().numpy()
+        
+        # Flatten both arrays
+        unscaled_temp_probs_np = unscaled_temp_probs_np.flatten()
+        acceptance_probs_np = acceptance_probs_np.flatten()
+
+        # Filter out -1 values
+        valid_mask = unscaled_temp_probs_np != -1
+        unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+
+        # Ensure both arrays have the same length
+        assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
+
+        # Assert there is no nan in the data
+        assert not np.isnan(unscaled_temp_probs_np).any()
+        assert not np.isnan(acceptance_probs_np).any()
+
+        # Add new data to validation set
+        self.validation_X.extend(unscaled_temp_probs_np)
+        self.validation_y.extend(acceptance_probs_np)
+
+        # Check if we have enough validation data
+        if len(self.validation_X) >= self.validation_size:
+            self.has_enough_validation_data = True
+            logger.info(f"Collected enough validation data ({len(self.validation_X)} samples)")
+            self.evaluate_validation_data()
+    
+
+    def evaluate_validation_data(self, save_path: str = 'validation_evaluation.png'):
+        """Evaluate model performance on collected validation data.
+        
+        Args:
+            save_path: Path to save the evaluation plots
+        """
+        # Convert validation data to numpy arrays
+        X_val = np.array(self.validation_X, dtype=np.float32).reshape(-1, 1)
+        y_val = np.array(self.validation_y, dtype=np.float32)
+
+        # Get predictions
+        y_pred = self.predict_acceptance_probabilities(torch.from_numpy(X_val).to(torch.device('cpu')))
+        y_pred = y_pred.cpu().numpy()
+        y_pred = np.clip(y_pred, 0, 1)
+
+        # Save data to CSV files
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Create directory for data if it doesn't exist
+        data_dir = "validation_data"
+        os.makedirs(data_dir, exist_ok=True)
+
+        # Save raw data
+        raw_data = pd.DataFrame({
+            'unscaled_temp_probs': X_val.flatten(),
+            'actual_acceptance': y_val.flatten(),
+            'predicted_acceptance': y_pred.flatten()
+        })
+        raw_data.to_csv(os.path.join(data_dir, f'raw_data_{timestamp}.csv'), index=False)
+
+        # Calculate and save ROC curve data
+        # Convert to binary classification by using a threshold
+        threshold = 0.5
+        y_val_binary = (y_val.flatten() >= threshold).astype(int)
+        y_pred_binary = (y_pred.flatten() >= threshold).astype(int)
+        
+        try:
+            fpr, tpr, thresholds = roc_curve(y_val_binary, y_pred.flatten())
+            roc_data = pd.DataFrame({
+                'fpr': fpr,
+                'tpr': tpr,
+                'thresholds': thresholds
+            })
+            roc_data.to_csv(os.path.join(data_dir, f'roc_data_{timestamp}.csv'), index=False)
+            auroc = roc_auc_score(y_val_binary, y_pred.flatten())
+        except ValueError as e:
+            logger.warning(f"Could not calculate ROC curve: {e}")
+            auroc = 0.0
+            fpr, tpr = np.array([0, 1]), np.array([0, 1])
+
+        # Calculate and save calibration data
+        n_bins = 10
+        bin_edges = np.linspace(0, 1, n_bins + 1)
+        bin_indices = np.digitize(y_pred.flatten(), bin_edges) - 1
+        
+        bin_means = []
+        bin_true_means = []
+        bin_counts = []
+        bin_centers = []
+        
+        for i in range(n_bins):
+            mask = bin_indices == i
+            if np.sum(mask) > 0:
+                bin_pred = np.mean(y_pred.flatten()[mask])
+                bin_true = np.mean(y_val.flatten()[mask])
+                bin_count = np.sum(mask)
+                bin_center = (bin_edges[i] + bin_edges[i+1]) / 2
+                
+                bin_means.append(bin_pred)
+                bin_true_means.append(bin_true)
+                bin_counts.append(bin_count)
+                bin_centers.append(bin_center)
+
+        calibration_data = pd.DataFrame({
+            'bin_center': bin_centers,
+            'predicted_mean': bin_means,
+            'actual_mean': bin_true_means,
+            'count': bin_counts,
+            'density': np.array(bin_counts) / len(y_val.flatten())
+        })
+        calibration_data.to_csv(os.path.join(data_dir, f'calibration_data_{timestamp}.csv'), index=False)
+
+        # Calculate ECE
+        ece = sum(np.abs(np.array(bin_means) - np.array(bin_true_means)) * np.array(bin_counts) / len(y_val.flatten()))
+
+        # Save metrics
+        metrics_data = pd.DataFrame({
+            'metric': ['AUROC', 'ECE'],
+            'value': [auroc, ece]
+        })
+        metrics_data.to_csv(os.path.join(data_dir, f'metrics_{timestamp}.csv'), index=False)
+
+        # Create visualization
+        plt.figure(figsize=(10, 5))
+        
+        # Plot 1: ROC curve
+        plt.subplot(1, 2, 1)
+        plt.plot(fpr, tpr, 'b-', label=f'ROC curve (AUROC = {auroc:.4f})')
+        plt.plot([0, 1], [0, 1], 'k--', label='Random')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curve')
+        plt.legend()
+        
+        # Plot 2: Calibration curve with histogram
+        plt.subplot(1, 2, 2)    
+        plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
+        plt.plot(bin_means, bin_true_means, 'o-', label=f'Model (ECE={ece:.4f})')
+        
+        # Calculate density instead of count
+        total_samples = len(y_val.flatten())
+        bin_densities = np.array(bin_counts) / total_samples
+        
+        # Add histogram of predictions
+        ax2 = plt.gca().twinx()
+        ax2.bar(bin_centers, bin_densities, width=0.1, alpha=0.3, color='gray', label='Density')
+        ax2.set_ylabel('Density')
+        
+        plt.xlabel('Predicted Probability')
+        plt.ylabel('True Probability')
+        plt.title(f'Calibration Curve (ECE={ece:.4f})')
+        plt.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+        
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+
+        logger.info(f"Validation data evaluation - AUROC: {auroc:.4f}, ECE: {ece:.4f}")
+        logger.info(f"Data saved to {data_dir} directory with timestamp {timestamp}")
+        
+        # Set validation plot completed flag
+        self.validation_completed = True
+        
+        return auroc, ece

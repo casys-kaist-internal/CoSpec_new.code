@@ -134,6 +134,10 @@ class RPCSetNumSpeculativeTokensRequest:
     num_speculative_tokens: int
 
 @dataclass
+class RPCSetMaxNumSeqsRequest:
+    max_num_seqs: int
+
+@dataclass
 class RPCSetProfileBatchSizeRequest:
     batch_size: int
 

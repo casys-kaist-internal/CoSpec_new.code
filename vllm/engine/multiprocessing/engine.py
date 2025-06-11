@@ -27,6 +27,7 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCStartupResponse,
                                          RPCUProfileRequest, RPCCospecProfileRequest,
                                          RPCWakeUpRequest, RPCSetNumSpeculativeTokensRequest,
+                                         RPCSetMaxNumSeqsRequest,
                                          RPCMaybeLoadCachedColocationProfileResponse,
                                          RPCMaybeLoadCachedColocationProfileRequest,
                                          RPCSetProfileBatchSizeRequest,
@@ -297,6 +298,8 @@ class MQLLMEngine:
                     self.set_profile_batch_size(request.batch_size)
                 elif isinstance(request, RPCSetNumSpeculativeTokensRequest):
                     self.set_num_speculative_tokens(request.num_speculative_tokens)
+                elif isinstance(request, RPCSetMaxNumSeqsRequest):
+                    self.set_max_num_seqs(request.max_num_seqs)
                 elif isinstance(request, RPCLoadAdapterRequest):
                     self._handle_load_adapter_request(request)
                 elif isinstance(request, RPCResetPrefixCacheRequest):
@@ -495,6 +498,9 @@ class MQLLMEngine:
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.engine.set_num_speculative_tokens(num_speculative_tokens)
+
+    def set_max_num_seqs(self, max_num_seqs: int) -> None:
+        self.engine.set_max_num_seqs(max_num_seqs)
 
     def set_profile_batch_size(self, batch_size: int) -> None:
         self.engine.set_profile_batch_size(batch_size)

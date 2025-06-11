@@ -112,7 +112,7 @@ class CospecManager:
             self.shm.put(f"early_exit_{not self.is_primary}", True)
             self.shm.put(f"early_exit_{self.is_primary}", False)
 
-        fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)            
+        fcntl.flock(self.target_lock_fd, fcntl.LOCK_UN)
         
     def draft_start(self):
         torch.cuda.synchronize()

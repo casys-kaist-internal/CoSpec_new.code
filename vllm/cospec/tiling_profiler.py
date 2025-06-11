@@ -83,9 +83,6 @@ class TilingProfiler:
         self.target_start_time = None
         # print("num_tokens", num_tokens, "target_duration", target_duration)
 
-        # Round up to nearest multiple of 8
-        # num_tokens = ((num_tokens - 1) // 8 + 1) * 8
-
         if num_tokens not in self.input_tokens_capture_list:
             return
 
@@ -233,7 +230,7 @@ class TilingProfiler:
         mean_latencies = [self.target_model_latencies_mean[tokens] for tokens in num_tokens]
         
         # Create line plot
-        plt.figure(figsize=(12, 6))
+        plt.figure(figsize=(50, 20))
         plt.plot(num_tokens, mean_latencies, 'b-o', linewidth=1, markersize=2)
         
         plt.xlabel('Number of Tokens')

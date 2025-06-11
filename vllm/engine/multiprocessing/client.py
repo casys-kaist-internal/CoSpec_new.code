@@ -34,6 +34,7 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
                                          RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
+                                         RPCSetMaxNumSeqsRequest,
                                          RPCSetProfileBatchSizeRequest,
                                          RPCUProfileRequest, RPCCospecProfileRequest, RPCWakeUpRequest,
                                          RPCMaybeLoadCachedColocationProfileResponse,
@@ -834,6 +835,12 @@ class MQLLMEngineClient(EngineClient):
         if isinstance(request_output, BaseException):
             raise request_output
         return request_output.num_speculative_tokens_ema
+    
+    async def set_max_num_seqs(self, max_num_seqs: int) -> None:
+        """Set the maximum number of sequences"""
+        await self._send_one_way_rpc_request(
+            request=RPCSetMaxNumSeqsRequest(max_num_seqs),
+            socket=self.input_socket)
 
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:

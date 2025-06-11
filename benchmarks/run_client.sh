@@ -1,10 +1,11 @@
 #!/bin/bash
-# MODEL="facebook/opt-6.7b"
-MODEL="facebook/opt-13b"
+MODEL="facebook/opt-6.7b"
+# MODEL="facebook/opt-13b"
 # MODEL="huggyllama/llama-13b"
 # DATASET="math500"
-DATASET="sharegpt"
-REQUEST_RATE=8
+#DATASET="sharegpt"
+DATASET="math500"
+REQUEST_RATE=10
 TEMPERATURE=0
 DURATION=5
 PORT=8011
