@@ -18,14 +18,14 @@ export APP_SLACK_ICON_EMOJI=":dog:"
 export APP_SLACK_CHANNEL="malus07"
 
 # Dataset Configuration
-DATASETS=("sharegpt")
+DATASETS=("alpaca")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(8 10 12)
 SHAREGPT_RATES=(6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
-
+ALPACA_RATES=(12 16 20)
 # Function to get request rates for a dataset
 get_request_rates() {
     local dataset=$1
@@ -41,6 +41,9 @@ get_request_rates() {
             ;;
         "math500")
             echo "${MATH500_RATES[@]}"
+            ;;
+        "alpaca")
+            echo "${ALPACA_RATES[@]}"
             ;;
     esac
 }
@@ -80,7 +83,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_11_cospec_selective_validation_result_llama_13b"
+RESULTS_DIR="6_14_cospec_selective_validation_result_llama_13b_1"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -216,18 +219,18 @@ run_benchmark() {
 # =============================================
 
 # Define the order of configurations to run
+# declare -a CONFIG_ORDER=(
+#     "colocation_consolidated"
+#     "colocation_consolidated_tile"
+#     "colocation_consolidated_threshold_0.1"
+#     "colocation_consolidated_threshold_0.3"
+#     "colocation_consolidated_threshold_0.5"
+#     "colocation_consolidated_linear"
+#     "colocation_consolidated_polynomial"
+# )
 declare -a CONFIG_ORDER=(
-    "colocation_consolidated"
-    "colocation_consolidated_tile"
-    "colocation_consolidated_threshold_0.1"
-    "colocation_consolidated_threshold_0.3"
-    "colocation_consolidated_threshold_0.5"
-    "colocation_consolidated_linear"
     "colocation_consolidated_polynomial"
 )
-# declare -a CONFIG_ORDER=(
-#     "colocation_consolidated_threshold_0.3"
-# )
 
 TOTAL_RUNS=0
 # Baseline runs

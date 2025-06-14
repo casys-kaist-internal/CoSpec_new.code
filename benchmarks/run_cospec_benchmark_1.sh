@@ -18,13 +18,14 @@ export APP_SLACK_ICON_EMOJI=":dog:"
 export APP_SLACK_CHANNEL="malus07"
 
 # Dataset Configuration
-DATASETS=("sharegpt")
+DATASETS=("alpaca")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(2 4 6 8 10 12 14)
 SHAREGPT_RATES=(2 4 6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
+ALPACA_RATES=(4 8 12 16 20 24)
 
 # Function to get request rates for a dataset
 get_request_rates() {
@@ -41,6 +42,9 @@ get_request_rates() {
             ;;
         "math500")
             echo "${MATH500_RATES[@]}"
+            ;;
+        "alpaca")
+            echo "${ALPACA_RATES[@]}"
             ;;
     esac
 }
@@ -77,7 +81,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_11_cospec_llama_13b"
+RESULTS_DIR="final_llama_13b_A6000_alpaca"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header

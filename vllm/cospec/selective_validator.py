@@ -82,7 +82,7 @@ class SelectiveValidator:
         Returns:
             Modified SpeculativeProposals object
         """
-        # original_proposal_len = proposals.proposal_lens.max().item()
+        original_proposal_len = proposals.proposal_lens.max().item()
 
         # Calculate new lengths and max length in one operation
         new_proposal_lens = valid_mask.sum(dim=1)
@@ -98,16 +98,16 @@ class SelectiveValidator:
         proposals.no_proposals = torch.all(new_proposal_lens == 0)
         
         # Update moving average in one operation
-        # if not self.has_first_data_point:
-        #     self.moving_avg_mean_tokens = original_proposal_len
-        #     self.has_first_data_point = True
-        # else:
-        #     self.moving_avg_mean_tokens = (
-        #         (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
-        #         self.moving_avg_alpha * original_proposal_len
-        #     )
+        if not self.has_first_data_point:
+            self.moving_avg_mean_tokens = original_proposal_len
+            self.has_first_data_point = True
+        else:
+            self.moving_avg_mean_tokens = (
+                (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
+                self.moving_avg_alpha * original_proposal_len
+            )
         
-        # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
+        logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
         
         # Mask invalid tokens and truncate in-place
         proposals.proposal_token_ids[~valid_mask] = 0
@@ -150,46 +150,6 @@ class SelectiveValidator:
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
 
-    # def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
-    #     acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
-    #     is_negative_one = (proposals.unscaled_temp_probs == -1)
-
-    #     batch_size, max_proposal_len = proposals.proposal_token_ids.shape
-    #     device = acceptance_probs.device
-        
-    #     # Create masks and probabilities in one go
-    #     length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
-    #     masked_acceptance_probs = acceptance_probs * length_mask.float()
-
-    #     # Vectorized expected tokens calculation
-    #     cumsum_prods = torch.cumsum(masked_acceptance_probs, dim=1)
-    #     expected_tokens = torch.empty((batch_size, max_proposal_len + 1), device=device)
-    #     expected_tokens[:, 0] = 1.0  # Base case: no validation
-    #     expected_tokens[:, 1:] = cumsum_prods + masked_acceptance_probs[:, :max_proposal_len]
-
-    #     # Vectorized latency lookup
-    #     x_values = torch.arange(max_proposal_len + 1, device=device)
-    #     total_tokens = x_values + total_non_proposal_tokens
-    #     latencies = torch.tensor(
-    #         self.profiler.get_target_model_latencies(total_tokens.max().item() + 1),
-    #         device=device
-    #     )
-    #     clamped_tokens = torch.clamp(total_tokens, max=len(latencies)-1)
-    #     latency_per_x = latencies[clamped_tokens]
-
-    #     # Vectorized throughput calculation
-    #     throughput = expected_tokens / latency_per_x.unsqueeze(0)
-
-    #     # Find optimal x using masked argmax
-    #     valid_x_mask = x_values <= proposals.proposal_lens[:, None]
-    #     masked_throughput = torch.where(valid_x_mask, throughput, -torch.inf)
-    #     optimal_x = torch.argmax(masked_throughput, dim=1)
-
-    #     # Vectorized mask creation
-    #     indices = torch.arange(max_proposal_len, device=device).expand(batch_size, -1)
-    #     valid_mask = indices < optimal_x[:, None]
-        
-    #     return (valid_mask & length_mask) | is_negative_one
 
     def _generate_threshold_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int, alignment: int) -> torch.Tensor:
         # Step 1: Compute acceptance probabilities & apply threshold

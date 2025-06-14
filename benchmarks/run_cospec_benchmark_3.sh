@@ -10,8 +10,8 @@ ulimit -n 65535
 # Model Configuration
 export TARGET_MODEL="facebook/opt-30b"
 export DRAFT_MODEL="facebook/opt-350m"
-export TENSOR_PARALLEL_SIZE=4
-export DRAFT_TENSOR_PARALLEL_SIZE=1
+export TENSOR_PARALLEL_SIZE=2
+export DRAFT_TENSOR_PARALLEL_SIZE=2
 
 export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
 export APP_SLACK_ICON_EMOJI=":dog:"
@@ -22,7 +22,7 @@ DATASETS=("opencode")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(2 4 6 8 10 12 14 16)
-SHAREGPT_RATES=(1 2 3 4 5 6 7 8)
+SHAREGPT_RATES=(8)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5 6)
 
@@ -77,7 +77,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="5_31_cospec_opt13"
+RESULTS_DIR="final_opt_30b_A100_opencode"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header

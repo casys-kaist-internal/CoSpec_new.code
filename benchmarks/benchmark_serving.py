@@ -65,7 +65,7 @@ from benchmark_dataset import (AIMODataset, ASRDataset, BurstGPTDataset,
                                 SampleRequest, ShareGPTDataset, SonnetDataset,
                                 VisionArenaDataset, GSM8KDataset, NaturalQuestionsDataset, 
                                 HumanEvalDataset, PythonAlpacaDataset, OpenCodeInstructDataset,
-                                OpenMathInstructDataset, Math500Dataset, OpenCodeReasoningDataset)
+                                OpenMathInstructDataset, Math500Dataset, OpenCodeReasoningDataset, AlpacaDataset)
 from benchmark_utils import convert_to_pytorch_benchmark_format, write_to_json
 
 MILLISECONDS_TO_SECONDS_CONVERSION = 1000
@@ -704,6 +704,10 @@ def main(args: argparse.Namespace):
         full_requests = Math500Dataset(random_seed=args.seed,
                     dataset_path="HuggingFaceH4/MATH-500", 
                     dataset_split="test").sample_all(tokenizer=tokenizer)
+    elif args.dataset_name == "alpaca":
+        full_requests = AlpacaDataset(random_seed=args.seed,
+                    dataset_path="vicgalle/alpaca-gpt4", 
+                    dataset_split="train").sample_all(tokenizer=tokenizer)
     else:
         raise ValueError(f"Dataset {args.dataset_name} not supported")
 
@@ -927,7 +931,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "opencode", "openmath", "math500"], 
+        choices=["sharegpt", "opencode", "openmath", "math500", "alpaca"], 
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",

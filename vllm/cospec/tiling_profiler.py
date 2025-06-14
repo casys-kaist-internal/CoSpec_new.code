@@ -24,7 +24,7 @@ class TilingProfiler:
         self.target_start_time: Optional[float] = None
         self.run_counts: Dict[int, int] = {}
         self.max_tokens_to_capture = max_num_batched_tokens
-        # Only capture multiples of 8
+        # Only capture multiples of 8. For tensor core usage, align to 8.
         self.input_tokens_capture_list = [i for i in range(8, self.max_tokens_to_capture + 1, 8)]
         
         self.target_model_latencies_mean: Dict[int, float] = {}
@@ -185,7 +185,7 @@ class TilingProfiler:
         self.precomputed_latencies = [self.get_target_model_latency(t) for t in range(1, self.max_precomputed_tokens + 1)]
         
         # If we have a trained model, extend predictions for larger token counts
-        extended_max_tokens = 2048 * 2
+        extended_max_tokens = 4096
         for t in range(self.max_precomputed_tokens + 1, extended_max_tokens + 1):
             predicted_latency = self._predict_latency(t)
             self.precomputed_latencies.append(predicted_latency)
