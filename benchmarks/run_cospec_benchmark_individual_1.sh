@@ -8,16 +8,16 @@
 ulimit -n 65535
 
 # Model Configuration
-export TARGET_MODEL="huggyllama/llama-13b"
-export DRAFT_MODEL="double7/vicuna-68m"
-export TENSOR_PARALLEL_SIZE=2
+export TARGET_MODEL="facebook/opt-13b"
+export DRAFT_MODEL="facebook/opt-125m"
+export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Dataset Configuration
 DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second) for each dataset
-MATH500_RATES=(8 10 12)
+MATH500_RATES=(12)
 SHAREGPT_RATES=(6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
@@ -73,7 +73,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_11_cospec_individual_result_llama_13b"
+RESULTS_DIR="final_opt_13b_A100_sharegpt_individual"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -219,8 +219,6 @@ run_benchmark() {
 #     "colocation_consolidated_polynomial"
 # )
 declare -a CONFIG_ORDER=(
-    "baseline"
-    "colocation"
     "colocation_dynamic"
     "colocation_dynamic_selective"
     "colocation_dynamic_selective_consolidated"

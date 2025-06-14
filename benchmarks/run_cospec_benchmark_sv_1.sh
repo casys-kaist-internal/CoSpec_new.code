@@ -8,9 +8,9 @@
 ulimit -n 65535
 
 # Model Configuration
-export TARGET_MODEL="huggyllama/llama-13b"
-export DRAFT_MODEL="double7/vicuna-68m"
-export TENSOR_PARALLEL_SIZE=2
+export TARGET_MODEL="facebook/opt-13b"
+export DRAFT_MODEL="facebook/opt-125m"
+export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
@@ -18,7 +18,7 @@ export APP_SLACK_ICON_EMOJI=":dog:"
 export APP_SLACK_CHANNEL="malus07"
 
 # Dataset Configuration
-DATASETS=("alpaca")
+DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(8 10 12)
