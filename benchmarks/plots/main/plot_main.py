@@ -9,7 +9,7 @@ import os
 CSV_FILES = [
     'opt_A6000_benchmark.csv',
     'llama_A6000_2_benchmark_alpaca.csv',
-    'opt_A100_2_benchmark.csv',
+    'opt13b_A100_benchmark.csv',
     # Add more CSV files as needed
 ]
 
@@ -134,7 +134,7 @@ for idx, csv_file in enumerate(CSV_FILES):
     y_max_values = {
         'opt_A6000_benchmark.csv': 300,  # Replace with your desired value
         'llama_A6000_2_benchmark_alpaca.csv': 400,  # Replace with your desired value
-        'opt_A100_2_benchmark.csv': 150,  # Replace with your desired value
+        'opt13b_A100_benchmark.csv': 400,  # Replace with your desired value
     }
     y_max = y_max_values[csv_file]
     

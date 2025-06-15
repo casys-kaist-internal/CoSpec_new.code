@@ -8,9 +8,9 @@
 ulimit -n 65535
 
 # Model Configuration
-export TARGET_MODEL="facebook/opt-13b"
-export DRAFT_MODEL="facebook/opt-125m"
-export TENSOR_PARALLEL_SIZE=1
+export TARGET_MODEL="huggyllama/llama-13b"
+export DRAFT_MODEL="double7/vicuna-68m"
+export TENSOR_PARALLEL_SIZE=2
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 export APP_SLACK_WEBHOOK="https://hooks.slack.com/services/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"
@@ -18,14 +18,15 @@ export APP_SLACK_ICON_EMOJI=":dog:"
 export APP_SLACK_CHANNEL="malus07"
 
 # Dataset Configuration
-DATASETS=("sharegpt")
+DATASETS=("alpaca")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(8 10 12)
 SHAREGPT_RATES=(6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
-ALPACA_RATES=(12 16 20)
+ALPACA_RATES=(16 18 20)
+
 # Function to get request rates for a dataset
 get_request_rates() {
     local dataset=$1
@@ -67,9 +68,15 @@ declare -A COSPEC_CONFIGS=(
     ["colocation_consolidated_threshold_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
     ["colocation_consolidated_threshold_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
     ["colocation_consolidated_threshold_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=threshold; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
-    ["colocation_consolidated_tile"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile"
-    ["colocation_consolidated_linear"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear"
-    ["colocation_consolidated_polynomial"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial"
+    ["colocation_consolidated_tile_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
+    ["colocation_consolidated_tile_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
+    ["colocation_consolidated_tile_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
+    ["colocation_consolidated_linear_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
+    ["colocation_consolidated_linear_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
+    ["colocation_consolidated_linear_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=linear; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
+    ["colocation_consolidated_polynomial_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1"
+    ["colocation_consolidated_polynomial_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
+    ["colocation_consolidated_polynomial_0.5"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_CONSOLIDATED_ATTENTION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=polynomial; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5"
 )
 
 
@@ -83,7 +90,7 @@ declare -A COSPEC_CONFIGS=(
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_DIR="cospec_benchmark_results_${TIMESTAMP}_${TARGET_MODEL}_${DRAFT_MODEL}_tp${TENSOR_PARALLEL_SIZE}_dtp${DRAFT_TENSOR_PARALLEL_SIZE}"
-RESULTS_DIR="6_14_cospec_selective_validation_result_llama_13b_1"
+RESULTS_DIR="final_llama_13b_A6000_alpaca_selective_validation"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -219,17 +226,20 @@ run_benchmark() {
 # =============================================
 
 # Define the order of configurations to run
-# declare -a CONFIG_ORDER=(
-#     "colocation_consolidated"
-#     "colocation_consolidated_tile"
-#     "colocation_consolidated_threshold_0.1"
-#     "colocation_consolidated_threshold_0.3"
-#     "colocation_consolidated_threshold_0.5"
-#     "colocation_consolidated_linear"
-#     "colocation_consolidated_polynomial"
-# )
 declare -a CONFIG_ORDER=(
-    "colocation_consolidated_polynomial"
+    "colocation_consolidated"
+    "colocation_consolidated_tile_0.1"
+    "colocation_consolidated_tile_0.3"
+    "colocation_consolidated_tile_0.5"
+    "colocation_consolidated_threshold_0.1"
+    "colocation_consolidated_threshold_0.3"
+    "colocation_consolidated_threshold_0.5"
+    "colocation_consolidated_linear_0.1"
+    "colocation_consolidated_linear_0.3"
+    "colocation_consolidated_linear_0.5"
+    "colocation_consolidated_polynomial_0.1"
+    "colocation_consolidated_polynomial_0.3"
+    "colocation_consolidated_polynomial_0.5"
 )
 
 TOTAL_RUNS=0

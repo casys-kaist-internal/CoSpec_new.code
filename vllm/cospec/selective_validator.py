@@ -141,77 +141,25 @@ class SelectiveValidator:
         )
         expected_throughput = (torch.cumsum(sorted_values, dim=0)) / latencies
         
-        # Find optimal validation length
-        optimal_total_length = torch.argmax(expected_throughput).item() + 1
+        # Find the first index where probability goes below threshold
+        start_idx = torch.where(sorted_values < self.selective_validation_threshold)[0]
+        if len(start_idx) > 0:
+            start_idx = start_idx[0].item()
+            # Find optimal length only in the range where probabilities are below threshold
+            valid_throughput = expected_throughput[start_idx:]
+            optimal_total_length = start_idx + torch.argmax(valid_throughput).item() + 1
+        else:
+            # If no probabilities are below threshold, take all tokens
+            optimal_total_length = total_valid_tokens
+        
+        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
+        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
 
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
-
-
-    def _generate_threshold_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int, alignment: int) -> torch.Tensor:
-        # Step 1: Compute acceptance probabilities & apply threshold
-        acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
-        cumulative_acceptance_probs = torch.cumprod(acceptance_probs, dim=1)
-
-        seq_len = proposals.proposal_token_ids.shape[1]
-        device = cumulative_acceptance_probs.device
-        
-        length_mask = torch.arange(seq_len, device=device)[None, :] < proposals.proposal_lens[:, None]
-        is_negative_one = (proposals.unscaled_temp_probs == -1)
-        
-        # Get valid positions (within length bounds)
-        valid_positions = length_mask
-        masked_probs = cumulative_acceptance_probs * valid_positions.float()
-        
-        # Flatten and sort by acceptance probability
-        flat_probs = masked_probs.flatten()
-        valid_indices = torch.nonzero(flat_probs > 0, as_tuple=True)[0]
-        
-        if len(valid_indices) == 0:
-            return is_negative_one
-            
-        valid_probs = flat_probs[valid_indices]
-        sorted_probs, sorted_indices = torch.sort(valid_probs, descending=True)
-        
-        # Find where probabilities drop below threshold
-        above_threshold = sorted_probs >= self.selective_validation_threshold
-        if not above_threshold.any():
-            return is_negative_one
-            
-        threshold_cutoff = above_threshold.sum().item()
-        
-        # Calculate alignment decision
-        total_tokens_at_cutoff = threshold_cutoff + total_non_proposal_tokens
-        
-        aligned_total = (total_tokens_at_cutoff // alignment) * alignment
-        # aligned_up = aligned_down + alignment
-        
-        # distance_to_down = total_tokens_at_cutoff - aligned_down
-        # distance_to_up = aligned_up - total_tokens_at_cutoff
-        
-        # Choose closer alignment
-        # if distance_to_down <= distance_to_up:
-        #     aligned_total = aligned_down
-        # else:
-        #     aligned_total = aligned_up
-            
-        final_valid_tokens = aligned_total - total_non_proposal_tokens
-        final_valid_tokens = max(0, min(final_valid_tokens, len(valid_indices)))
-        
-        # Create final mask
-        batch_size = proposals.proposal_token_ids.shape[0]
-        final_mask = torch.zeros(batch_size * seq_len, dtype=torch.bool, device=device)
-        
-        if final_valid_tokens > 0:
-            selected_indices = valid_indices[sorted_indices[:final_valid_tokens]]
-            final_mask[selected_indices] = True
-            
-        final_mask = final_mask.reshape(batch_size, seq_len)
-
-        return final_mask | is_negative_one
 
     def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate mask for threshold-based selective validation."""
@@ -233,46 +181,43 @@ class SelectiveValidator:
 
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
-        
-        # Get shape and device info
+
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
         device = cumulative_acceptance_probs.device
         
-        # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
         masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
-        # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
-        non_zero_mask = flat_acceptance_probs > 0
-        
-        if not non_zero_mask.any():
-            return torch.zeros_like(length_mask)
-            
-        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
-        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
-        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
-        sorted_original_indices = non_zero_indices[sorted_indices]
-        
-        # Calculate expected throughput more efficiently
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs, descending=True)
+
         total_valid_tokens = len(sorted_values)
         latencies = torch.tensor(
             self.profiler.get_target_model_latencies_linear(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
             device=device
         )
+        expected_throughput = (torch.cumsum(sorted_values, dim=0)) / latencies
         
-        # Calculate expected throughput in one operation
-        expected_throughput = torch.cumsum(sorted_values, dim=0) / latencies
+        # Find the first index where probability goes below threshold
+        start_idx = torch.where(sorted_values < self.selective_validation_threshold)[0]
+        if len(start_idx) > 0:
+            start_idx = start_idx[0].item()
+            # Find optimal length only in the range where probabilities are below threshold
+            valid_throughput = expected_throughput[start_idx:]
+            optimal_total_length = start_idx + torch.argmax(valid_throughput).item() + 1
+        else:
+            # If no probabilities are below threshold, take all tokens
+            optimal_total_length = total_valid_tokens
         
-        # Find optimal validation length
-        optimal_total_length = torch.argmax(expected_throughput).item() + 1
-        
+        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
+        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
+
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
-        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        flat_mask[sorted_indices[:optimal_total_length]] = True
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
-    
+        
     def _generate_polynomial_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
         acceptance_probs = self.predict_acceptance_probabilities(proposals.unscaled_temp_probs)
@@ -280,46 +225,43 @@ class SelectiveValidator:
 
         # This is for chunked prefill all tokens are filled with negative one but we should pass them 
         is_negative_one = (proposals.unscaled_temp_probs == -1)
-        
-        # Get shape and device info
+
         batch_size, max_proposal_len = proposals.proposal_token_ids.shape
         device = cumulative_acceptance_probs.device
         
-        # Create length mask and apply it to acceptance probabilities in one step
         length_mask = torch.arange(max_proposal_len, device=device)[None, :] < proposals.proposal_lens[:, None]
         masked_acceptance_probs = cumulative_acceptance_probs * length_mask
         
-        # Flatten and get non-zero elements more efficiently
         flat_acceptance_probs = masked_acceptance_probs.flatten()
-        non_zero_mask = flat_acceptance_probs > 0
-        
-        if not non_zero_mask.any():
-            return torch.zeros_like(length_mask)
-            
-        # Get sorted indices and values in one operation, avoiding unnecessary device transfers
-        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs[non_zero_mask], descending=True)
-        non_zero_indices = torch.nonzero(non_zero_mask, as_tuple=True)[0]
-        sorted_original_indices = non_zero_indices[sorted_indices]
-        
-        # Calculate expected throughput more efficiently
+        sorted_values, sorted_indices = torch.sort(flat_acceptance_probs, descending=True)
+
         total_valid_tokens = len(sorted_values)
         latencies = torch.tensor(
             self.profiler.get_target_model_latencies_polynomial(total_valid_tokens + total_non_proposal_tokens)[total_non_proposal_tokens:],
             device=device
         )
+        expected_throughput = (torch.cumsum(sorted_values, dim=0)) / latencies
         
-        # Calculate expected throughput in one operation
-        expected_throughput = torch.cumsum(sorted_values, dim=0) / latencies
+        # Find the first index where probability goes below threshold
+        start_idx = torch.where(sorted_values < self.selective_validation_threshold)[0]
+        if len(start_idx) > 0:
+            start_idx = start_idx[0].item()
+            # Find optimal length only in the range where probabilities are below threshold
+            valid_throughput = expected_throughput[start_idx:]
+            optimal_total_length = start_idx + torch.argmax(valid_throughput).item() + 1
+        else:
+            # If no probabilities are below threshold, take all tokens
+            optimal_total_length = total_valid_tokens
         
-        # Find optimal validation length
-        optimal_total_length = torch.argmax(expected_throughput).item() + 1
-        
+        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
+        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
+
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
-        flat_mask[sorted_original_indices[:optimal_total_length]] = True
+        flat_mask[sorted_indices[:optimal_total_length]] = True
         
         return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
-
+        
     def _generate_random_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Perform random drop for testing purpose"""
         # Create random mask with 50% probability of dropping each token
