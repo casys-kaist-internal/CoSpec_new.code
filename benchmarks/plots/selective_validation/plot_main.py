@@ -8,31 +8,46 @@ import numpy as np
 
 # List of CSV files to process and their corresponding request rates
 CSV_FILES = [
-    'selective_validation_opt_A6000.csv',
-    'selective_validation_llama_A6000_alpaca.csv',
-    'selective_validation_opt_A100.csv',
+    'final_selective_validation_opt6.7b_A6000_math500.csv',
+    'final_selective_validation_llama13b_A6000_alpaca.csv',
+    'final_selective_validation_opt13b_A100_sharegpt.csv',
 ]
 
 # Specify request rates for each CSV file
 REQUEST_RATES = {
-    'selective_validation_opt_A6000.csv': 12,    # Change this value for OPT-6.7B
-    'selective_validation_llama_A6000_alpaca.csv': 16,  # Change this value for Llama-13B
-    'selective_validation_opt_A100.csv': 8,     # Change this value for OPT-30B
+    'final_selective_validation_opt6.7b_A6000_math500.csv': 12,    # Change this value for OPT-6.7B
+    'final_selective_validation_llama13b_A6000_alpaca.csv': 12,  # Change this value for Llama-13B
+    'final_selective_validation_opt13b_A100_sharegpt.csv': 9,     # Change this value for OPT-30B
 }
 
-# Custom blueish and reddish color palette for the plot
+# Custom color palette for the plot
 blue_palette = ['#E74C3C', '#D7E2F9', '#88BCFF', '#3864B9', '#1B345F']
-green_color = '#228B22'  # Green color for CoSpec
+green_palette = ['#228B22', '#32CD32', '#90EE90']  # Forest green, Lime green, Light green
+orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 
 # Map configurations to colors
 config_colors = {
-    'Without Selective Validation': 'red',  # Reddish
+    'Without Selective Validation': '#E74C3C',  # Red for baseline
+    
+    # Threshold configurations - using blue palette
     'Threshold 0.1': blue_palette[2],  # Light blue
     'Threshold 0.3': blue_palette[3],  # Medium blue
     'Threshold 0.5': blue_palette[4],  # Dark blue
-    'Linear': '#FF8C00',  # Darkest blue
-    'Polynomial': '#8B4513',
-    'Tile': green_color,  # Medium blue
+    
+    # Linear configurations - using green palette
+    'Linear 0.1': green_palette[0],    # Forest green
+    'Linear 0.3': green_palette[1],    # Lime green
+    'Linear 0.5': green_palette[2],    # Light green
+    
+    # Polynomial configurations - using orange palette
+    'Polynomial 0.1': orange_palette[0],  # Dark orange
+    'Polynomial 0.3': orange_palette[1],  # Orange
+    'Polynomial 0.5': orange_palette[2],  # Gold
+    
+    # Tile configurations - using a mix of blue and green
+    'Tile 0.1': '#4682B4',  # Steel blue
+    'Tile 0.3': '#20B2AA',  # Light sea green
+    'Tile 0.5': '#48D1CC',  # Medium turquoise
 }
 
 # Create output directory for plots
@@ -85,9 +100,15 @@ for idx, csv_file in enumerate(CSV_FILES):
         'Threshold 0.1',
         'Threshold 0.3',
         'Threshold 0.5',
-        'Linear',
-        'Polynomial',
-        'Tile'
+        'Linear 0.1',
+        'Linear 0.3',
+        'Linear 0.5',
+        'Polynomial 0.1',
+        'Polynomial 0.3',
+        'Polynomial 0.5',
+        'Tile 0.1',
+        'Tile 0.3',
+        'Tile 0.5'
     ]
     
     # Map old config names to new labels
@@ -95,9 +116,15 @@ for idx, csv_file in enumerate(CSV_FILES):
         'colocation_consolidated_threshold_0.1': 'Threshold 0.1',
         'colocation_consolidated_threshold_0.3': 'Threshold 0.3',
         'colocation_consolidated_threshold_0.5': 'Threshold 0.5',
-        'colocation_consolidated_tile': 'Tile',
-        'colocation_consolidated_linear': 'Linear',
-        'colocation_consolidated_polynomial': 'Polynomial'
+        'colocation_consolidated_tile_0.1': 'Tile 0.1',
+        'colocation_consolidated_tile_0.3': 'Tile 0.3',
+        'colocation_consolidated_tile_0.5': 'Tile 0.5',
+        'colocation_consolidated_linear_0.1': 'Linear 0.1',
+        'colocation_consolidated_linear_0.3': 'Linear 0.3',
+        'colocation_consolidated_linear_0.5': 'Linear 0.5',
+        'colocation_consolidated_polynomial_0.1': 'Polynomial 0.1',
+        'colocation_consolidated_polynomial_0.3': 'Polynomial 0.3',
+        'colocation_consolidated_polynomial_0.5': 'Polynomial 0.5'
     }
     
     # Create reverse mapping for finding config names
@@ -178,9 +205,15 @@ desired_order = [
     'Threshold 0.1',
     'Threshold 0.3',
     'Threshold 0.5',
-    'Linear',
-    'Polynomial',
-    'Tile'
+    'Linear 0.1',
+    'Linear 0.3',
+    'Linear 0.5',
+    'Polynomial 0.1',
+    'Polynomial 0.3',
+    'Polynomial 0.5',
+    'Tile 0.1',
+    'Tile 0.3',
+    'Tile 0.5'
 ]
 
 # Reorder handles and labels according to desired order
