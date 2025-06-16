@@ -54,7 +54,7 @@ TEMPERATURES=(0)
 
 # Benchmark Configuration
 export WARMUP_DURATION=1
-export BENCHMARK_DURATION=5  # Duration in minutes
+export BENCHMARK_DURATION=10  # Duration in minutes
 
 PORT=8100
 
