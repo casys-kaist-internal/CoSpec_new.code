@@ -78,7 +78,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         self._colocation_task = None
         self._colocation_check_interval = 0.5
         self._is_running = False  
-        self.consecutive_count_threshold = 10
+        self.consecutive_count_threshold = 5
         self.consecutive_non_colocation_count = 0  
         self.consecutive_colocation_count = 0
 
