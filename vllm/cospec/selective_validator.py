@@ -107,7 +107,7 @@ class SelectiveValidator:
                 self.moving_avg_alpha * original_proposal_len
             )
         
-        logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
+        # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
         
         # Mask invalid tokens and truncate in-place
         proposals.proposal_token_ids[~valid_mask] = 0

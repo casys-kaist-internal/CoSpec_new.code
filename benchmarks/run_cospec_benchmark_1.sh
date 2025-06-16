@@ -25,7 +25,7 @@ MATH500_RATES=(2 4 6 8 10 12 14)
 SHAREGPT_RATES=(2 4 6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
-ALPACA_RATES=(4 8 12 16 20 24)
+ALPACA_RATES=(2 4 6 8 10 12 14 16 18 20 22 24)
 
 # Function to get request rates for a dataset
 get_request_rates() {
