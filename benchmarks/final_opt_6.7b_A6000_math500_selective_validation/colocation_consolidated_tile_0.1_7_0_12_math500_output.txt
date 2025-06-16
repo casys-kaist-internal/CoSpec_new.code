@@ -58,3 +58,61 @@ Initial test run completed. Starting main benchmark run...
 Traffic request rate: 12.0
 Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 257 to 384 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 12.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': False}
+Running test requests 385 to 512 (cycling through 50 requests)
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 12.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+result {'is_trained': True}
+Selective validator trained after 512 test requests (91.47 seconds)
+Running full benchmark...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 12.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark duration: 10.0 minutes
+============ Serving Benchmark Result ============
+Successful requests:                     6594      
+Benchmark duration (s):                  600.19    
+Total input tokens:                      496201    
+Total generated tokens:                  1442940   
+Request throughput (req/s):              10.99     
+Output token throughput (tok/s):         2404.14   
+Total Token throughput (tok/s):          3230.88   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          9612.03   
+Median TTFT (ms):                        1333.36   
+P99 TTFT (ms):                           37912.60  
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          75.91     
+Median TPOT (ms):                        67.61     
+P99 TPOT (ms):                           193.19    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           332.85    
+Median ITL (ms):                         317.09    
+P99 ITL (ms):                            736.68    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          23773.19  
+Median E2EL (ms):                        20856.13  
+P99 E2EL (ms):                           70055.82  
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 155.71    
+Median Token Latency (ms):               97.54     
+P99 Token Latency (ms):                  768.60    
+==================================================
