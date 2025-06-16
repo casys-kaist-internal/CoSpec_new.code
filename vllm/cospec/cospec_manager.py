@@ -133,10 +133,7 @@ class CospecManager:
             torch.cuda.nvtx.range_pop()
         fcntl.flock(self.draft_lock_fd, fcntl.LOCK_UN)
 
-    def check_early_exit_draft(self):
-        if self.profiler.is_profiling():
-            return False
-        
+    def check_early_exit_draft(self):        
         torch.cuda.synchronize()
         if self.is_driver:
             should_exit = self.shm.get(f"early_exit_{self.is_primary}")
