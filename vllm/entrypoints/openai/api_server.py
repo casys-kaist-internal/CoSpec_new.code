@@ -19,6 +19,7 @@ from functools import partial
 from http import HTTPStatus
 from typing import Annotated, Optional, Union
 import subprocess
+import time
 
 import uvloop
 from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException, Request
@@ -1311,6 +1312,8 @@ async def run_server_cospec(args, **uvicorn_kwargs) -> None:
         logger.info("NVIDIA MPS daemon stopped successfully. Rerun the command to start it again.")
     except Exception as e:
         logger.error("No running MPS daemon found")
+
+    time.sleep(10)
 
     try:
         logger.info("Initializing NVIDIA MPS...")

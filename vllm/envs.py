@@ -116,8 +116,7 @@ if TYPE_CHECKING:
     COSPEC_DYNAMIC_COLOCATION: bool = False
     COSPEC_SELECTIVE_VALIDATION: bool = False
     COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile" # tile, linear, threshold, random
-    COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.3
-    COSPEC_SELECTIVE_VALIDATION_TILE_SIZE: int = 64
+    COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.5
     COSPEC_CONSOLIDATED_ATTENTION: bool = False
     COSPEC_CORRECTNESS_TEST: bool = False
 
@@ -747,7 +746,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     lambda: bool(int(os.getenv("COSPEC_SELECTIVE_VALIDATION", "0"))),
 
     "COSPEC_SELECTIVE_VALIDATION_THRESHOLD":
-    lambda: float(os.getenv("COSPEC_SELECTIVE_VALIDATION_THRESHOLD", "0.3")),
+    lambda: float(os.getenv("COSPEC_SELECTIVE_VALIDATION_THRESHOLD", "0.5")),
 
     "COSPEC_SELECTIVE_VALIDATION_METHOD":
     lambda: str(os.getenv("COSPEC_SELECTIVE_VALIDATION_METHOD", "tile")),

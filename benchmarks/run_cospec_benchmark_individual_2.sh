@@ -18,7 +18,7 @@ DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(12)
-SHAREGPT_RATES=(6 8 10)
+SHAREGPT_RATES=(9)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
 
@@ -59,8 +59,8 @@ declare -A COSPEC_CONFIGS=(
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_dynamic_selective_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_CONSOLIDATED_ATTENTION=1"
+    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["colocation_dynamic_selective_consolidated"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_CONSOLIDATED_ATTENTION=1"
 )
 
 # Set nvidia-smi EXCLUSIVE_PROCESS 
@@ -219,6 +219,8 @@ run_benchmark() {
 #     "colocation_consolidated_polynomial"
 # )
 declare -a CONFIG_ORDER=(
+    "baseline"
+    "colocation"
     "colocation_dynamic"
     "colocation_dynamic_selective"
     "colocation_dynamic_selective_consolidated"
