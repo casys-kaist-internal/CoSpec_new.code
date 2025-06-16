@@ -17,7 +17,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second) for each dataset
-MATH500_RATES=(10 12 14)
+MATH500_RATES=(12)
 SHAREGPT_RATES=(6 8 10)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)

@@ -22,7 +22,7 @@ DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second) for each dataset
 MATH500_RATES=(8 10 12)
-SHAREGPT_RATES=(8 9 10)
+SHAREGPT_RATES=(9)
 OPENMATH_RATES=(1 2 3 4 5)
 OPENCODE_RATES=(1 2 3 4 5)
 ALPACA_RATES=(12 16 20)
