@@ -712,7 +712,6 @@ def main(args: argparse.Namespace):
         raise ValueError(f"Dataset {args.dataset_name} not supported")
 
     # Split into 90/10 train/test
-    random.shuffle(full_requests)
     split_idx = int(len(full_requests) * 0.1)  # 10% for test
     test_requests = full_requests[:split_idx]
     input_requests = full_requests[split_idx:]  # 90% for training
