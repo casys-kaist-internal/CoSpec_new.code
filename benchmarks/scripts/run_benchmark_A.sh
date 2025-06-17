@@ -9,7 +9,7 @@
 ulimit -n 65535
 
 # Benchmark Control
-SKIP_BASELINE=true  # Set to false to run baseline configurations
+SKIP_BASELINE=false  # Set to false to run baseline configurations
 
 # Model Configuration
 export TARGET_MODEL="facebook/opt-6.7b"
@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second)
-RATES=(12)
+RATES=(2 4 6 8 10 12 14)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -63,19 +63,7 @@ declare -A COSPEC_CONFIGS=(
 
 # Define the configurations to run
 declare -a CONFIG_ORDER=(
-    "colocation_consolidated"
-    "colocation_consolidated_tile_0.1"
-    "colocation_consolidated_tile_0.3"
-    "colocation_consolidated_tile_0.5"
-    "colocation_consolidated_threshold_0.1"
-    "colocation_consolidated_threshold_0.3"
-    "colocation_consolidated_threshold_0.5"
-    "colocation_consolidated_linear_0.1"
-    "colocation_consolidated_linear_0.3"
-    "colocation_consolidated_linear_0.5"
-    "colocation_consolidated_polynomial_0.1"
-    "colocation_consolidated_polynomial_0.3"
-    "colocation_consolidated_polynomial_0.5"
+    "full_cospec"
 )
 
 # =============================================
