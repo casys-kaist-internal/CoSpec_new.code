@@ -400,7 +400,7 @@ async def benchmark(
                                          desc="Processing requests",
                                          unit="req",
                                          bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]")
-
+ 
     semaphore = (asyncio.Semaphore(max_concurrency)
                  if max_concurrency else None)
 
@@ -465,24 +465,8 @@ async def benchmark(
                 limited_request_func(request_func_input=request_func_input,
                                      pbar=pbar)))
 
-    # If we have a num_prompts limit, cancel any pending tasks
-    if prompts_processed is not None:
-        # Cancel all pending tasks
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        
-        # Gather only completed tasks
-        outputs = []
-        for task in tasks:
-            try:
-                output = await task
-                outputs.append(output)
-            except asyncio.CancelledError:
-                continue
-    else:
-        # If no num_prompts limit, gather all tasks as before
-        outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
+    # If no num_prompts limit, gather all tasks as before
+    outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
 
     if profile:
         print("Stopping profiler...")
