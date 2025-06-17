@@ -9,19 +9,19 @@
 ulimit -n 65535
 
 # Benchmark Control
-SKIP_BASELINE=false  # Set to false to run baseline configurations
+SKIP_BASELINE=true  # Set to false to run baseline configurations
 
 # Model Configuration
-export TARGET_MODEL="facebook/opt-6.7b"
+export TARGET_MODEL="facebook/opt-13b"
 export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Dataset Configuration
-DATASETS=("math500")
+DATASETS=("sharegpt")
 
 # Request Rate Configuration (requests per second)
-RATES=(2 4 6 8 10 12 14)
+RATES=(8 10 12)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -44,8 +44,8 @@ declare -A COSPEC_CONFIGS=(
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5; export COSPEC_CONSOLIDATED_ATTENTION=0"
-    ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.5; export COSPEC_CONSOLIDATED_ATTENTION=1"
+    ["colocation_dynamic_selective"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3; export COSPEC_CONSOLIDATED_ATTENTION=1"
     ["without_selective_validation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=1"
     ["selective_validation_tile_0.1"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.1; export COSPEC_CONSOLIDATED_ATTENTION=1"
     ["selective_validation_tile_0.3"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3; export COSPEC_CONSOLIDATED_ATTENTION=1"
@@ -63,7 +63,6 @@ declare -A COSPEC_CONFIGS=(
 
 # Define the configurations to run
 declare -a CONFIG_ORDER=(
-    "full_cospec"
     "without_selective_validation"
     "selective_validation_tile_0.1"
     "selective_validation_tile_0.3"
@@ -81,6 +80,7 @@ declare -a CONFIG_ORDER=(
     "colocation"
     "colocation_dynamic"
     "colocation_dynamic_selective"
+    "full_cospec"
 )
 
 # =============================================
@@ -89,7 +89,7 @@ declare -a CONFIG_ORDER=(
 
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_DIR="A_${TIMESTAMP}"
+RESULTS_DIR="G_${TIMESTAMP}"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
