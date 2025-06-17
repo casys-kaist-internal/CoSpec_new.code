@@ -456,6 +456,9 @@ class LLMEngine:
         self.cache_config.num_gpu_blocks = num_gpu_blocks
         self.cache_config.num_cpu_blocks = num_cpu_blocks
 
+        logger.info("Initializing cache with %d GPU blocks and %d CPU blocks", num_gpu_blocks, num_cpu_blocks)
+        time.sleep(20)
+
         self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
         elapsed = time.time() - start
         logger.info(("init engine (profile, create kv cache, "

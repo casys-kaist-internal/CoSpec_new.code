@@ -1565,6 +1565,7 @@ class SharedMemoryModelLoader(BaseModelLoader):
                 if os.path.exists(shared_handles_path):
                     logger.info("Secondary process - loading model from shared memory")
                     # Secondary process - unpack full tuple structure
+                    time.sleep(10)
                     with open(shared_handles_path, "rb") as f:
                         handles_dict = pickle.load(f)
 
@@ -1577,10 +1578,18 @@ class SharedMemoryModelLoader(BaseModelLoader):
                         tensor.set_(storage, 0, shape, stride)
                         state_dict[name] = tensor
 
+                    logger.info("Secondary process - loaded state dict from shared memory")
+                    time.sleep(10)
+
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
                             model = _initialize_model(vllm_config=vllm_config)
                             model.load_state_dict(state_dict, assign=True)
+
+                    # Need to garbage collect the unreferenced tensors
+                    torch.cuda.empty_cache()
+                    logger.info("Secondary process - loaded model from shared memory")
+                    time.sleep(10)
 
                 else:
                     logger.info("Primary process - initializing model")
