@@ -323,7 +323,7 @@ async def benchmark(
     max_concurrency: Optional[int],
     lora_modules: Optional[Iterable[str]],
     extra_body: Optional[dict],
-    duration_minutes: Optional[float] = None,
+    num_prompts: Optional[int] = None,
     selective_validator_training: bool = False,
 ):
     if backend in ASYNC_REQUEST_FUNCS:
@@ -393,18 +393,14 @@ async def benchmark(
     print(f"Traffic request rate: {request_rate}")
     print(f"Burstiness factor: {burstiness} ({distribution})")
     print(f"Maximum request concurrency: {max_concurrency}")
-    if duration_minutes:
-        print(f"Benchmark duration: {duration_minutes} minutes")
+    if num_prompts:
+        print(f"Benchmark will process {num_prompts} prompts")
 
     pbar = None if disable_tqdm else tqdm(total=len(input_requests), 
                                          desc="Processing requests",
                                          unit="req",
                                          bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]")
-
-    # This can be used once the minimum Python version is 3.10 or higher,
-    # and it will simplify the code in limited_request_func.
-    #    semaphore = (asyncio.Semaphore(max_concurrency)
-    #                 if max_concurrency else contextlib.nullcontext())
+ 
     semaphore = (asyncio.Semaphore(max_concurrency)
                  if max_concurrency else None)
 
@@ -431,18 +427,20 @@ async def benchmark(
     benchmark_start_time = time.perf_counter()
     tasks: list[asyncio.Task] = []
     
-    # Create an infinite iterator of requests if duration is specified
-    if duration_minutes:
+    # Create an infinite iterator of requests if num_prompts is specified
+    if num_prompts:
         request_iterator = itertools.cycle(input_requests)
-        end_time = benchmark_start_time + (duration_minutes * 60)
+        prompts_processed = 0
     else:
         request_iterator = input_requests
-        end_time = None
+        prompts_processed = None
     
     async for request in get_request(request_iterator, request_rate, burstiness):
-        # Check if we've reached the duration limit
-        if end_time and time.perf_counter() >= end_time:
-            break
+        # Check if we've reached the number of prompts limit
+        if prompts_processed is not None:
+            if prompts_processed >= num_prompts:
+                break
+            prompts_processed += 1
             
         prompt, prompt_len, output_len, mm_content = request.prompt, \
             request.prompt_len, request.expected_output_len, \
@@ -467,26 +465,8 @@ async def benchmark(
                 limited_request_func(request_func_input=request_func_input,
                                      pbar=pbar)))
 
-    # If we have a duration limit, cancel any pending tasks
-    if end_time:
-        # Wait for a short time to allow some tasks to complete
-        await asyncio.sleep(0.1)
-        # Cancel all pending tasks
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        
-        # Gather only completed tasks
-        outputs = []
-        for task in tasks:
-            try:
-                output = await task
-                outputs.append(output)
-            except asyncio.CancelledError:
-                continue
-    else:
-        # If no duration limit, gather all tasks as before
-        outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
+    # If no num_prompts limit, gather all tasks as before
+    outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
 
     if profile:
         print("Stopping profiler...")
@@ -553,6 +533,7 @@ async def benchmark(
         "itls": [output.itl for output in outputs],
         "generated_texts": [output.generated_text for output in outputs],
         "errors": [output.error for output in outputs],
+        "num_prompts": num_prompts,
     }
 
     def process_one_metric(
@@ -693,14 +674,6 @@ def main(args: argparse.Namespace):
         full_requests = OpenCodeInstructDataset(random_seed=args.seed,
                     dataset_path="nvidia/OpenCodeInstruct", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-        # full_requests = OpenCodeReasoningDataset(random_seed=args.seed,
-        #             dataset_path="nvidia/OpenCodeReasoning", 
-        #             dataset_split="split_0", 
-        #             dataset_subset="split_0").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "openmath":
-        full_requests = OpenMathInstructDataset(random_seed=args.seed,
-                    dataset_path="nvidia/OpenMathInstruct-2", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "math500":
         full_requests = Math500Dataset(random_seed=args.seed,
                     dataset_path="HuggingFaceH4/MATH-500", 
@@ -717,6 +690,7 @@ def main(args: argparse.Namespace):
         raise ValueError(f"Dataset {args.dataset_name} not supported")
 
     # Split into 90/10 train/test
+    random.shuffle(full_requests)
     split_idx = int(len(full_requests) * 0.1)  # 10% for test
     test_requests = full_requests[:split_idx]
     input_requests = full_requests[split_idx:]  # 90% for training
@@ -724,8 +698,6 @@ def main(args: argparse.Namespace):
     print(f"Split dataset into {len(test_requests)} test samples and {len(input_requests)} training samples")
 
     goodput_config_dict = check_goodput_args(args)
-
-    print("Temperature: ", args.temperature)
 
     # Collect the sampling parameters.
     sampling_params = {
@@ -772,7 +744,7 @@ def main(args: argparse.Namespace):
         request_count = 0
         start_time = time.time()
         batch_size = 128
-        for _ in range(10): # 10 batches 
+        while True:
             # Get next batch of requests
             batch_requests = []
             for i in range(batch_size):
@@ -846,7 +818,7 @@ def main(args: argparse.Namespace):
             max_concurrency=args.max_concurrency,
             lora_modules=args.lora_modules,
             extra_body=sampling_params,
-            duration_minutes=args.duration_minutes,
+            num_prompts=args.num_prompts,
         ))
 
     # Save config and results to json
@@ -970,10 +942,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-beam-search", action="store_true")
     parser.add_argument(
-        "--duration-minutes",
-        type=float,
-        default=None,
-        help="Duration to run the benchmark in minutes",
+        "--num-prompts",
+        type=int,
+        required=True,
+        help="Number of prompts to process in the benchmark",
     )
     parser.add_argument(
         "--logprobs",

@@ -4,7 +4,8 @@
 # Configuration
 # =============================================
 
-# nvidia-smi -c EXCLUSIVE_PROCESS
+# Set EXCLUSIVE_PROCESS if possible. This makes sure that MPS is used.
+# nvidia-smi -c EXCLUSIVE_PROCESS 
 ulimit -n 65535
 
 # Benchmark Control

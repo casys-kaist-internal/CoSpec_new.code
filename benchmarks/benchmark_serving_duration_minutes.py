@@ -323,7 +323,7 @@ async def benchmark(
     max_concurrency: Optional[int],
     lora_modules: Optional[Iterable[str]],
     extra_body: Optional[dict],
-    num_prompts: Optional[int] = None,
+    duration_minutes: Optional[float] = None,
     selective_validator_training: bool = False,
 ):
     if backend in ASYNC_REQUEST_FUNCS:
@@ -393,14 +393,18 @@ async def benchmark(
     print(f"Traffic request rate: {request_rate}")
     print(f"Burstiness factor: {burstiness} ({distribution})")
     print(f"Maximum request concurrency: {max_concurrency}")
-    if num_prompts:
-        print(f"Benchmark will process {num_prompts} prompts")
+    if duration_minutes:
+        print(f"Benchmark duration: {duration_minutes} minutes")
 
     pbar = None if disable_tqdm else tqdm(total=len(input_requests), 
                                          desc="Processing requests",
                                          unit="req",
                                          bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]")
- 
+
+    # This can be used once the minimum Python version is 3.10 or higher,
+    # and it will simplify the code in limited_request_func.
+    #    semaphore = (asyncio.Semaphore(max_concurrency)
+    #                 if max_concurrency else contextlib.nullcontext())
     semaphore = (asyncio.Semaphore(max_concurrency)
                  if max_concurrency else None)
 
@@ -427,20 +431,18 @@ async def benchmark(
     benchmark_start_time = time.perf_counter()
     tasks: list[asyncio.Task] = []
     
-    # Create an infinite iterator of requests if num_prompts is specified
-    if num_prompts:
+    # Create an infinite iterator of requests if duration is specified
+    if duration_minutes:
         request_iterator = itertools.cycle(input_requests)
-        prompts_processed = 0
+        end_time = benchmark_start_time + (duration_minutes * 60)
     else:
         request_iterator = input_requests
-        prompts_processed = None
+        end_time = None
     
     async for request in get_request(request_iterator, request_rate, burstiness):
-        # Check if we've reached the number of prompts limit
-        if prompts_processed is not None:
-            if prompts_processed >= num_prompts:
-                break
-            prompts_processed += 1
+        # Check if we've reached the duration limit
+        if end_time and time.perf_counter() >= end_time:
+            break
             
         prompt, prompt_len, output_len, mm_content = request.prompt, \
             request.prompt_len, request.expected_output_len, \
@@ -465,8 +467,26 @@ async def benchmark(
                 limited_request_func(request_func_input=request_func_input,
                                      pbar=pbar)))
 
-    # If no num_prompts limit, gather all tasks as before
-    outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
+    # If we have a duration limit, cancel any pending tasks
+    if end_time:
+        # Wait for a short time to allow some tasks to complete
+        await asyncio.sleep(0.1)
+        # Cancel all pending tasks
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        
+        # Gather only completed tasks
+        outputs = []
+        for task in tasks:
+            try:
+                output = await task
+                outputs.append(output)
+            except asyncio.CancelledError:
+                continue
+    else:
+        # If no duration limit, gather all tasks as before
+        outputs: list[RequestFuncOutput] = await asyncio.gather(*tasks)
 
     if profile:
         print("Stopping profiler...")
@@ -533,7 +553,6 @@ async def benchmark(
         "itls": [output.itl for output in outputs],
         "generated_texts": [output.generated_text for output in outputs],
         "errors": [output.error for output in outputs],
-        "num_prompts": num_prompts,
     }
 
     def process_one_metric(
@@ -827,7 +846,7 @@ def main(args: argparse.Namespace):
             max_concurrency=args.max_concurrency,
             lora_modules=args.lora_modules,
             extra_body=sampling_params,
-            num_prompts=args.num_prompts,
+            duration_minutes=args.duration_minutes,
         ))
 
     # Save config and results to json
@@ -951,10 +970,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-beam-search", action="store_true")
     parser.add_argument(
-        "--num-prompts",
-        type=int,
+        "--duration-minutes",
+        type=float,
         default=None,
-        help="Number of prompts to process in the benchmark",
+        help="Duration to run the benchmark in minutes",
     )
     parser.add_argument(
         "--logprobs",

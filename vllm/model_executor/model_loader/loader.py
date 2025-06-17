@@ -1583,12 +1583,14 @@ class SharedMemoryModelLoader(BaseModelLoader):
 
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
-                            model = _initialize_model(vllm_config=vllm_config)
+                            model = _initialize_model(vllm_config=vllm_config) 
                             model.load_state_dict(state_dict, assign=True)
 
-                    # Need to garbage collect the unreferenced tensors
+                    # We first initialize empty tensor at _initialize_model which allocates memory. 
+                    # Then we load the shared memory tensor with load_state_dict.  
+                    # We need to garbage collect the initial empty tensor to free up memory. 
                     torch.cuda.empty_cache()
-                    logger.info("Secondary process - loaded model from shared memory")
+                    logger.info("Secondary process - Finished loading model from shared memory")
                     time.sleep(10)
 
                 else:
