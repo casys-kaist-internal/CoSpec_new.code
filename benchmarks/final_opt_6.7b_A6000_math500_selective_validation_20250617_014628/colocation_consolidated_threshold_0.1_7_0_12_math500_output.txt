@@ -1,13 +1,9 @@
-INFO 06-17 01:10:25 [__init__.py:239] Automatically detected platform cuda.
+INFO 06-17 02:47:21 [__init__.py:239] Automatically detected platform cuda.
 Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='math500', dataset_path=None, max_concurrency=None, model='facebook/opt-6.7b', tokenizer=None, use_beam_search=False, duration_minutes=10.0, logprobs=None, request_rate=12.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=0.0, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
 Loaded 500 samples from cache from HuggingFaceH4/cache/math500_facebook/opt-6.7b.json
 Split dataset into 50 test samples and 450 training samples
 Temperature:  0.0
 Running test split to train selective validator...
-Checking server health at http://127.0.0.1:8100/health
-Waiting for server to start...
-Checking server health at http://127.0.0.1:8100/health
-Waiting for server to start...
 Checking server health at http://127.0.0.1:8100/health
 Waiting for server to start...
 Checking server health at http://127.0.0.1:8100/health
@@ -90,31 +86,31 @@ Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
 Benchmark duration: 10.0 minutes
 ============ Serving Benchmark Result ============
-Successful requests:                     6636      
-Benchmark duration (s):                  600.24    
-Total input tokens:                      498733    
-Total generated tokens:                  1452458   
-Request throughput (req/s):              11.06     
-Output token throughput (tok/s):         2419.79   
-Total Token throughput (tok/s):          3250.68   
+Successful requests:                     6618      
+Benchmark duration (s):                  600.20    
+Total input tokens:                      497187    
+Total generated tokens:                  1447328   
+Request throughput (req/s):              11.03     
+Output token throughput (tok/s):         2411.40   
+Total Token throughput (tok/s):          3239.76   
 ---------------Time to First Token----------------
-Mean TTFT (ms):                          9491.12   
-Median TTFT (ms):                        1709.80   
-P99 TTFT (ms):                           33994.01  
+Mean TTFT (ms):                          9481.90   
+Median TTFT (ms):                        1065.43   
+P99 TTFT (ms):                           32557.23  
 -----Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          81.46     
-Median TPOT (ms):                        71.16     
-P99 TPOT (ms):                           208.98    
+Mean TPOT (ms):                          75.03     
+Median TPOT (ms):                        67.18     
+P99 TPOT (ms):                           188.33    
 ---------------Inter-token Latency----------------
-Mean ITL (ms):                           314.02    
-Median ITL (ms):                         295.63    
-P99 ITL (ms):                            702.28    
+Mean ITL (ms):                           323.94    
+Median ITL (ms):                         309.40    
+P99 ITL (ms):                            726.52    
 ----------------End-to-end Latency----------------
-Mean E2EL (ms):                          24376.94  
-Median E2EL (ms):                        22297.85  
-P99 E2EL (ms):                           68172.85  
+Mean E2EL (ms):                          23531.30  
+Median E2EL (ms):                        20827.78  
+P99 E2EL (ms):                           67627.85  
 -----Token Latency (e2e_latency / output_len)-----
-Mean Token Latency (ms):                 159.90    
-Median Token Latency (ms):               105.60    
-P99 Token Latency (ms):                  757.33    
+Mean Token Latency (ms):                 153.75    
+Median Token Latency (ms):               97.04     
+P99 Token Latency (ms):                  777.50    
 ==================================================
