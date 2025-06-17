@@ -80,7 +80,7 @@
 
 ### Experiment I
 - **Target Model**: OPT-6.7B
-- **Draft Model**: 125M
+- **Draft Model**: OPT-125M
 - **Dataset**: Math500
 - **Request Rates**: 10 req/s
 - **GPU**: A6000
@@ -89,7 +89,7 @@
 
 ### Experiment J
 - **Target Model**: OPT-13B
-- **Draft Model**: 125M
+- **Draft Model**: OPT-125M
 - **Dataset**: ShareGPT
 - **Request Rates**: 9 req/s
 - **GPU**: A100

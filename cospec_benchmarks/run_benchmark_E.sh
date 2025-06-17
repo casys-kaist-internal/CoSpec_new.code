@@ -18,10 +18,10 @@ export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Dataset Configuration
-DATASETS=("opencode")
+DATASETS=("platypus")
 
 # Request Rate Configuration (requests per second)
-RATES=(1 2 3 4 5 6)
+RATES=(2 4 6 8 10 12)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -99,7 +99,7 @@ start_server() {
         --seed 42 \
         -tp $TENSOR_PARALLEL_SIZE \
         --enable-chunked-prefill \
-        --gpu_memory_utilization 0.80 \
+        --gpu_memory_utilization 0.90 \
         --disable-log-requests"
 
     # Add speculative config if spec_tokens > 0

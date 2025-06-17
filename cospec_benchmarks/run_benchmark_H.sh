@@ -76,6 +76,11 @@ declare -a CONFIG_ORDER=(
     "selective_validation_polynomial_0.1"
     "selective_validation_polynomial_0.3"
     "selective_validation_polynomial_0.5"
+    "baseline"
+    "colocation"
+    "colocation_dynamic"
+    "colocation_dynamic_selective"
+    "full_cospec"
 )
 
 # =============================================
@@ -111,7 +116,7 @@ start_server() {
         --seed 42 \
         -tp $TENSOR_PARALLEL_SIZE \
         --enable-chunked-prefill \
-        --gpu_memory_utilization 0.80 \
+        --gpu_memory_utilization 0.90 \
         --disable-log-requests"
 
     # Add speculative config if spec_tokens > 0
