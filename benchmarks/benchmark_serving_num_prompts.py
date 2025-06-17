@@ -786,7 +786,6 @@ def main(args: argparse.Namespace):
                 lora_modules=args.lora_modules,
                 extra_body=sampling_params,
                 selective_validator_training=True,
-                num_prompts=args.num_prompts,
             )
             
             # Check if selective validator is trained
