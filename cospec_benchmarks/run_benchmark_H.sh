@@ -18,10 +18,10 @@ export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
 # Dataset Configuration
-DATASETS=("opencode")
+DATASETS=("platypus")
 
 # Request Rate Configuration (requests per second)
-RATES=(5)
+RATES=(10)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
