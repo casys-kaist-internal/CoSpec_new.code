@@ -12,8 +12,8 @@ ulimit -n 65535
 SKIP_BASELINE=false  # Set to false to run baseline configurations
 
 # Model Configuration
-export TARGET_MODEL="huggyllama/llama-13b"
-export DRAFT_MODEL="double7/vicuna-68m"
+export TARGET_MODEL="facebook/opt-13b"
+export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
