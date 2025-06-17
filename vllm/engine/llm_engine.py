@@ -465,6 +465,9 @@ class LLMEngine:
                         "warmup model) took %.2f seconds"), elapsed)
 
     def lazy_initialize_kv_cache(self) -> None:
+        """
+        Workaround to avoid OOM errors when loading model from shared memory.
+        """
         num_gpu_blocks = self.shm.get("gpu_blocks")
         num_cpu_blocks = self.shm.get("cpu_blocks")
         self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)

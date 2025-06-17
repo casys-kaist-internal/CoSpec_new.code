@@ -1563,9 +1563,14 @@ class SharedMemoryModelLoader(BaseModelLoader):
             
             try:
                 if os.path.exists(shared_handles_path):
+                    # Load secondary model from shared memory
+                    # 1. First initializes empty tensors
+                    # 2. Then swaps them with the actual shared memory tensors
+                    # 3. Finally garbage collects the initial empty tensors
+                    # Note: This approach requires the total available memory to be at least 2x the model size,
+                    # as we temporarily need space for both the empty tensors and the shared memory tensors.
+
                     logger.info("Secondary process - loading model from shared memory")
-                    # Secondary process - unpack full tuple structure
-                    time.sleep(10)
                     with open(shared_handles_path, "rb") as f:
                         handles_dict = pickle.load(f)
 
@@ -1578,20 +1583,13 @@ class SharedMemoryModelLoader(BaseModelLoader):
                         tensor.set_(storage, 0, shape, stride)
                         state_dict[name] = tensor
 
-                    logger.info("Secondary process - loaded state dict from shared memory")
-                    time.sleep(10)
-
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
                             model = _initialize_model(vllm_config=vllm_config) 
                             model.load_state_dict(state_dict, assign=True)
 
-                    # We first initialize empty tensor at _initialize_model which allocates memory. 
-                    # Then we load the shared memory tensor with load_state_dict.  
-                    # We need to garbage collect the initial empty tensor to free up memory. 
-                    torch.cuda.empty_cache()
+                    torch.cuda.empty_cache() # garbage collect empty tensors
                     logger.info("Secondary process - Finished loading model from shared memory")
-                    time.sleep(10)
 
                 else:
                     logger.info("Primary process - initializing model")
