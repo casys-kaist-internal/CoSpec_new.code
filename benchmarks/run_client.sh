@@ -7,7 +7,7 @@ MODEL="facebook/opt-6.7b"
 DATASET="math500"
 REQUEST_RATE=10
 TEMPERATURE=0
-DURATION=5
+    DURATION=5
 PORT=8011
 
 echo "Starting benchmark with configuration:"
@@ -25,7 +25,7 @@ python benchmark_serving.py \
     --dataset-name "$DATASET" \
     --request-rate "$REQUEST_RATE" \
     --temperature "$TEMPERATURE" \
-    --duration-minutes "$DURATION" \
+    --num-prompts "$NUM_PROMPTS" \
     --ignore-eos \
     --port "$PORT"
 

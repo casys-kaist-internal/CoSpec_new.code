@@ -7,7 +7,7 @@ MODEL="Qwen/Qwen3-32B"
 DATASET="platypus"
 REQUEST_RATE=20
 TEMPERATURE=0
-DURATION=5
+NUM_PROMPTS=1000
 PORT=8011
 
 echo "Starting benchmark with configuration:"
@@ -25,7 +25,7 @@ python benchmark_serving.py \
     --dataset-name "$DATASET" \
     --request-rate "$REQUEST_RATE" \
     --temperature "$TEMPERATURE" \
-    --duration-minutes "$DURATION" \
+    --num-prompts "$NUM_PROMPTS" \
     --ignore-eos \
     --port "$PORT"
 
