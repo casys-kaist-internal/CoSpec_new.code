@@ -311,6 +311,11 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
+    async def lazy_initialize_kv_cache(self) -> None:
+        """Lazy initialize the KV cache"""
+        ...
+
+    @abstractmethod
     async def set_max_num_seqs(self, max_num_seqs: int) -> None:
         """Set the maximum number of sequences"""
         ...

@@ -636,7 +636,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
             tokens=out_tokens,
             top_logprobs=out_top_logprobs,
         )
-    
+
+    async def lazy_initialize_kv_cache(self) -> None:
+        await self.engine_client.lazy_initialize_kv_cache()
+        await self.engine_client2.lazy_initialize_kv_cache()
+
     async def cospec_profile(self) -> None:
         if envs.COSPEC_DYNAMIC_COLOCATION:
             await self.profile_colocation()

@@ -456,13 +456,19 @@ class LLMEngine:
         self.cache_config.num_gpu_blocks = num_gpu_blocks
         self.cache_config.num_cpu_blocks = num_cpu_blocks
 
-        logger.info("Initializing cache with %d GPU blocks and %d CPU blocks", num_gpu_blocks, num_cpu_blocks)
-        time.sleep(20)
+        if envs.COSPEC:
+            logger.info("Lazy initialize KV cache for CoSpec")
+        else:
+            self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
+            elapsed = time.time() - start
+            logger.info(("init engine (profile, create kv cache, "
+                        "warmup model) took %.2f seconds"), elapsed)
 
+    def lazy_initialize_kv_cache(self) -> None:
+        num_gpu_blocks = self.shm.get("gpu_blocks")
+        num_cpu_blocks = self.shm.get("cpu_blocks")
         self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
-        elapsed = time.time() - start
-        logger.info(("init engine (profile, create kv cache, "
-                    "warmup model) took %.2f seconds"), elapsed)
+        logger.info("Lazy initialized KV cache")
 
     @classmethod
     def _get_executor_cls(cls,

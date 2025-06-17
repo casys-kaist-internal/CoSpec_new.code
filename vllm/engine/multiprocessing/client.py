@@ -46,7 +46,8 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCMaybeLoadCachedTilingProfileRequest,
                                          RPCMaybeLoadCachedTilingProfileResponse,
                                          RPCGetNumSpeculativeTokensEmaRequest,
-                                         RPCGetNumSpeculativeTokensEmaResponse)
+                                         RPCGetNumSpeculativeTokensEmaResponse,
+                                         RPCLazyInitializeKVCacheRequest)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -836,6 +837,12 @@ class MQLLMEngineClient(EngineClient):
             raise request_output
         return request_output.num_speculative_tokens_ema
     
+    async def lazy_initialize_kv_cache(self) -> None:
+        """Lazy initialize the KV cache"""
+        await self._send_one_way_rpc_request(
+            request=RPCLazyInitializeKVCacheRequest(),
+            socket=self.input_socket)
+
     async def set_max_num_seqs(self, max_num_seqs: int) -> None:
         """Set the maximum number of sequences"""
         await self._send_one_way_rpc_request(

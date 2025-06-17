@@ -202,6 +202,10 @@ class RPCGetNumSpeculativeTokensEmaResponse:
     request_id: str
 
 @dataclass
+class RPCLazyInitializeKVCacheRequest:
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+@dataclass
 class RPCPredictColocationSpeedupRatioResponse:
     request_id: str
     speedup_ratio: float

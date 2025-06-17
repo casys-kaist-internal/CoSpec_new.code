@@ -38,7 +38,8 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCMaybeLoadCachedTilingProfileRequest,
                                          RPCMaybeLoadCachedTilingProfileResponse,
                                          RPCGetNumSpeculativeTokensEmaRequest,
-                                         RPCGetNumSpeculativeTokensEmaResponse)
+                                         RPCGetNumSpeculativeTokensEmaResponse,
+                                         RPCLazyInitializeKVCacheRequest)
 # yapf: enable
 from vllm.logger import init_logger
 from vllm.outputs import RequestOutput
@@ -298,6 +299,8 @@ class MQLLMEngine:
                     self.set_profile_batch_size(request.batch_size)
                 elif isinstance(request, RPCSetNumSpeculativeTokensRequest):
                     self.set_num_speculative_tokens(request.num_speculative_tokens)
+                elif isinstance(request, RPCLazyInitializeKVCacheRequest):
+                    self.lazy_initialize_kv_cache()
                 elif isinstance(request, RPCSetMaxNumSeqsRequest):
                     self.set_max_num_seqs(request.max_num_seqs)
                 elif isinstance(request, RPCLoadAdapterRequest):
@@ -498,6 +501,9 @@ class MQLLMEngine:
 
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.engine.set_num_speculative_tokens(num_speculative_tokens)
+
+    def lazy_initialize_kv_cache(self) -> None:
+        self.engine.lazy_initialize_kv_cache()
 
     def set_max_num_seqs(self, max_num_seqs: int) -> None:
         self.engine.set_max_num_seqs(max_num_seqs)
