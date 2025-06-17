@@ -282,10 +282,6 @@ def calculate_metrics(
                              for p in selected_percentiles],
     )
 
-    # save token_latencies to a file
-    with open("token_latencies.json", "w") as f:
-        json.dump(token_latencies, f)
-
     return metrics, actual_output_lens
 
 

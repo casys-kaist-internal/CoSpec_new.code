@@ -39,10 +39,9 @@
 - **Draft TP Size**: 2
 
 ### Experiment E
-- **Target Model**: Qwen3-32B
-- **Draft Model**: Qwen3-0.6B
-- **Dataset**: Open-Platypus
-- **Model Path**: Qwen/Qwen3-32B
+- **Target Model**: OPT-30B
+- **Draft Model**: OPT-350M
+- **Dataset**: OpenCode
 - **Request Rates**: TBD
 - **GPU**: H200
 - **Target TP Size**: 1
@@ -52,7 +51,7 @@
 
 ### Experiment F
 - **Target Model**: OPT-6.7B
-- **Draft Model**: 125M
+- **Draft Model**: OPT-125M
 - **Dataset**: Math500
 - **Request Rates**: 10 req/s
 - **GPU**: A6000
@@ -61,7 +60,7 @@
 
 ### Experiment G
 - **Target Model**: OPT-13B
-- **Draft Model**: 125M
+- **Draft Model**: OPT-125M
 - **Dataset**: ShareGPT
 - **Request Rates**: 9 req/s
 - **GPU**: A100
@@ -69,11 +68,10 @@
 - **Draft TP Size**: 1
 
 ### Experiment H
-- **Target Model**: Qwen3-32B
-- **Draft Model**: Qwen3-0.6B
-- **Dataset**: Open-Platypus
-- **Model Path**: Qwen/Qwen3-32B
-- **Request Rates**: TBD
+- **Target Model**: OPT-30B
+- **Draft Model**: OPT-350M
+- **Dataset**: OpenCode
+- **Request Rates**: 5 req/s
 - **GPU**: H200
 - **Target TP Size**: 1
 - **Draft TP Size**: 1
