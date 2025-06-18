@@ -75,34 +75,8 @@ def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size
     
     return key_caches, value_caches
 
-def generate_random_query_lengths(num_seqs, target_avg):
-    """Generate random query lengths with specified average using weighted distribution."""
-    # For fractional averages, we need to use two adjacent integers
-    lower = int(target_avg)
-    upper = min(lower + 1, 8)  # Don't exceed max length of 8
-    
-    if lower == upper:  # If target is an integer
-        return [lower] * num_seqs
-    
-    # Calculate weights to achieve exact average
-    # For example, if target is 1.5, we need 50% 1s and 50% 2s
-    lower_weight = upper - target_avg
-    upper_weight = target_avg - lower
-    
-    # Calculate number of each value needed
-    num_lower = int(round(num_seqs * lower_weight))
-    num_upper = num_seqs - num_lower
-    
-    # Generate the sequence
-    lengths = [lower] * num_lower + [upper] * num_upper
-    
-    # Shuffle the sequence to randomize the order
-    np.random.shuffle(lengths)
-    
-    return lengths
-
-def run_attention_test(num_gen_seqs, target_avg_query_len):
-    """Run attention test with specific batch size and target average query length."""
+def run_attention_test(num_gen_seqs, target_query_len):
+    """Run attention test with specific batch size and target query length."""
     # Set random seed
     current_platform.seed_everything(SEED)
     torch.set_default_device(DEVICE)
@@ -117,11 +91,10 @@ def run_attention_test(num_gen_seqs, target_avg_query_len):
     
     # Generate sequence lengths and query lengths
     seq_lens = []
-    query_lens = generate_random_query_lengths(num_gen_seqs, target_avg_query_len)
-    actual_avg = sum(query_lens) / len(query_lens)
+    query_lens = [target_query_len] * num_gen_seqs  # All sequences have the same length
     
     for query_len in query_lens:
-        start = SEQ_LEN  # Using global variable
+        start = SEQ_LEN
         for query_idx in range(query_len):
             seq_lens.append(start + query_idx)
     
@@ -376,35 +349,32 @@ def run_attention_test(num_gen_seqs, target_avg_query_len):
     end_time = time.time()
     normal_latency = (end_time - start_time) / NUM_ITERATIONS * 1000  # Convert to milliseconds
 
-    return consolidated_latency, normal_latency, actual_avg
+    return consolidated_latency, normal_latency, target_query_len
 
 def main():
     # Test different batch sizes
-    batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]
-    target_avg_query_lens = [1, 2, 3, 4, 5, 6, 7, 8]
+    batch_sizes = [8 * i for i in range(1, 128//8 + 1)]
+    target_query_lens = [1, 2, 3, 4, 5, 6, 7, 8]
     
     # Store results in matrices
-    consolidated_matrix = np.zeros((len(target_avg_query_lens), len(batch_sizes)))
-    normal_matrix = np.zeros((len(target_avg_query_lens), len(batch_sizes)))
-    speedup_matrix = np.zeros((len(target_avg_query_lens), len(batch_sizes)))
+    consolidated_matrix = np.zeros((len(target_query_lens), len(batch_sizes)))
+    normal_matrix = np.zeros((len(target_query_lens), len(batch_sizes)))
+    speedup_matrix = np.zeros((len(target_query_lens), len(batch_sizes)))
     
     # Print header for consolidated attention
     print(f"\nBenchmarking {MODEL}")
     print("\nConsolidated Attention Latency (ms)")
     print("=" * 80)
-    print("Target Avg | Actual Avg |", end="")
+    print("Query Len |", end="")
     for batch_size in batch_sizes:
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
     # Print consolidated attention results
-    for i, target_avg in enumerate(target_avg_query_lens):
-        print(f"{target_avg:^10} |", end="")
-        # Get actual average from first batch size (they should be similar across batch sizes)
-        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
-        print(f" {actual_avg:^10.4f} |", end="")
+    for i, target_len in enumerate(target_query_lens):
+        print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            consolidated_latency, _, _ = run_attention_test(batch_size, target_avg)
+            consolidated_latency, _, _ = run_attention_test(batch_size, target_len)
             consolidated_matrix[i, j] = consolidated_latency
             print(f" {consolidated_latency:^10.3f} |", end="")
         print()  # New line after each query size
@@ -414,19 +384,16 @@ def main():
     # Print header for normal attention
     print("\nNormal Attention Latency (ms)")
     print("=" * 80)
-    print("Target Avg | Actual Avg |", end="")
+    print("Query Len |", end="")
     for batch_size in batch_sizes:
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
     # Print normal attention results
-    for i, target_avg in enumerate(target_avg_query_lens):
-        print(f"{target_avg:^10} |", end="")
-        # Get actual average from first batch size (they should be similar across batch sizes)
-        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
-        print(f" {actual_avg:^10.4f} |", end="")
+    for i, target_len in enumerate(target_query_lens):
+        print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            _, normal_latency, _ = run_attention_test(batch_size, target_avg)
+            _, normal_latency, _ = run_attention_test(batch_size, target_len)
             normal_matrix[i, j] = normal_latency
             print(f" {normal_latency:^10.3f} |", end="")
         print()  # New line after each query size
@@ -436,19 +403,16 @@ def main():
     # Print speedup comparison and store results
     print("\nSpeedup (Normal/Consolidated)")
     print("=" * 80)
-    print("Target Avg | Actual Avg |", end="")
+    print("Query Len |", end="")
     for batch_size in batch_sizes:
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
     # Print speedup results and store in matrix
-    for i, target_avg in enumerate(target_avg_query_lens):
-        print(f"{target_avg:^10} |", end="")
-        # Get actual average from first batch size (they should be similar across batch sizes)
-        _, _, actual_avg = run_attention_test(batch_sizes[0], target_avg)
-        print(f" {actual_avg:^10.4f} |", end="")
+    for i, target_len in enumerate(target_query_lens):
+        print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            consolidated_latency, normal_latency, _ = run_attention_test(batch_size, target_avg)
+            consolidated_latency, normal_latency, _ = run_attention_test(batch_size, target_len)
             speedup = normal_latency / consolidated_latency
             speedup_matrix[i, j] = speedup
             print(f" {speedup:^10.3f} |", end="")
@@ -458,15 +422,15 @@ def main():
 
     # Create DataFrames for each metric
     consolidated_df = pd.DataFrame(consolidated_matrix, 
-                                 index=[f"{x:.1f}" for x in target_avg_query_lens],
+                                 index=[f"{x}" for x in target_query_lens],
                                  columns=[f"{x}" for x in batch_sizes])
     
     normal_df = pd.DataFrame(normal_matrix,
-                           index=[f"{x:.1f}" for x in target_avg_query_lens],
+                           index=[f"{x}" for x in target_query_lens],
                            columns=[f"{x}" for x in batch_sizes])
     
     speedup_df = pd.DataFrame(speedup_matrix,
-                            index=[f"{x:.1f}" for x in target_avg_query_lens],
+                            index=[f"{x}" for x in target_query_lens],
                             columns=[f"{x}" for x in batch_sizes])
 
     # Create results directory if it doesn't exist
