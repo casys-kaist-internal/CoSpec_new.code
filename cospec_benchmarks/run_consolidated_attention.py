@@ -431,7 +431,7 @@ def run_benchmark(version):
                             columns=[f"{x}" for x in batch_sizes])
 
     # Create results directory if it doesn't exist
-    os.makedirs('results', exist_ok=True)
+    os.makedirs('consolidated_attention_results', exist_ok=True)
 
     # Save DataFrames to CSV files
     model_name = MODEL.replace("-", "_").lower()
