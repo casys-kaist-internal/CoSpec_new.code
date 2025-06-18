@@ -1,0 +1,221 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import math
+import argparse
+import os
+import numpy as np
+
+# List of CSV files to process and their corresponding request rates
+CSV_FILES = [
+    'F.csv',
+    'G.csv',
+    'H.csv',
+]
+
+# Specify request rates for each CSV file
+REQUEST_RATES = {
+    'F.csv': 12,    # Change this value for OPT-6.7B
+    'G.csv': 10,  # Change this value for Llama-13B
+    'H.csv': 10,     # Change this value for OPT-30B
+}
+
+# Custom color palette for the plot
+blue_palette = ['#E74C3C', '#D7E2F9', '#88BCFF', '#3864B9', '#1B345F']
+green_palette = ['#228B22', '#32CD32', '#90EE90']  # Forest green, Lime green, Light green
+orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
+
+# Map configurations to colors
+config_colors = {
+    'Without Selective Validation': '#E74C3C',  # Red for baseline
+    
+    # Threshold configurations - using blue palette
+    'Threshold 0.1': blue_palette[2],  # Light blue
+    'Threshold 0.3': blue_palette[3],  # Medium blue
+    'Threshold 0.5': blue_palette[4],  # Dark blue
+    
+    # Linear configurations - using green palette
+    'Linear 0.1': green_palette[0],    # Forest green
+    'Linear 0.3': green_palette[1],    # Lime green
+    'Linear 0.5': green_palette[2],    # Light green
+    
+    # Polynomial configurations - using orange palette
+    'Polynomial 0.1': orange_palette[0],  # Dark orange
+    'Polynomial 0.3': orange_palette[1],  # Orange
+    'Polynomial 0.5': orange_palette[2],  # Gold
+    
+    # Tile configurations - using a mix of blue and green
+    'Tile 0.1': '#4682B4',  # Steel blue
+    'Tile 0.3': '#20B2AA',  # Light sea green
+    'Tile 0.5': '#48D1CC',  # Medium turquoise
+}
+
+# Create figure with subplots for each CSV file
+n_files = len(CSV_FILES)
+# Adjust figure size for 2-column paper (typically 7.5 inches wide)
+fig, axes = plt.subplots(1, n_files, figsize=(7, 2))  # Reduced height for better fit
+
+# Process each CSV file
+for idx, csv_file in enumerate(CSV_FILES):
+    print(f"Processing file: {csv_file}")
+    
+    # Get the request rate for this CSV file
+    selected_request_rate = REQUEST_RATES[csv_file]
+    
+    # Read the CSV file
+    df = pd.read_csv(csv_file)
+    
+    # Get unique datasets
+    datasets = sorted(df['dataset'].unique())
+    
+    # For this example, we'll plot the first dataset
+    dataset = datasets[0]
+    dataset_df = df[df['dataset'] == dataset]
+    
+    ax = axes[idx]    
+    # Get baseline data (colocation_consolidated)
+    baseline_data = dataset_df[(dataset_df['config'] == 'without_selective_validation') & 
+                            (dataset_df['request_rate'] == selected_request_rate)]
+    
+    # Define the desired order of configurations
+    desired_order = [
+        'Without Selective Validation',
+        'Threshold 0.1',
+        'Threshold 0.3',
+        'Threshold 0.5',
+        'Linear 0.1',
+        'Linear 0.3',
+        'Linear 0.5',
+        'Polynomial 0.1',
+        'Polynomial 0.3',
+        'Polynomial 0.5',
+        'Tile 0.1',
+        'Tile 0.3',
+        'Tile 0.5'
+    ]
+    
+    # Map old config names to new labels
+    config_label_map = {
+        'without_selective_validation': 'Without Selective Validation',
+        'selective_validation_threshold_0.1': 'Threshold 0.1',
+        'selective_validation_threshold_0.3': 'Threshold 0.3',
+        'selective_validation_threshold_0.5': 'Threshold 0.5',
+        'selective_validation_tile_0.1': 'Tile 0.1',
+        'selective_validation_tile_0.3': 'Tile 0.3',
+        'selective_validation_tile_0.5': 'Tile 0.5',
+        'selective_validation_linear_0.1': 'Linear 0.1',
+        'selective_validation_linear_0.3': 'Linear 0.3',
+        'selective_validation_linear_0.5': 'Linear 0.5',
+        'selective_validation_polynomial_0.1': 'Polynomial 0.1',
+        'selective_validation_polynomial_0.3': 'Polynomial 0.3',
+        'selective_validation_polynomial_0.5': 'Polynomial 0.5'
+    }
+    
+    # Create reverse mapping for finding config names
+    reverse_config_map = {v: k for k, v in config_label_map.items()}
+    
+    # Get all configurations to plot
+    configs = []
+    max_speedup = 1.0  # Initialize with baseline value
+    for label in desired_order:
+        if label == 'Without Selective Validation':
+            # This is the baseline, we'll handle it separately
+            continue
+            
+        # Find the corresponding config name
+        config_name = reverse_config_map.get(label)
+        if config_name:
+            config_data = dataset_df[(dataset_df['config'] == config_name) & 
+                                  (dataset_df['request_rate'] == selected_request_rate)]
+            if not config_data.empty:
+                configs.append((label, config_data))
+                # Calculate speedup and update max_speedup if needed
+                if not baseline_data.empty:
+                    speedup = baseline_data['mean_token_latency'].iloc[0] / config_data['mean_token_latency'].iloc[0]
+                    max_speedup = max(max_speedup, speedup)
+    
+    # Calculate bar positions
+    n_configs = len(configs)
+    bar_width = 0.8 / n_configs  # Adjust bar width based on number of configs
+    x = np.arange(1)  # Only one position since we're showing one throughput
+    
+    # Plot bars for each configuration
+    for i, (label, data) in enumerate(configs):
+        # Calculate x positions for this configuration
+        x_pos = x + (i - n_configs/2 + 0.5) * bar_width
+        
+        # Calculate speedup value
+        if not data.empty and not baseline_data.empty:
+            # Speedup = baseline_latency / current_latency
+            speedup = baseline_data['mean_token_latency'].iloc[0] / data['mean_token_latency'].iloc[0]
+            ax.bar(x_pos, speedup, bar_width, label=label, alpha=0.9, color=config_colors[label])
+    
+    # Remove x-axis ticks and labels
+    ax.set_xticks([])
+    ax.set_xticklabels([])
+    
+    # Add horizontal line at y=1 (baseline) with red color and add to legend
+    baseline_line = ax.axhline(y=1, color=config_colors['Without Selective Validation'], 
+                             linestyle='--', label='Without Selective Validation')
+    
+    # Set y-axis limits based on maximum speedup value
+    ax.set_ylim(0.75, max_speedup * 1.1)
+    
+    # Customize subplot
+    ax.set_xlabel('')  # Remove x-axis label
+    # Only show y-label for the leftmost plot
+    if idx == 0:
+        ax.set_ylabel('Mean Latency Speedup', fontsize=10)
+    else:
+        ax.set_ylabel('')
+    ax.grid(True, linestyle='--')
+    ax.tick_params(axis='both', which='major', labelsize=9)
+    
+    # Add subplot label with model pairs and request rate
+    model_pairs = [
+        f'(a) OPT-6.7B / OPT-125M\n({selected_request_rate} req/s)',
+        f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s)',
+        f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s)'
+    ]
+    ax.text(0.5, -0.25, model_pairs[idx], transform=ax.transAxes, fontsize=10, fontweight='bold',
+            horizontalalignment='center')  # Center align the text
+
+# Create a single shared legend at the top
+handles, labels = ax.get_legend_handles_labels()
+
+# Define the desired order of legend items
+desired_order = [
+    'Without Selective Validation',
+    'Threshold 0.1',
+    'Threshold 0.3',
+    'Threshold 0.5',
+    'Linear 0.1',
+    'Linear 0.3',
+    'Linear 0.5',
+    'Polynomial 0.1',
+    'Polynomial 0.3',
+    'Polynomial 0.5',
+    'Tile 0.1',
+    'Tile 0.3',
+    'Tile 0.5'
+]
+
+# Reorder handles and labels according to desired order
+ordered_handles = []
+ordered_labels = []
+for label in desired_order:
+    if label in labels:
+        idx = labels.index(label)
+        ordered_handles.append(handles[idx])
+        ordered_labels.append(labels[idx])
+
+fig.legend(ordered_handles, ordered_labels, loc='upper center', bbox_to_anchor=(0.5, 1.25),
+          ncol=4, fontsize=10, frameon=False)
+
+# Adjust layout and save
+plt.tight_layout(pad=0.5)  # Reduce padding between subplots
+output_path = 'selective_validation.pdf'
+plt.savefig(output_path, bbox_inches='tight', format='pdf', pad_inches=0.1)  # Reduce padding around the figure
+plt.close()
+
+print(f"Combined plot has been saved to '{output_path}'")

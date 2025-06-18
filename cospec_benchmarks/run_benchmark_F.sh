@@ -9,7 +9,7 @@
 ulimit -n 65535
 
 # Benchmark Control
-SKIP_BASELINE=false  # Set to false to run baseline configurations
+SKIP_BASELINE=true  # Set to false to run baseline configurations
 
 # Model Configuration
 export TARGET_MODEL="facebook/opt-6.7b"
@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second)
-RATES=(2 4 6 8 10 12 14)
+RATES=(10 12 14)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -63,6 +63,23 @@ declare -A COSPEC_CONFIGS=(
 
 # Define the configurations to run
 declare -a CONFIG_ORDER=(
+    "without_selective_validation"
+    "selective_validation_tile_0.1"
+    "selective_validation_tile_0.3"
+    "selective_validation_tile_0.5"
+    "selective_validation_threshold_0.1"
+    "selective_validation_threshold_0.3"
+    "selective_validation_threshold_0.5"
+    "selective_validation_linear_0.1"
+    "selective_validation_linear_0.3"
+    "selective_validation_linear_0.5"
+    "selective_validation_polynomial_0.1"
+    "selective_validation_polynomial_0.3"
+    "selective_validation_polynomial_0.5"
+    "baseline"
+    "colocation"
+    "colocation_dynamic"
+    "colocation_dynamic_selective"
     "full_cospec"
 )
 
@@ -72,7 +89,7 @@ declare -a CONFIG_ORDER=(
 
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_DIR="A_${TIMESTAMP}"
+RESULTS_DIR="F_${TIMESTAMP}"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
