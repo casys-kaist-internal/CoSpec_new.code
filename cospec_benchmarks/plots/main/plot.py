@@ -167,10 +167,10 @@ for idx, csv_file in enumerate(CSV_FILES):
     ax.text(0.15, -0.4, model_pairs[idx], transform=ax.transAxes, fontsize=14, fontweight='bold')
 
 # Create a single shared legend at the top
-fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.08),
-          ncol=7, fontsize=16, frameon=False)  # Increased font size
+fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.15),
+          ncol=7, fontsize=16, frameon=False)  # Increased font size and moved legend up
 
 # Adjust layout and save
 plt.tight_layout()
-plt.savefig('main.pdf', bbox_inches='tight', format='pdf')
+plt.savefig('main.pdf', bbox_inches='tight', pad_inches=0.5, format='pdf')  # Added pad_inches to ensure legend is visible
 plt.close()

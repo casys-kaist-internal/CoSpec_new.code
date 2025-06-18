@@ -16,7 +16,7 @@ export TARGET_MODEL="huggyllama/llama-13b"
 export DRAFT_MODEL="double7/vicuna-68m"
 export TENSOR_PARALLEL_SIZE=2
 export DRAFT_TENSOR_PARALLEL_SIZE=1
-export DISABLE_BY_BATCH_SIZE=48
+export DISABLE_BY_BATCH_SIZE=32
 
 # Dataset Configuration
 DATASETS=("alpaca")
@@ -42,6 +42,7 @@ PORT=8100
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
+    ["disable_by_batch"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
@@ -64,7 +65,7 @@ declare -A COSPEC_CONFIGS=(
 
 # Define the configurations to run
 declare -a CONFIG_ORDER=(
-    "baseline"
+    "disable_by_batch"
 )
 
 # =============================================
