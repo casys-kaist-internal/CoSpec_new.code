@@ -75,7 +75,7 @@ def kv_cache_factory(num_blocks, block_size, num_layers, num_kv_heads, head_size
     
     return key_caches, value_caches
 
-def run_attention_test(num_gen_seqs, target_query_len):
+def run_attention_test(num_gen_seqs, target_query_len, version):
     """Run attention test with specific batch size and target query length."""
     # Set random seed
     current_platform.seed_everything(SEED)
@@ -141,7 +141,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
     
     # Warmup
     for _ in range(NUM_WARMUP):
-        if VERSION == "v1":
+        if version == "v1":
             ops.consolidated_paged_attention_v1(
                 output,
                 query,
@@ -175,7 +175,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
                 k_scale,
                 v_scale,
             )
-        elif VERSION == "v2":
+        elif version == "v2":
             num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
             num_seqs, num_heads, head_size = output.shape
             tmp_output = torch.empty(
@@ -234,7 +234,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
     start_time = time.time()
     
     for _ in range(NUM_ITERATIONS):
-        if VERSION == "v1":
+        if version == "v1":
             ops.consolidated_paged_attention_v1(
                 output,
                 query,
@@ -252,7 +252,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
                 k_scale,
                 v_scale,
             )
-        elif VERSION == "v2":
+        elif version == "v2":
             num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
             num_seqs, num_heads, head_size = output.shape
             tmp_output = torch.empty(
@@ -295,7 +295,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
     start_time = time.time()
     
     for _ in range(NUM_ITERATIONS):
-        if VERSION == "v1":
+        if version == "v1":
             ops.paged_attention_v1(
                 ref_output,
                 query,
@@ -312,7 +312,7 @@ def run_attention_test(num_gen_seqs, target_query_len):
                 k_scale,
                 v_scale,
             )
-        elif VERSION == "v2":
+        elif version == "v2":
             num_partitions = ((max_seq_len + PARTITION_SIZE - 1) // PARTITION_SIZE)
             num_seqs, num_heads, head_size = output.shape
             tmp_output = torch.empty(
@@ -351,7 +351,8 @@ def run_attention_test(num_gen_seqs, target_query_len):
 
     return consolidated_latency, normal_latency, target_query_len
 
-def main():
+def run_benchmark(version):
+    """Run benchmark for a specific version."""
     # Test different batch sizes
     batch_sizes = [8 * i for i in range(1, 128//8 + 1)]
     target_query_lens = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -362,7 +363,7 @@ def main():
     speedup_matrix = np.zeros((len(target_query_lens), len(batch_sizes)))
     
     # Print header for consolidated attention
-    print(f"\nBenchmarking {MODEL}")
+    print(f"\nBenchmarking {MODEL} with {version}")
     print("\nConsolidated Attention Latency (ms)")
     print("=" * 80)
     print("Query Len |", end="")
@@ -370,18 +371,21 @@ def main():
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
-    # Print consolidated attention results
+    # Run all tests and store results
     for i, target_len in enumerate(target_query_lens):
         print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            consolidated_latency, _, _ = run_attention_test(batch_size, target_len)
+            consolidated_latency, normal_latency, _ = run_attention_test(batch_size, target_len, version)
             consolidated_matrix[i, j] = consolidated_latency
+            normal_matrix[i, j] = normal_latency
+            speedup = normal_latency / consolidated_latency
+            speedup_matrix[i, j] = speedup
             print(f" {consolidated_latency:^10.3f} |", end="")
         print()  # New line after each query size
     
     print("=" * 80)
 
-    # Print header for normal attention
+    # Print normal attention results
     print("\nNormal Attention Latency (ms)")
     print("=" * 80)
     print("Query Len |", end="")
@@ -389,18 +393,15 @@ def main():
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
-    # Print normal attention results
     for i, target_len in enumerate(target_query_lens):
         print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            _, normal_latency, _ = run_attention_test(batch_size, target_len)
-            normal_matrix[i, j] = normal_latency
-            print(f" {normal_latency:^10.3f} |", end="")
+            print(f" {normal_matrix[i, j]:^10.3f} |", end="")
         print()  # New line after each query size
     
     print("=" * 80)
 
-    # Print speedup comparison and store results
+    # Print speedup results
     print("\nSpeedup (Normal/Consolidated)")
     print("=" * 80)
     print("Query Len |", end="")
@@ -408,14 +409,10 @@ def main():
         print(f" Batch {batch_size:^4} |", end="")
     print("\n" + "-" * 80)
     
-    # Print speedup results and store in matrix
     for i, target_len in enumerate(target_query_lens):
         print(f"{target_len:^9} |", end="")
         for j, batch_size in enumerate(batch_sizes):
-            consolidated_latency, normal_latency, _ = run_attention_test(batch_size, target_len)
-            speedup = normal_latency / consolidated_latency
-            speedup_matrix[i, j] = speedup
-            print(f" {speedup:^10.3f} |", end="")
+            print(f" {speedup_matrix[i, j]:^10.3f} |", end="")
         print()  # New line after each query size
     
     print("=" * 80)
@@ -438,9 +435,14 @@ def main():
 
     # Save DataFrames to CSV files
     model_name = MODEL.replace("-", "_").lower()
-    consolidated_df.to_csv(f'results/{model_name}_consolidated_latency.csv')
-    normal_df.to_csv(f'results/{model_name}_normal_latency.csv')
-    speedup_df.to_csv(f'results/{model_name}_speedup.csv')
+    consolidated_df.to_csv(f'consolidated_attention_results/{model_name}_{version}_consolidated_latency.csv')
+    normal_df.to_csv(f'consolidated_attention_results/{model_name}_{version}_normal_latency.csv')
+    speedup_df.to_csv(f'consolidated_attention_results/{model_name}_{version}_speedup.csv')
+
+def main():
+    # Run benchmarks for both v1 and v2
+    run_benchmark("v1")
+    run_benchmark("v2")
 
 if __name__ == "__main__":
     main()

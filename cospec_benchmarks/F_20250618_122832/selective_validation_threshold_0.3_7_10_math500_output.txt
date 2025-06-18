@@ -67,3 +67,14 @@ Initial test run completed. Starting main benchmark run...
 Traffic request rate: 10.0
 Burstiness factor: 1.0 (Poisson process)
 Maximum request concurrency: None
+result {'is_trained': True}
+Selective validator trained after 512 test requests (112.84 seconds)
+Running full benchmark...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 10.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark will process 6000 prompts
