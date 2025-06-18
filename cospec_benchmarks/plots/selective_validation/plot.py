@@ -5,6 +5,8 @@ import math
 import argparse
 import os
 import numpy as np
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 
 # List of CSV files to process and their corresponding request rates
 CSV_FILES = [
@@ -15,9 +17,9 @@ CSV_FILES = [
 
 # Specify request rates for each CSV file
 REQUEST_RATES = {
-    'F.csv': 12,    # Change this value for OPT-6.7B
-    'G.csv': 10,  # Change this value for Llama-13B
-    'H.csv': 10,     # Change this value for OPT-30B
+    'F.csv': 12,    
+    'G.csv': 10,  
+    'H.csv': 10,     
 }
 
 # Custom color palette for the plot
@@ -25,35 +27,30 @@ blue_palette = ['#E74C3C', '#D7E2F9', '#88BCFF', '#3864B9', '#1B345F']
 green_palette = ['#228B22', '#32CD32', '#90EE90']  # Forest green, Lime green, Light green
 orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 
-# Map configurations to colors
-config_colors = {
-    'Without Selective Validation': '#E74C3C',  # Red for baseline
-    
-    # Threshold configurations - using blue palette
-    'Threshold 0.1': blue_palette[2],  # Light blue
-    'Threshold 0.3': blue_palette[3],  # Medium blue
-    'Threshold 0.5': blue_palette[4],  # Dark blue
-    
-    # Linear configurations - using green palette
-    'Linear 0.1': green_palette[0],    # Forest green
-    'Linear 0.3': green_palette[1],    # Lime green
-    'Linear 0.5': green_palette[2],    # Light green
-    
-    # Polynomial configurations - using orange palette
-    'Polynomial 0.1': orange_palette[0],  # Dark orange
-    'Polynomial 0.3': orange_palette[1],  # Orange
-    'Polynomial 0.5': orange_palette[2],  # Gold
-    
-    # Tile configurations - using a mix of blue and green
-    'Tile 0.1': '#4682B4',  # Steel blue
-    'Tile 0.3': '#20B2AA',  # Light sea green
-    'Tile 0.5': '#48D1CC',  # Medium turquoise
+# Define validation types and their colors
+validation_types = ['Threshold', 'Linear', 'Polynomial', 'Tile']
+type_colors = {
+    'Threshold': blue_palette[1],    # Light blue
+    'Linear': blue_palette[2],      # Medium blue
+    'Polynomial': blue_palette[3],  # Dark blue
+    'Tile': green_palette[0]              # Forest green
 }
+
+# Define threshold values and their hatch patterns
+threshold_values = ['0.1', '0.3', '0.5']
+bar_styles = [
+    '',           # No hatch for 0.1 (solid color)
+    '....',       # Dots for 0.3
+    'xxxx'        # Dense cross for 0.5
+]
 
 # Create figure with subplots for each CSV file
 n_files = len(CSV_FILES)
-# Adjust figure size for 2-column paper (typically 7.5 inches wide)
-fig, axes = plt.subplots(1, n_files, figsize=(7, 2))  # Reduced height for better fit
+# Adjust figure size for better visualization
+fig, axes = plt.subplots(1, n_files, figsize=(10, 2.5))  # Wider figure for better spacing
+
+# Set style for better visualization
+plt.style.use('seaborn-v0_8-whitegrid')
 
 # Process each CSV file
 for idx, csv_file in enumerate(CSV_FILES):
@@ -73,7 +70,7 @@ for idx, csv_file in enumerate(CSV_FILES):
     dataset_df = df[df['dataset'] == dataset]
     
     ax = axes[idx]    
-    # Get baseline data (colocation_consolidated)
+    # Get baseline data
     baseline_data = dataset_df[(dataset_df['config'] == 'without_selective_validation') & 
                             (dataset_df['request_rate'] == selected_request_rate)]
     
@@ -117,105 +114,134 @@ for idx, csv_file in enumerate(CSV_FILES):
     # Get all configurations to plot
     configs = []
     max_speedup = 1.0  # Initialize with baseline value
+    min_speedup = 1.0  # Initialize with baseline value
     for label in desired_order:
         if label == 'Without Selective Validation':
-            # This is the baseline, we'll handle it separately
             continue
             
-        # Find the corresponding config name
         config_name = reverse_config_map.get(label)
         if config_name:
             config_data = dataset_df[(dataset_df['config'] == config_name) & 
                                   (dataset_df['request_rate'] == selected_request_rate)]
             if not config_data.empty:
                 configs.append((label, config_data))
-                # Calculate speedup and update max_speedup if needed
                 if not baseline_data.empty:
                     speedup = baseline_data['mean_token_latency'].iloc[0] / config_data['mean_token_latency'].iloc[0]
                     max_speedup = max(max_speedup, speedup)
+                    min_speedup = min(min_speedup, speedup)
     
     # Calculate bar positions
     n_configs = len(configs)
-    bar_width = 0.8 / n_configs  # Adjust bar width based on number of configs
-    x = np.arange(1)  # Only one position since we're showing one throughput
+    bar_width = 0.8 / n_configs
+    x = np.arange(1)
     
     # Plot bars for each configuration
     for i, (label, data) in enumerate(configs):
-        # Calculate x positions for this configuration
-        x_pos = x + (i - n_configs/2 + 0.5) * bar_width
+        # Add spacing between validation types
+        validation_type = label.split()[0]
+        type_index = validation_types.index(validation_type)
+        spacing = type_index * 0.04  # Add 0.1 spacing for each validation type
         
-        # Calculate speedup value
+        x_pos = x + (i - n_configs/2 + 0.5) * bar_width + spacing
+        
         if not data.empty and not baseline_data.empty:
-            # Speedup = baseline_latency / current_latency
             speedup = baseline_data['mean_token_latency'].iloc[0] / data['mean_token_latency'].iloc[0]
-            ax.bar(x_pos, speedup, bar_width, label=label, alpha=0.9, color=config_colors[label])
+            
+            parts = label.split()
+            vtype = parts[0]
+            threshold = parts[1]
+            
+            color = type_colors[vtype]
+            hatch_idx = threshold_values.index(threshold)
+            hatch = bar_styles[hatch_idx]
+            
+            # Plot bar with improved styling
+            ax.bar(x_pos, speedup, bar_width, 
+                  color=color,
+                  hatch=hatch,
+                  edgecolor='black',
+                  linewidth=1,
+                  alpha=0.9)
     
     # Remove x-axis ticks and labels
     ax.set_xticks([])
     ax.set_xticklabels([])
     
-    # Add horizontal line at y=1 (baseline) with red color and add to legend
-    baseline_line = ax.axhline(y=1, color=config_colors['Without Selective Validation'], 
-                             linestyle='--', label='Without Selective Validation')
-    
-    # Set y-axis limits based on maximum speedup value
-    ax.set_ylim(0.75, max_speedup * 1.1)
+    # Add horizontal line at y=1 (baseline) with improved styling
+    baseline_line = ax.axhline(y=1, color='red',  # Using first color from blue palette for baseline
+                             linestyle='--', 
+                             alpha=0.7,
+                             label='Without Selective Validation')
+        
+    # Set y-axis limits with some padding
+    y_padding = 0.05  # 5% padding
+    y_min = max(0.75, min_speedup * (1 - y_padding))  # Ensure minimum is at least 0.75
+    y_max = max_speedup * (1 + y_padding)
+    ax.set_ylim(y_min, y_max)
     
     # Customize subplot
-    ax.set_xlabel('')  # Remove x-axis label
-    # Only show y-label for the leftmost plot
+    ax.set_xlabel('')
     if idx == 0:
-        ax.set_ylabel('Mean Latency Speedup', fontsize=10)
+        ax.set_ylabel('Mean Latency Speedup', fontsize=12)
     else:
         ax.set_ylabel('')
-    ax.grid(True, linestyle='--')
-    ax.tick_params(axis='both', which='major', labelsize=9)
     
-    # Add subplot label with model pairs and request rate
+    # Improve grid appearance
+    ax.grid(True, linestyle='--', alpha=0.3)
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    
+    # Add subplot label with improved styling
     model_pairs = [
-        f'(a) OPT-6.7B / OPT-125M\n({selected_request_rate} req/s)',
-        f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s)',
-        f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s)'
+        f'(a) OPT-6.7B / OPT-125M\n({selected_request_rate} req/s, A6000)',
+        f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s, A100)',
+        f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s, H200)'
     ]
-    ax.text(0.5, -0.25, model_pairs[idx], transform=ax.transAxes, fontsize=10, fontweight='bold',
-            horizontalalignment='center')  # Center align the text
+    ax.text(0.5, -0.25, model_pairs[idx], transform=ax.transAxes, 
+            fontsize=12, fontweight='bold',
+            horizontalalignment='center')
 
-# Create a single shared legend at the top
-handles, labels = ax.get_legend_handles_labels()
+# Create custom legend elements
+legend_elements = []
+legend_labels = []
 
-# Define the desired order of legend items
-desired_order = [
-    'Without Selective Validation',
-    'Threshold 0.1',
-    'Threshold 0.3',
-    'Threshold 0.5',
-    'Linear 0.1',
-    'Linear 0.3',
-    'Linear 0.5',
-    'Polynomial 0.1',
-    'Polynomial 0.3',
-    'Polynomial 0.5',
-    'Tile 0.1',
-    'Tile 0.3',
-    'Tile 0.5'
-]
+# Add baseline to legend elements first
+legend_elements.append(Line2D([0], [0], color='red', 
+                           linestyle='--', 
+                           linewidth=2,
+                           label='Without SV'))
+legend_labels.append('Without SV')
 
-# Reorder handles and labels according to desired order
-ordered_handles = []
-ordered_labels = []
-for label in desired_order:
-    if label in labels:
-        idx = labels.index(label)
-        ordered_handles.append(handles[idx])
-        ordered_labels.append(labels[idx])
+# Add validation type patches with improved styling
+for vtype in validation_types:
+    legend_elements.append(Patch(facecolor=type_colors[vtype], 
+                             edgecolor='black',
+                             linewidth=1,
+                             label=vtype))
+    legend_labels.append(vtype)
 
-fig.legend(ordered_handles, ordered_labels, loc='upper center', bbox_to_anchor=(0.5, 1.25),
-          ncol=4, fontsize=10, frameon=False)
+# Add threshold value patches with improved styling
+for i, value in enumerate(threshold_values):
+    legend_elements.append(Patch(facecolor='white', 
+                              edgecolor='black',
+                              hatch=bar_styles[i],
+                              linewidth=1,
+                              label=value))
+    legend_labels.append(value)
 
-# Adjust layout and save
-plt.tight_layout(pad=0.5)  # Reduce padding between subplots
+# Create single legend
+fig.legend(legend_elements, 
+          legend_labels,
+          loc='upper center', 
+          bbox_to_anchor=(0.5, 1.15),
+          ncol=8,  # Adjust number of columns to fit all items in one row
+          fontsize=12,
+          frameon=False,
+          columnspacing=1.0)
+
+# Adjust layout and save with improved spacing
+plt.tight_layout(pad=1.0)
 output_path = 'selective_validation.pdf'
-plt.savefig(output_path, bbox_inches='tight', format='pdf', pad_inches=0.1)  # Reduce padding around the figure
+plt.savefig(output_path, bbox_inches='tight', format='pdf', dpi=300)
 plt.close()
 
 print(f"Combined plot has been saved to '{output_path}'")
