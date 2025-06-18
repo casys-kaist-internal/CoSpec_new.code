@@ -62,15 +62,28 @@ declare -A COSPEC_CONFIGS=(
 )
 
 # Define the configurations to run
+# declare -a CONFIG_ORDER=(
+#     "without_selective_validation"
+#     "selective_validation_tile_0.1"
+#     "selective_validation_tile_0.3"
+#     "selective_validation_tile_0.5"
+#     "selective_validation_threshold_0.1"
+#     "selective_validation_threshold_0.3"
+#     "selective_validation_threshold_0.5"
+#     "selective_validation_linear_0.1"
+#     "selective_validation_linear_0.3"
+#     "selective_validation_linear_0.5"
+#     "selective_validation_polynomial_0.1"
+#     "selective_validation_polynomial_0.3"
+#     "selective_validation_polynomial_0.5"
+#     "baseline"
+#     "colocation"
+#     "colocation_dynamic"
+#     "colocation_dynamic_selective"
+#     "full_cospec"
+# )
+
 declare -a CONFIG_ORDER=(
-    "without_selective_validation"
-    "selective_validation_tile_0.1"
-    "selective_validation_tile_0.3"
-    "selective_validation_tile_0.5"
-    "selective_validation_threshold_0.1"
-    "selective_validation_threshold_0.3"
-    "selective_validation_threshold_0.5"
-    "selective_validation_linear_0.1"
     "selective_validation_linear_0.3"
     "selective_validation_linear_0.5"
     "selective_validation_polynomial_0.1"
