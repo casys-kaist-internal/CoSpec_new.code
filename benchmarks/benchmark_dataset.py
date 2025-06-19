@@ -1509,8 +1509,8 @@ class OpenCodeReasoningDataset(HuggingFaceDataset):
         sampled_requests = []
 
         for item in self.data:
-            print(f"Processing {len(sampled_requests)} / 10000")
-            if len(sampled_requests) >= 10000:
+            print(f"Processing {len(sampled_requests)} / 5000")
+            if len(sampled_requests) >= 5000:
                 break
             prompt = item["input"]
             prompt_len = len(tokenizer(prompt).input_ids)
