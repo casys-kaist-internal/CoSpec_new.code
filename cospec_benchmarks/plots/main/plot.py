@@ -17,8 +17,8 @@ CSV_FILES = [
 
 # Replace with your desired value
 y_max_values = {
-    'A.csv': 1000, 
-    'B.csv': 2000, 
+    'A.csv': 600, 
+    'B.csv': 2300, 
     'C.csv': 1500, 
     'D.csv': 400, 
     'E.csv': 800, 

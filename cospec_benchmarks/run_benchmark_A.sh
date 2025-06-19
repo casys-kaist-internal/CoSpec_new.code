@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second)
-RATES=(12 14)
+RATES=(16)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
