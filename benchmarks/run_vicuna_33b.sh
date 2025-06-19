@@ -18,7 +18,7 @@ export AR=${AR:-0}
 export TARGET_MODEL="lmsys/vicuna-33b-v1.3"
 export DRAFT_MODEL="double7/vicuna-160m"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=1
+export TENSOR_PARALLEL_SIZE=2
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/workspace"
 
