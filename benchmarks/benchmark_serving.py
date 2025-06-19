@@ -673,7 +673,7 @@ def main(args: argparse.Namespace):
     elif args.dataset_name == "opencodereasoning":
         full_requests = OpenCodeReasoningDataset(random_seed=args.seed,
                     dataset_path="nvidia/OpenCodeReasoning", 
-                    dataset_split="train").sample_all(tokenizer=tokenizer)
+                    dataset_split="split_0", dataset_subset="split_0").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "math500":
         full_requests = Math500Dataset(random_seed=args.seed,
                     dataset_path="HuggingFaceH4/MATH-500", 
