@@ -49,6 +49,8 @@ else
     fi
 fi
 
+CMD+=" --override_generation_config '{\"temperature\": 0}'"
+
 # Add profiling if enabled
 if [ "$PROFILE" -eq 1 ]; then
     CMD="nsys profile -t cuda,osrt,nvtx \
