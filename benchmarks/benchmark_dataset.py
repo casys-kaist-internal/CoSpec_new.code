@@ -1518,7 +1518,9 @@ class OpenCodeReasoningDataset(HuggingFaceDataset):
             output_len = answer_len
             
             if not is_valid_sequence(prompt_len, 
-                                     output_len):
+                                     output_len,
+                                     max_prompt_len=100000,
+                                     max_total_len=100000): 
                 continue
             
             sampled_requests.append(
