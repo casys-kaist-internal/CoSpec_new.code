@@ -1437,10 +1437,7 @@ class OpenCodeInstructDataset(HuggingFaceDataset):
             answer_len = len(tokenizer(item["output"]).input_ids)
             output_len = answer_len
             
-            if not is_valid_sequence(prompt_len, 
-                                     output_len,
-                                     max_prompt_len=10000,
-                                     max_total_len=10000):
+            if not is_valid_sequence(prompt_len, output_len):
                 continue
             
             sampled_requests.append(
@@ -1522,8 +1519,8 @@ class OpenCodeReasoningDataset(HuggingFaceDataset):
             
             if not is_valid_sequence(prompt_len, 
                                      output_len,
-                                     max_prompt_len=10000,
-                                     max_total_len=10000): 
+                                     max_prompt_len=1024,
+                                     max_total_len=8192):
                 continue
             
             sampled_requests.append(
