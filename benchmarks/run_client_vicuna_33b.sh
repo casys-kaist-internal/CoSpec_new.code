@@ -1,11 +1,12 @@
 #!/bin/bash
 # MODEL="facebook/opt-6.7b"
 # MODEL="facebook/opt-13b"
-MODEL="lmsys/vicuna-33b-v1.3"
+# MODEL="lmsys/vicuna-33b-v1.3"
+MODEL="huggyllama/llama-30b"
 # DATASET="math500"
 # DATASET="opencode"
-DATASET="platypus"
-REQUEST_RATE=10
+DATASET="opencodeinstruct"
+REQUEST_RATE=8
 TEMPERATURE=0
 NUM_PROMPTS=1000
 PORT=8011

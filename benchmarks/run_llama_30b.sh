@@ -18,7 +18,7 @@ export DRAFT_MODEL="JackFram/llama-160m"
 # export TARGET_MODEL="Qwen/Qwen3-32B"
 # export DRAFT_MODEL="Qwen/Qwen3-0.6B"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=1
+export TENSOR_PARALLEL_SIZE=2
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/workspace"
 
