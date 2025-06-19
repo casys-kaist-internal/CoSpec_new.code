@@ -22,6 +22,13 @@ REQUEST_RATES = {
     'H.csv': 10,     # Change this value for OPT-30B
 }
 
+# Specify GPU names for each CSV file
+GPU_NAMES = {
+    'F.csv': 'A6000',    # GPU for OPT-6.7B
+    'G.csv': 'A100',     # GPU for OPT-13B
+    'H.csv': 'H200',     # GPU for OPT-30B
+}
+
 # Custom color palette for the plot
 blue_palette = ['#E74C3C', '#D7E2F9', '#88BCFF', '#3864B9', '#1B345F']
 green_palette = ['#228B22', '#32CD32', '#90EE90']  # Forest green, Lime green, Light green
@@ -30,8 +37,7 @@ orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 # Map configurations to colors
 config_colors = {
     'Spec 7': blue_palette[1],
-    'C': blue_palette[2],  # Light blue
-    'DC': blue_palette[3],  # Medium blue
+    'DC': blue_palette[2],  # Medium blue
     'DC + SV': blue_palette[4],  # Dark blue
     'DC + SV + CA': green_palette[0],  # Forest green
 }
@@ -39,7 +45,10 @@ config_colors = {
 # Create figure with subplots for each CSV file
 n_files = len(CSV_FILES)
 # Adjust figure size for 2-column paper (typically 7.5 inches wide)
-fig, axes = plt.subplots(2, n_files, figsize=(7, 3))  # Increased height for two rows
+fig, axes = plt.subplots(2, n_files, figsize=(8, 3.5))  # Reduced width from 7 to 6.5 inches
+
+# Adjust subplot spacing
+plt.subplots_adjust(wspace=0.15)  # Reduce horizontal space between subplots
 
 # Process each CSV file
 for idx, csv_file in enumerate(CSV_FILES):
@@ -65,7 +74,6 @@ for idx, csv_file in enumerate(CSV_FILES):
         # Define the desired order of configurations
         desired_order = [
             'Spec 7',
-            'C',
             'DC',
             'DC + SV',
             'DC + SV + CA',
@@ -177,7 +185,10 @@ for idx, csv_file in enumerate(CSV_FILES):
         
         # Set y-ticks for latency plot to 0.5 granularity
         if row == 1:
-            ax.yaxis.set_major_locator(MultipleLocator(1))
+            if idx == 2:
+                ax.yaxis.set_major_locator(MultipleLocator(0.5))
+            elif idx == 1:
+                ax.yaxis.set_major_locator(MultipleLocator(1))
         
         # Customize subplot
         ax.set_xlabel('')  # Remove x-axis label
@@ -186,7 +197,7 @@ for idx, csv_file in enumerate(CSV_FILES):
             if row == 0:
                 ax.set_ylabel('Request Throughput\n(req/s)', fontsize=10)
             else:
-                ax.set_ylabel('Token Latency\n(s/token)', fontsize=10)
+                ax.set_ylabel('Mean Token Latency\n(s/token)', fontsize=10)
         else:
             ax.set_ylabel('')
         ax.grid(True, axis='y', linestyle='--', color='gray', alpha=0.5, linewidth=0.5, zorder=0)
@@ -195,11 +206,11 @@ for idx, csv_file in enumerate(CSV_FILES):
         # Add subplot label with model pairs and request rate
         if row == 1:  # Only add model labels to bottom row
             model_pairs = [
-                f'(a) OPT-6.7B / OPT-125M\n({selected_request_rate} req/s)',
-                f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s)',
-                f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s)'
+                f'(a) OPT-6.7B / OPT-125M\n({selected_request_rate} req/s, {GPU_NAMES["F.csv"]})',
+                f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s, {GPU_NAMES["G.csv"]})',
+                f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s, {GPU_NAMES["H.csv"]})'
             ]
-            ax.text(0.5, -0.35, model_pairs[idx], transform=ax.transAxes, fontsize=10, fontweight='bold',
+            ax.text(0.5, -0.30, model_pairs[idx], transform=ax.transAxes, fontsize=10, fontweight='bold',
                     horizontalalignment='center')  # Center align the text
 
 # Create a single shared legend at the top
@@ -209,7 +220,6 @@ handles, labels = axes[0, 0].get_legend_handles_labels()
 desired_order = [
     'AR',
     'Spec 7',
-    'C',
     'DC',
     'DC + SV',
     'DC + SV + CA'
@@ -230,13 +240,13 @@ for label in desired_order:
         ordered_handles.append(handles[idx])
         ordered_labels.append(labels[idx])
 
-fig.legend(ordered_handles, ordered_labels, loc='upper center', bbox_to_anchor=(0.5, 1.12),
-          ncol=6, fontsize=10, frameon=False)
+fig.legend(ordered_handles, ordered_labels, loc='upper center', bbox_to_anchor=(0.5, 1.10),
+          ncol=6, fontsize=12, frameon=False)
 
 # Adjust layout and save
-plt.tight_layout(pad=0.5)  # Reduce padding between subplots
+plt.tight_layout(pad=0.5)  # Reduced padding between subplots from 0.5 to 0.2
 output_path = 'individual_technique.pdf'
-plt.savefig(output_path, bbox_inches='tight', format='pdf', pad_inches=0.1)  # Reduce padding around the figure
+plt.savefig(output_path, bbox_inches='tight', format='pdf', pad_inches=0.05)  # Reduced padding around the figure from 0.1 to 0.05
 plt.close()
 
 print(f"Combined plot has been saved to '{output_path}'")

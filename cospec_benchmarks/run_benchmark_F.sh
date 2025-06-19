@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second)
-RATES=(10 12 14)
+RATES=(12)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -84,14 +84,6 @@ declare -A COSPEC_CONFIGS=(
 # )
 
 declare -a CONFIG_ORDER=(
-    "selective_validation_threshold_0.3"
-    "selective_validation_threshold_0.5"
-    "selective_validation_linear_0.1"
-    "selective_validation_linear_0.3"
-    "selective_validation_linear_0.5"
-    "selective_validation_polynomial_0.1"
-    "selective_validation_polynomial_0.3"
-    "selective_validation_polynomial_0.5"
     "baseline"
     "colocation"
     "colocation_dynamic"

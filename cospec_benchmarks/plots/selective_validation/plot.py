@@ -17,7 +17,7 @@ CSV_FILES = [
 
 # Specify request rates for each CSV file
 REQUEST_RATES = {
-    'F.csv': 12,    
+    'F.csv': 10,    
     'G.csv': 10,  
     'H.csv': 10,     
 }
@@ -28,12 +28,12 @@ green_palette = ['#228B22', '#32CD32', '#90EE90']  # Forest green, Lime green, L
 orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 
 # Define validation types and their colors
-validation_types = ['Threshold', 'Linear', 'Polynomial', 'Tile']
+validation_types = ['Threshold', 'Linear', 'Polynomial', 'Tiled']
 type_colors = {
     'Threshold': blue_palette[1],    # Light blue
     'Linear': blue_palette[2],      # Medium blue
     'Polynomial': blue_palette[3],  # Dark blue
-    'Tile': green_palette[0]              # Forest green
+    'Tiled': green_palette[0]              # Forest green
 }
 
 # Define threshold values and their hatch patterns
@@ -47,7 +47,7 @@ bar_styles = [
 # Create figure with subplots for each CSV file
 n_files = len(CSV_FILES)
 # Adjust figure size for better visualization
-fig, axes = plt.subplots(1, n_files, figsize=(10, 2.5))  # Wider figure for better spacing
+fig, axes = plt.subplots(1, n_files, figsize=(9, 2.5))  # Wider figure for better spacing
 
 # Set style for better visualization
 plt.style.use('seaborn-v0_8-whitegrid')
@@ -86,9 +86,9 @@ for idx, csv_file in enumerate(CSV_FILES):
         'Polynomial 0.1',
         'Polynomial 0.3',
         'Polynomial 0.5',
-        'Tile 0.1',
-        'Tile 0.3',
-        'Tile 0.5'
+        'Tiled 0.1',
+        'Tiled 0.3',
+        'Tiled 0.5'
     ]
     
     # Map old config names to new labels
@@ -97,9 +97,9 @@ for idx, csv_file in enumerate(CSV_FILES):
         'selective_validation_threshold_0.1': 'Threshold 0.1',
         'selective_validation_threshold_0.3': 'Threshold 0.3',
         'selective_validation_threshold_0.5': 'Threshold 0.5',
-        'selective_validation_tile_0.1': 'Tile 0.1',
-        'selective_validation_tile_0.3': 'Tile 0.3',
-        'selective_validation_tile_0.5': 'Tile 0.5',
+        'selective_validation_tile_0.1': 'Tiled 0.1',
+        'selective_validation_tile_0.3': 'Tiled 0.3',
+        'selective_validation_tile_0.5': 'Tiled 0.5',
         'selective_validation_linear_0.1': 'Linear 0.1',
         'selective_validation_linear_0.3': 'Linear 0.3',
         'selective_validation_linear_0.5': 'Linear 0.5',
@@ -239,7 +239,7 @@ fig.legend(legend_elements,
           columnspacing=1.0)
 
 # Adjust layout and save with improved spacing
-plt.tight_layout(pad=1.0)
+plt.tight_layout(pad=0.5)
 output_path = 'selective_validation.pdf'
 plt.savefig(output_path, bbox_inches='tight', format='pdf', dpi=300)
 plt.close()

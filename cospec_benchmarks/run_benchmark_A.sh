@@ -9,7 +9,7 @@
 ulimit -n 65535
 
 # Benchmark Control
-SKIP_BASELINE=false  # Set to false to run baseline configurations
+SKIP_BASELINE=true  # Set to false to run baseline configurations
 
 # Model Configuration
 export TARGET_MODEL="facebook/opt-6.7b"
@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=1
 DATASETS=("math500")
 
 # Request Rate Configuration (requests per second)
-RATES=(2 4 6 8 10 12 14)
+RATES=(12 14)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
