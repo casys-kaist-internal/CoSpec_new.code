@@ -2,7 +2,7 @@
 # MODEL="facebook/opt-6.7b"
 # MODEL="facebook/opt-13b"
 # MODEL="lmsys/vicuna-33b-v1.3"
-MODEL="huggyllama/llama-30b"
+MODEL="pinkmanlove/llama-33b-hf"
 # DATASET="math500"
 # DATASET="opencode"
 DATASET="opencodeinstruct"
