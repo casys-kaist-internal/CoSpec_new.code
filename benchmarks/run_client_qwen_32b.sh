@@ -4,7 +4,7 @@
 MODEL="Qwen/Qwen3-32B"
 # DATASET="math500"
 # DATASET="opencode"
-DATASET="opencode"
+DATASET="opencodeinstruct"
 REQUEST_RATE=8
 TEMPERATURE=0
 NUM_PROMPTS=1000
