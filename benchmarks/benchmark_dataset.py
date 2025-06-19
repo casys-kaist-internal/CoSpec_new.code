@@ -1429,8 +1429,8 @@ class OpenCodeInstructDataset(HuggingFaceDataset):
         sampled_requests = []
 
         for item in self.data:
-            print(f"Processing {len(sampled_requests)} / 5000")
-            if len(sampled_requests) >= 5000:
+            print(f"Processing {len(sampled_requests)} / 10000")
+            if len(sampled_requests) >= 10000:
                 break
             prompt = item["input"]
             prompt_len = len(tokenizer(prompt).input_ids)
@@ -1509,8 +1509,8 @@ class OpenCodeReasoningDataset(HuggingFaceDataset):
         sampled_requests = []
 
         for item in self.data:
-            print(f"Processing {len(sampled_requests)} / 5000")
-            if len(sampled_requests) >= 5000:
+            print(f"Processing {len(sampled_requests)} / 10000")
+            if len(sampled_requests) >= 10000:
                 break
             prompt = item["input"]
             prompt_len = len(tokenizer(prompt).input_ids)
@@ -1518,9 +1518,7 @@ class OpenCodeReasoningDataset(HuggingFaceDataset):
             output_len = answer_len
             
             if not is_valid_sequence(prompt_len, 
-                                     output_len, 
-                                     max_prompt_len=1024,
-                                     max_total_len=4096):
+                                     output_len):
                 continue
             
             sampled_requests.append(
