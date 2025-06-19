@@ -18,8 +18,8 @@ export AR=${AR:-0}
 export TARGET_MODEL="facebook/opt-66b"
 export DRAFT_MODEL="facebook/opt-1.3b"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=4
-export DRAFT_TENSOR_PARALLEL_SIZE=4
+export TENSOR_PARALLEL_SIZE=2
+export DRAFT_TENSOR_PARALLEL_SIZE=2
 export DOWNLOAD_DIR="/workspace"
 
 # Base command
@@ -30,7 +30,7 @@ CMD="python -m vllm.entrypoints.openai.api_server \
     --seed 42 \
     --enable-chunked-prefill \
     -tp $TENSOR_PARALLEL_SIZE \
-    --gpu_memory_utilization 0.7 \
+    --gpu_memory_utilization 0.8 \
     --disable-log-requests \
     --download-dir $DOWNLOAD_DIR"
 
