@@ -1,7 +1,7 @@
 #!/bin/bash
 # MODEL="facebook/opt-6.7b"
 # MODEL="facebook/opt-13b"
-MODEL="Qwen/Qwen2.5-72B"
+MODEL="facebook/opt-66b"
 # DATASET="math500"
 # DATASET="opencode"
 DATASET="opencode"
