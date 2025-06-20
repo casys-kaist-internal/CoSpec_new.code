@@ -12,10 +12,10 @@ ulimit -n 65535
 SKIP_BASELINE=false  # Set to false to run baseline configurations
 
 # Model Configuration
-export TARGET_MODEL="facebook/opt-30b"
-export DRAFT_MODEL="facebook/opt-350m"
-export TENSOR_PARALLEL_SIZE=2
-export DRAFT_TENSOR_PARALLEL_SIZE=2
+export TARGET_MODEL="facebook/opt-66b"
+export DRAFT_MODEL="facebook/opt-1.3b"
+export TENSOR_PARALLEL_SIZE=4
+export DRAFT_TENSOR_PARALLEL_SIZE=4
 
 # Dataset Configuration
 DATASETS=("opencode")
