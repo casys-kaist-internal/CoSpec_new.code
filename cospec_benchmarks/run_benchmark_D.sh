@@ -18,7 +18,7 @@ export TENSOR_PARALLEL_SIZE=4
 export DRAFT_TENSOR_PARALLEL_SIZE=4
 
 # Dataset Configuration
-DATASETS=("opencode")
+DATASETS=("opencodeinstruct")
 
 # Request Rate Configuration (requests per second)
 RATES=(1 2 3 4 5 6)
