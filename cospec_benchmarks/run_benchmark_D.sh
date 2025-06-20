@@ -21,7 +21,7 @@ export DRAFT_TENSOR_PARALLEL_SIZE=4
 DATASETS=("opencodeinstruct")
 
 # Request Rate Configuration (requests per second)
-RATES=(1 2 3 4 5 6)
+RATES=(1 2 3 4 5)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
