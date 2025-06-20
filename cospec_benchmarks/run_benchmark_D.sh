@@ -16,6 +16,7 @@ export TARGET_MODEL="facebook/opt-66b"
 export DRAFT_MODEL="facebook/opt-1.3b"
 export TENSOR_PARALLEL_SIZE=4
 export DRAFT_TENSOR_PARALLEL_SIZE=4
+export DOWNLOAD_DIR="/workspace"
 
 # Dataset Configuration
 DATASETS=("opencodeinstruct")
@@ -100,6 +101,7 @@ start_server() {
         -tp $TENSOR_PARALLEL_SIZE \
         --enable-chunked-prefill \
         --gpu_memory_utilization 0.80 \
+        --download-dir $DOWNLOAD_DIR \
         --disable-log-requests"
 
     # Add speculative config if spec_tokens > 0
