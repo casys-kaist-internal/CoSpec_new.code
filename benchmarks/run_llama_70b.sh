@@ -19,7 +19,7 @@ export TARGET_MODEL="meta-llama/Llama-3.1-70B-Instruct"
 export DRAFT_MODEL="turboderp/Qwama-0.5B-Instruct"
 export NUM_SPEC_TOKENS=7
 export TENSOR_PARALLEL_SIZE=4
-export DRAFT_TENSOR_PARALLEL_SIZE=4
+export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/workspace"
 
 # Base command
