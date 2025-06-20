@@ -3,7 +3,7 @@
 # MODEL="facebook/opt-13b"
 MODEL="meta-llama/Llama-3.1-70B-Instruct"
 # DATASET="math500"
-DATASET="opencode"
+DATASET="opencodeinstruct"
 REQUEST_RATE=8
 TEMPERATURE=0
 NUM_PROMPTS=1000
