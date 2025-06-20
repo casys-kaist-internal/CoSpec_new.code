@@ -18,8 +18,8 @@ export AR=${AR:-0}
 export TARGET_MODEL="facebook/opt-66b"
 export DRAFT_MODEL="facebook/opt-1.3b"
 export NUM_SPEC_TOKENS=7
-export TENSOR_PARALLEL_SIZE=2
-export DRAFT_TENSOR_PARALLEL_SIZE=2
+export TENSOR_PARALLEL_SIZE=4
+export DRAFT_TENSOR_PARALLEL_SIZE=4
 export DOWNLOAD_DIR="/workspace"
 
 # Base command
