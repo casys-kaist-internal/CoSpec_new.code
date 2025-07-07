@@ -27,8 +27,8 @@ DATASETS=("opencodeinstruct")
 RATES=(1 2 3 4 5)
 
 # Request Rate Configuration (requests per second)
-MATH500_RATES=(2 4 6 8 10 12 14 16)
-
+# MATH500_RATES=(2 4 6 8 10)
+MATH500_RATES=(10 8 6 4 2)
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
 COSPEC_SPEC_TOKENS=7
