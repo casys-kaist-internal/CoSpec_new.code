@@ -17,7 +17,7 @@ export DRAFT_MODEL="facebook/opt-350m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/workspace"
-export DISABLE_BY_BATCH_SIZE=160
+export DISABLE_BY_BATCH_SIZE=128
 export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
@@ -103,7 +103,7 @@ start_server() {
         --seed 42 \
         -tp $TENSOR_PARALLEL_SIZE \
         --enable-chunked-prefill \
-        --gpu_memory_utilization 0.80 \
+        --gpu_memory_utilization 0.90 \
         --disable-log-requests"
 
     # Add speculative config if spec_tokens > 0 with disable_by_batch_size
