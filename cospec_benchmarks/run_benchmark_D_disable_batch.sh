@@ -21,6 +21,9 @@ export DISABLE_BY_BATCH_SIZE=48
 export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
+DATASETS=("opencodeinstruct")
+
+# Dataset Configuration
 RATES=(1 2 3 4 5)
 
 # Request Rate Configuration (requests per second)
