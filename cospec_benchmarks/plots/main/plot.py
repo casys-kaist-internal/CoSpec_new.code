@@ -11,8 +11,8 @@ CSV_FILES = [
     'A.csv', # OPT-6.7B / OPT-125M
     'B.csv', # Llama-13B / Vicuna-68M
     'C.csv', # OPT-13B / OPT-125M
-    'D.csv', # 
     'E.csv', # OPT-30B / OPT-350M
+    'D.csv', # OPT-66B / OPT-1.3B
 ]
 
 # Replace with your desired value
@@ -20,16 +20,16 @@ y_max_values = {
     'A.csv': 600, 
     'B.csv': 2300, 
     'C.csv': 1500, 
-    'D.csv': 400, 
     'E.csv': 800, 
+    'D.csv': 600, 
 }
 
 model_pairs = [
-    '(a) OPT-6.7B / OPT-125M',
-    '(b) Llama-13B / Vicuna-68M',
-    '(c) OPT-13B / OPT-125M',
-    '(d) Llama-70B / Llama-1B',
-    '(e) OPT-30B / OPT-350M'
+    '(a) OPT-6.7B/OPT-125M (A6000)',
+    '(b) Llama-13B/Vicuna-68M (A6000x2)',
+    '(c) OPT-13B/OPT-125M (A100)',
+    '(d) OPT-30B/OPT-350M (H200)',
+    '(e) OPT-66B/OPT-1.3B (A100x4)'
 ]
 
 # Create figure with subplots for each CSV file
@@ -121,8 +121,7 @@ for idx, csv_file in enumerate(CSV_FILES):
         if config == 'CoSpec':
             continue
         config_data = dataset_df[(dataset_df['config'] == config)]
-        # Rename disablebatch48 to DisableByBatch
-        display_name = 'DisableByBatch' if config == 'disablebatch48' else config
+        display_name = 'DisableByBatch' if config == 'disable_by_batch' else config
         color, marker = config_colors.get(display_name, config_colors['default'])
         line = ax.plot(config_data['request_throughput'], config_data['mean_token_latency'],
                 marker=marker, label=display_name, linewidth=2, color=color)
@@ -164,13 +163,14 @@ for idx, csv_file in enumerate(CSV_FILES):
     ax.tick_params(axis='both', which='major', labelsize=14)
     
     # Add subplot label with model pairs
-    ax.text(0.15, -0.4, model_pairs[idx], transform=ax.transAxes, fontsize=14, fontweight='bold')
+    ax.text(0.5, -0.4, model_pairs[idx], transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center')
 
 # Create a single shared legend at the top
-fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.15),
-          ncol=7, fontsize=16, frameon=False)  # Increased font size and moved legend up
+fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.1),
+          ncol=7, fontsize=18, frameon=False)  # Increased font size and moved legend up
 
 # Adjust layout and save
 plt.tight_layout()
-plt.savefig('main.pdf', bbox_inches='tight', pad_inches=0.5, format='pdf')  # Added pad_inches to ensure legend is visible
+# remove padding around the figure
+plt.savefig('main.pdf', bbox_inches='tight', format='pdf')  # Added pad_inches to ensure legend is visible
 plt.close()

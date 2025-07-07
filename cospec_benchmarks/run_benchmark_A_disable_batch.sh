@@ -16,7 +16,8 @@ export TARGET_MODEL="facebook/opt-6.7b"
 export DRAFT_MODEL="facebook/opt-125m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
-export DISABLE_BY_BATCH_SIZE=32
+export DISABLE_BY_BATCH_SIZE=48
+export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
 DATASETS=("math500")
@@ -26,7 +27,7 @@ RATES=(2 4 6 8 10 12 14)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
-COSPEC_SPEC_TOKENS=7
+COSPEC_SPEC_TOKENS=3
 
 # Benchmark Configuration
 BENCHMARK_DURATION=10  # Duration in minutes
@@ -170,7 +171,7 @@ run_benchmark() {
     echo "Number of prompts to process: ${NUM_PROMPTS[$request_rate]}"
     
     # Run benchmark with num-prompts based progress
-    python benchmark_serving.py \
+    python benchmark_serving_disable_batch.py \
         --backend vllm \
         --port $PORT \
         --model $TARGET_MODEL \

@@ -37,9 +37,9 @@ orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 # Map configurations to colors
 config_colors = {
     'Spec 7': blue_palette[1],
-    'DC': blue_palette[2],  # Medium blue
-    'DC + SV': blue_palette[4],  # Dark blue
-    'DC + SV + CA': green_palette[0],  # Forest green
+    'Dynamic Colocation': blue_palette[2],  # Medium blue
+    'Dynamic Colocation + Selective Validation': blue_palette[4],  # Dark blue
+    'Dynamic Colocation + Selective Validation + Consolidated Attention': green_palette[0],  # Forest green
 }
 
 # Create figure with subplots for each CSV file
@@ -74,19 +74,19 @@ for idx, csv_file in enumerate(CSV_FILES):
         # Define the desired order of configurations
         desired_order = [
             'Spec 7',
-            'DC',
-            'DC + SV',
-            'DC + SV + CA',
+            'Dynamic Colocation',
+            'Dynamic Colocation + Selective Validation',
+            'Dynamic Colocation + Selective Validation + Consolidated Attention',
             'AR'
         ]
         
         # Map old config names to new labels
         config_label_map = {
             'baseline': 'Spec 7',
-            'colocation': 'C',
-            'colocation_dynamic': 'DC',
-            'colocation_dynamic_selective': 'DC + SV',
-            'full_cospec': 'DC + SV + CA'
+            'colocation': 'Dynamic Colocation',
+            'colocation_dynamic': 'Dynamic Colocation',
+            'colocation_dynamic_selective': 'Dynamic Colocation + Selective Validation',
+            'full_cospec': 'Dynamic Colocation + Selective Validation + Consolidated Attention'
         }
         
         # Create reverse mapping for finding config names
@@ -220,9 +220,9 @@ handles, labels = axes[0, 0].get_legend_handles_labels()
 desired_order = [
     'AR',
     'Spec 7',
-    'DC',
-    'DC + SV',
-    'DC + SV + CA'
+    'Dynamic Colocation',
+    'Dynamic Colocation + Selective Validation',
+    'Dynamic Colocation + Selective Validation + Consolidated Attention'
 ]
 
 # Create a custom line for AR in the legend

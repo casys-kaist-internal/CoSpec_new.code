@@ -12,14 +12,16 @@ ulimit -n 65535
 SKIP_BASELINE=true  # Set to false to run baseline configurations
 
 # Model Configuration
-export TARGET_MODEL="facebook/opt-6.7b"
-export DRAFT_MODEL="facebook/opt-125m"
-export TENSOR_PARALLEL_SIZE=1
-export DRAFT_TENSOR_PARALLEL_SIZE=1
-export DISABLE_BY_BATCH_SIZE=32
+export TARGET_MODEL="facebook/opt-66b"
+export DRAFT_MODEL="facebook/opt-1.3b"
+export TENSOR_PARALLEL_SIZE=4
+export DRAFT_TENSOR_PARALLEL_SIZE=4
+export DOWNLOAD_DIR="/workspace"
+export DISABLE_BY_BATCH_SIZE=48
+export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
-DATASETS=("math500")
+RATES=(1 2 3 4 5)
 
 # Request Rate Configuration (requests per second)
 MATH500_RATES=(2 4 6 8 10 12 14 16)
@@ -74,7 +76,7 @@ declare -a CONFIG_ORDER=(
 
 # Create results directory with timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_DIR="disable_by_batch_${TIMESTAMP}"
+RESULTS_DIR="D_disable_by_batch_${TIMESTAMP}"
 mkdir -p $RESULTS_DIR
 
 # Create CSV header
@@ -170,7 +172,7 @@ run_benchmark() {
     echo "Number of prompts to process: ${NUM_PROMPTS[$request_rate]}"
     
     # Run benchmark with num-prompts based progress
-    python benchmark_serving.py \
+    python benchmark_serving_disable_batch.py \
         --backend vllm \
         --port $PORT \
         --model $TARGET_MODEL \

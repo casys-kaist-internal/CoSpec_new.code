@@ -9,7 +9,7 @@
 ulimit -n 65535
 
 # Benchmark Control
-SKIP_BASELINE=false  # Set to false to run baseline configurations
+SKIP_BASELINE=true  # Set to false to run baseline configurations
 
 # Model Configuration
 export TARGET_MODEL="facebook/opt-66b"
@@ -17,12 +17,14 @@ export DRAFT_MODEL="facebook/opt-1.3b"
 export TENSOR_PARALLEL_SIZE=4
 export DRAFT_TENSOR_PARALLEL_SIZE=4
 export DOWNLOAD_DIR="/workspace"
+export DISABLE_BY_BATCH_SIZE=32
+export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
-DATASETS=("opencodeinstruct")
+RATES=(1 2 3 4 5)
 
 # Request Rate Configuration (requests per second)
-RATES=(1 2 3 4 5)
+MATH500_RATES=(2 4 6 8 10 12 14 16)
 
 # Speculative Configuration
 BASELINE_SPEC_TOKENS=(0 1 3 5 7)  # Different spec token values for baseline
@@ -42,6 +44,7 @@ PORT=8100
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
+    ["disable_by_batch"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
     ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
@@ -101,12 +104,11 @@ start_server() {
         -tp $TENSOR_PARALLEL_SIZE \
         --enable-chunked-prefill \
         --gpu_memory_utilization 0.80 \
-        --download-dir $DOWNLOAD_DIR \
         --disable-log-requests"
 
-    # Add speculative config if spec_tokens > 0
+    # Add speculative config if spec_tokens > 0 with disable_by_batch_size
     if [ "$spec_tokens" -gt 0 ]; then
-        CMD+=" --speculative_config '{\"model\": \"$DRAFT_MODEL\", \"num_speculative_tokens\": $spec_tokens, \"draft_tensor_parallel_size\": $DRAFT_TENSOR_PARALLEL_SIZE}'"
+        CMD+=" --speculative_config '{\"model\": \"$DRAFT_MODEL\", \"num_speculative_tokens\": $spec_tokens, \"draft_tensor_parallel_size\": $DRAFT_TENSOR_PARALLEL_SIZE, \"disable_by_batch_size\": $DISABLE_BY_BATCH_SIZE}'"
     fi
 
     # Start server in background and redirect output

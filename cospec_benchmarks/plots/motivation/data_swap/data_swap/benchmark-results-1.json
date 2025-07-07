@@ -1,0 +1,26 @@
+{
+  "benchmark_summary": {
+    "successful_requests": 100,
+    "benchmark_duration_seconds": 273.64,
+    "total_input_tokens": 15291,
+    "total_generated_tokens": 138261,
+    "request_throughput_req_per_second": 0.37,
+    "output_token_throughput_tokens_per_second": 505.27,
+    "total_token_throughput_tokens_per_second": 561.15
+  },
+  "time_to_first_token": {
+    "mean_ms": 56809.24,
+    "median_ms": 1508.95,
+    "p99_ms": 219980.11
+  },
+  "time_per_output_token": {
+    "mean_ms": 84.58,
+    "median_ms": 65.22,
+    "p99_ms": 487.13
+  },
+  "inter_token_latency": {
+    "mean_ms": 72.38,
+    "median_ms": 32.36,
+    "p99_ms": 81.52
+  }
+}

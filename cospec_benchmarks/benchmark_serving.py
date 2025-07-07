@@ -670,9 +670,10 @@ def main(args: argparse.Namespace):
         full_requests = OpenCodeInstructDataset(random_seed=args.seed,
                     dataset_path="nvidia/OpenCodeInstruct", 
                     dataset_split="train").sample_all(tokenizer=tokenizer)
-    elif args.dataset_name == "opencodereasoning":
-        full_requests = OpenCodeReasoningDataset(random_seed=args.seed,
-                    dataset_path="nvidia/OpenCodeReasoning", 
+    elif args.dataset_name == "gsm8k":
+        full_requests = GSM8KDataset(random_seed=args.seed,
+                    dataset_path="openai/gsm8k", 
+                    dataset_subset="main",
                     dataset_split="train").sample_all(tokenizer=tokenizer)
     elif args.dataset_name == "math500":
         full_requests = Math500Dataset(random_seed=args.seed,
@@ -907,7 +908,7 @@ if __name__ == "__main__":
         "--dataset-name",
         type=str,
         default="sharegpt",
-        choices=["sharegpt", "opencodeinstruct", "opencodereasoning", "math500", "alpaca", "platypus"], 
+        choices=["sharegpt", "opencodeinstruct", "gsm8k", "math500", "alpaca", "platypus"], 
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument("--dataset-path",
