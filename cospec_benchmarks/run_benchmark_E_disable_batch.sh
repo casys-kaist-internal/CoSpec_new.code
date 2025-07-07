@@ -17,7 +17,7 @@ export DRAFT_MODEL="facebook/opt-350m"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 export DOWNLOAD_DIR="/workspace"
-export DISABLE_BY_BATCH_SIZE=128
+export DISABLE_BY_BATCH_SIZE=192
 export VLLM_ATTENTION_BACKEND="XFORMERS"
 
 # Dataset Configuration
