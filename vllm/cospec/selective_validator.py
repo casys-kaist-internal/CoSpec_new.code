@@ -27,7 +27,7 @@ class SelectiveValidator:
         self.is_model_trained = False
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
         # self.tile_alignment = int(envs.COSPEC_SELECTIVE_VALIDATION_TILE_SIZE)
-        # self.moving_avg_num_spec_tokens = 7  # This is for dynamic colocation.
+        self.mean_selective_validation_tokens_ema = 7 
         self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
         self.has_first_data_point = False  # Flag to track if we have received first data point
         self.profiler = profiler
@@ -82,40 +82,33 @@ class SelectiveValidator:
         Returns:
             Modified SpeculativeProposals object
         """
-        original_proposal_len = proposals.proposal_lens.max().item()
-
-        # Calculate new lengths and max length in one operation
         new_proposal_lens = valid_mask.sum(dim=1)
         new_proposal_lens[proposals.proposal_lens == 0] = 0 # what was already 0 should remain 0
         
         max_proposal_len = new_proposal_lens.max().item()
 
-        # total_tokens = new_proposal_lens.sum().item()
-
-        # Update proposal lengths and no_proposals flag
         proposals.proposal_lens = new_proposal_lens
-
         proposals.no_proposals = torch.all(new_proposal_lens == 0)
+        mean_selective_validation_tokens = new_proposal_lens.mean().item()
         
-        # Update moving average in one operation
         if not self.has_first_data_point:
-            self.moving_avg_mean_tokens = original_proposal_len
+            self.mean_selective_validation_tokens_ema = mean_selective_validation_tokens
             self.has_first_data_point = True
         else:
-            self.moving_avg_mean_tokens = (
-                (1 - self.moving_avg_alpha) * self.moving_avg_mean_tokens + 
-                self.moving_avg_alpha * original_proposal_len
+            self.mean_selective_validation_tokens_ema = (
+                (1 - self.moving_avg_alpha) * self.mean_selective_validation_tokens_ema + 
+                self.moving_avg_alpha * mean_selective_validation_tokens
             )
-        
-        # logger.info("[Selective Validation] moving_avg_mean_tokens: {}".format(self.moving_avg_mean_tokens))
-        
-        # Mask invalid tokens and truncate in-place
+                
         proposals.proposal_token_ids[~valid_mask] = 0
         proposals.proposal_token_ids = proposals.proposal_token_ids[:, :max_proposal_len]
         proposals.proposal_probs[~valid_mask] = 0
         proposals.proposal_probs = proposals.proposal_probs[:, :max_proposal_len]
         
         return proposals
+    
+    def get_mean_selective_validation_tokens_ema(self) -> int:
+        return self.mean_selective_validation_tokens_ema
 
     def _generate_tiled_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals

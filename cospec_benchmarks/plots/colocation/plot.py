@@ -50,10 +50,10 @@ def plot_speedup_heatmap_from_csv(csv_file):
                center=1.0, 
                annot=False,
                fmt='.2f',  
-                cbar_kws={'label': 'Step Latency Speedup'})
+               cbar_kws={'label': 'Step Latency Speedup'})
     # Increase colorbar label font size
     cbar = ax.collections[0].colorbar
-    cbar.set_label('Step Latency Speedup', fontsize=16)
+    cbar.set_label('Step Latency Speedup', fontsize=14)
     
     # Add smooth contour line at 1.0
     smoothed_matrix = gaussian_filter(speedup_matrix, sigma=0.7)

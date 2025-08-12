@@ -69,6 +69,7 @@ config_colors = {
     'Spec 6': ('#B8860B', '<'),  # Dark goldenrod with triangle left
     'Spec 8': ('#00CED1', 'p'),  # Dark turquoise with pentagon
     'DisableByBatch': ('#8B4513', '*'),  # Saddle brown with star
+    'SpecInfer$^{\\dagger}$': ('#008080', 'x'),  # Teal with x for SpecInfer
     'default': ('#696969', 'x')  # Dim gray with x for any other configs
 }
 
@@ -120,8 +121,12 @@ for idx, csv_file in enumerate(CSV_FILES):
     for config in other_configs:
         if config == 'CoSpec':
             continue
+        # Only plot tree_2_1_1, skip other tree configurations
+        if config.startswith('tree_') and config != 'tree_2_1_1':
+            continue
         config_data = dataset_df[(dataset_df['config'] == config)]
         display_name = 'DisableByBatch' if config == 'disable_by_batch' else config
+        display_name = 'SpecInfer$^{\\dagger}$' if config == 'tree_2_1_1' else display_name
         color, marker = config_colors.get(display_name, config_colors['default'])
         line = ax.plot(config_data['request_throughput'], config_data['mean_token_latency'],
                 marker=marker, label=display_name, linewidth=2, color=color)
@@ -163,14 +168,178 @@ for idx, csv_file in enumerate(CSV_FILES):
     ax.tick_params(axis='both', which='major', labelsize=14)
     
     # Add subplot label with model pairs
-    ax.text(0.5, -0.4, model_pairs[idx], transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center')
+    ax.text(0.5, -0.4, model_pairs[idx], transform=ax.transAxes, fontsize=12, fontweight='bold', ha='center')
 
 # Create a single shared legend at the top
 fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.1),
-          ncol=7, fontsize=18, frameon=False)  # Increased font size and moved legend up
+          ncol=8, fontsize=16, frameon=False)  # Increased font size and moved legend up
 
 # Adjust layout and save
 plt.tight_layout()
 # remove padding around the figure
 plt.savefig('main.pdf', bbox_inches='tight', format='pdf')  # Added pad_inches to ensure legend is visible
 plt.close()
+
+# --- Speedup reporting ---
+print("\n=== Throughput and Latency Speedups (CoSpec vs AR) ===")
+print("{:<10} {:>20} {:>20}".format("CSV File", "Throughput Speedup", "Latency Speedup"))
+
+model_map = dict(zip(CSV_FILES, [
+    "OPT-6.7B / OPT-125M",
+    "LLaMA-13B / Vicuna-68M",
+    "OPT-13B / OPT-125M",
+    "OPT-30B / OPT-350M",
+    "OPT-66B / OPT-1.3B"
+]))
+
+
+for csv_file in CSV_FILES:
+    if not os.path.exists(csv_file):
+        print(f"{csv_file:<10} File not found.")
+        continue
+
+    df = pd.read_csv(csv_file)
+    df['config'] = df['config'].replace('full_cospec', 'CoSpec')
+
+    # Select first dataset
+    dataset = df['dataset'].unique()[0]
+    df = df[df['dataset'] == dataset]
+
+    # AR baseline
+    ar_df = df[(df['config'] == 'baseline') & (df['spec_tokens'] == 0)]
+    if ar_df.empty:
+        print(f"{csv_file:<10} Missing AR data.")
+        continue
+    ar_max_throughput = ar_df['request_throughput'].max()
+    ar_min_latency = ar_df['mean_token_latency'].min()
+
+    # CoSpec results
+    cospec_df = df[df['config'] == 'CoSpec']
+    if cospec_df.empty:
+        print(f"{csv_file:<10} Missing CoSpec data.")
+        continue
+    cospec_max_throughput = cospec_df['request_throughput'].max()
+    cospec_min_latency = cospec_df['mean_token_latency'].min()
+
+    # Compute speedups
+    throughput_speedup = cospec_max_throughput / ar_max_throughput if ar_max_throughput > 0 else float('nan')
+    latency_speedup = ar_min_latency / cospec_min_latency if cospec_min_latency > 0 else float('nan')
+
+    # print("{:<10} {:>20.2f} {:>20.2f}".format(csv_file, throughput_speedup, latency_speedup))
+    model_name = model_map.get(csv_file, csv_file)
+    print("{:<25} {:>20.2f} {:>20.2f}".format(model_name, throughput_speedup, latency_speedup))
+
+# --- New plot for A.csv with SpecInfer tree widths ---
+print("\n=== Creating A.csv plot with SpecInfer tree widths ===")
+
+# Read A.csv data
+df_a = pd.read_csv('A.csv')
+df_a['config'] = df_a['config'].replace('full_cospec', 'CoSpec')
+
+# Get unique datasets
+datasets = sorted(df_a['dataset'].unique())
+dataset = datasets[0]
+dataset_df = df_a[df_a['dataset'] == dataset]
+
+# Create figure for A.csv plot
+fig_a = plt.figure(figsize=(5, 3))
+ax_a = fig_a.add_subplot(111)
+
+# Create a list to store all lines and labels for the legend
+all_lines_a = []
+all_labels_a = []
+
+# Custom color palette for the new plot
+ar_color = '#FF0000'  # Red for AR
+cospec_color = '#006400'  # Forest green for CoSpec
+
+# Specific colors and markers for each configuration
+config_colors_a = {
+    'AR': ('#FF0000', 'o'),  # Red with circle
+    'Spec 3': ('#FF8C00', 's'),  # Dark orange with square
+    'CoSpec': ('#006400', 'D'),  # Forest green with diamond
+    'SpecInfer$^{\\dagger}$ <1,1,1>': ('#1E90FF', '^'),  # Dodger blue with triangle up
+    '<2,1,1>': ('#008080', 'v'),  # Teal with triangle down
+    '<4,1,1>': ('#FF1493', '<'),  # Deep pink with triangle left
+}
+
+# Plot all configurations in the desired legend order
+# First row: AR, CoSpec, Spec 3
+# Second row: SpecInfer configurations
+
+# Plot Auto Regressive (baseline with spec_tokens=0)
+ar_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 0)]
+line = ax_a.plot(ar_data['request_throughput'], ar_data['mean_token_latency'],
+        marker='o', label='AR', linewidth=2, color=ar_color)
+all_lines_a.extend(line)
+all_labels_a.append('AR')
+
+# Plot CoSpec
+cospec_data = dataset_df[(dataset_df['config'] == 'CoSpec')]
+line = ax_a.plot(cospec_data['request_throughput'], cospec_data['mean_token_latency'],
+        marker='D', label='CoSpec', linewidth=2, color=cospec_color)
+all_lines_a.extend(line)
+all_labels_a.append('CoSpec')
+
+# Plot Spec 3 (baseline with spec_tokens=3)
+spec3_data = dataset_df[(dataset_df['config'] == 'baseline') & (dataset_df['spec_tokens'] == 3)]
+line = ax_a.plot(spec3_data['request_throughput'], spec3_data['mean_token_latency'],
+        marker='s', label='Spec 3', linewidth=2, color='#FF8C00')
+all_lines_a.extend(line)
+all_labels_a.append('Spec 3')
+
+# Plot SpecInfer with different tree widths
+tree_configs = [
+    ('tree_1_1_1', 'SpecInfer$^{\\dagger}$ <1,1,1>'),
+    ('tree_2_1_1', '<2,1,1>'),
+    ('tree_4_1_1', '<4,1,1>')
+]
+
+for tree_config, display_name in tree_configs:
+    tree_data = dataset_df[(dataset_df['config'] == tree_config)]
+    if not tree_data.empty:
+        color, marker = config_colors_a[display_name]
+        line = ax_a.plot(tree_data['request_throughput'], tree_data['mean_token_latency'],
+                marker=marker, label=display_name, linewidth=2, color=color)
+        all_lines_a.extend(line)
+        all_labels_a.append(display_name)
+
+# Calculate y-axis limits based on the data
+all_latencies = dataset_df['mean_token_latency']
+min_latency = all_latencies.min()
+max_latency = all_latencies.max()
+
+# Set y-axis limits
+y_min = max(1, min_latency * 0.8)  # Don't go below 1ms
+y_max = 600  # Use the same y_max as in the original plot
+
+# y axis log scale with specific limits
+ax_a.set_yscale('log')
+ax_a.set_ylim(y_min, y_max)
+
+# Customize plot
+ax_a.set_xlabel('Request Throughput (req/s)', fontsize=10)
+ax_a.set_ylabel('Mean Token Latency (ms)', fontsize=10)
+ax_a.grid(True, linestyle='--', alpha=0.7)
+ax_a.tick_params(axis='both', which='major', labelsize=10)
+
+# Create legend with custom order
+# Define the desired legend order
+legend_order = ['AR', 'SpecInfer$^{\\dagger}$ <1,1,1>', 'Spec 3', '<2,1,1>', 'CoSpec', '<4,1,1>']
+
+# Create legend with custom order
+legend_elements = []
+for label in legend_order:
+    if label in config_colors_a:
+        color, marker = config_colors_a[label]
+        legend_elements.append(plt.Line2D([0], [0], marker=marker, color=color, label=label, linewidth=2, markersize=8))
+
+ax_a.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, 1.4),
+          ncol=3, fontsize=10, frameon=False)
+
+# Adjust layout and save
+plt.tight_layout()
+plt.savefig('specinfer_tree_widths.pdf', bbox_inches='tight', format='pdf')
+plt.close()
+
+print("Created specinfer_tree_widths.pdf with SpecInfer tree widths <1,1,1>, <2,1,1>, <4,1,1>, Spec 3, and CoSpec")

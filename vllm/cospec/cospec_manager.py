@@ -31,9 +31,6 @@ class CospecManager:
         self.profiler = Profiler(vllm_config)
         self.selective_validator = SelectiveValidator(profiler=self.profiler)
 
-        self.num_spec_tokens_ema = 7
-        self.ema_alpha = 0.1  # Smoothing factor for EMA
-
     def start_profile(self, mode:str):
         self.profiler.start_profile(mode)
 
@@ -188,20 +185,6 @@ class CospecManager:
             self.selective_validator.update_proposal_history(proposals, proposal_scores)
             # torch.cuda.nvtx.range_pop()
 
-    def update_num_spec_tokens_ema(self, num_spec_tokens: int):
-        """Update the exponential moving average of target number of tokens.
-        
-        Args:
-            num_tokens: Number of tokens in the current batch
-        """
-        if self.num_spec_tokens_ema == 0.0:
-            # Initialize EMA with first value
-            self.num_spec_tokens_ema = float(num_spec_tokens)
-        else:
-            # Update EMA using the formula: EMA = α * current_value + (1 - α) * previous_EMA
-            self.num_spec_tokens_ema = (self.ema_alpha * float(num_spec_tokens) + 
-                                        (1 - self.ema_alpha) * self.num_spec_tokens_ema)
-            
     def get_num_speculative_tokens_ema(self) -> int:
-        return self.num_spec_tokens_ema
+        return self.selective_validator.get_mean_selective_validation_tokens_ema()
         

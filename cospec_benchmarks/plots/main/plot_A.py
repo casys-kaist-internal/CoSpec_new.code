@@ -21,7 +21,7 @@ model_pairs = [
 ]
 
 # Create figure with 2 subplots side by side
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 2.8))
 
 # Create a list to store all lines and labels for the legend
 all_lines = []
@@ -57,6 +57,9 @@ df = pd.read_csv(csv_file)
 
 # Rename full_cospec to CoSpec in the config column
 df['config'] = df['config'].replace('full_cospec', 'CoSpec')
+
+# only Spec 1, Spec 3, Spec 5, Spec 7
+df = df[df['config'].isin(['baseline'])]
 
 # Get unique datasets
 datasets = sorted(df['dataset'].unique())
@@ -126,8 +129,8 @@ ax1.set_yscale('log')
 ax1.set_ylim(y_min, y_max)
 
 # Customize first subplot
-ax1.set_xlabel('Request Throughput (req/s)', fontsize=12)
-ax1.set_ylabel('Mean Token Latency (ms)', fontsize=12)
+ax1.set_xlabel('Request Throughput (req/s)', fontsize=14)
+ax1.set_ylabel('Mean Token Latency (ms)', fontsize=14)
 ax1.grid(True, linestyle='--', alpha=0.7)
 ax1.tick_params(axis='both', which='major', labelsize=10)
 
@@ -203,23 +206,23 @@ for i, config_name in enumerate(config_names):
 # Add red dotted line at speedup 1.0 to show AR baseline
 ax2.axhline(y=1.0, color='red', linestyle='--', linewidth=2, label='AR Baseline')
 # Add "AR" text on the dotted line
-ax2.text(ax2.get_xlim()[1] * 0.98, 1.05, 'Auto Regressive', color='red', fontsize=10, 
+ax2.text(ax2.get_xlim()[1] * 0.98, 1.05, 'Autoregressive', color='red', fontsize=10, 
          ha='right', va='bottom', fontweight='bold')
 
 # Customize second subplot
-ax2.set_xlabel('Request Rate (req/s)', fontsize=12)
-ax2.set_ylabel('Latency Speedup', fontsize=12)
+ax2.set_xlabel('Request Rate (req/s)', fontsize=14)
+ax2.set_ylabel('Latency Speedup', fontsize=14)
 ax2.set_xticks([xi + width * (len(config_names) - 1) / 2 for xi in x])
 ax2.set_xticklabels([f'{r:.0f}' for r in request_rates], fontsize=10)
 ax2.grid(True, linestyle='--', alpha=0.7, axis='y')
 ax2.tick_params(axis='both', which='major', labelsize=10)
 
 # Create a single shared legend at the top of both subplots
-fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.1),
+fig.legend(all_lines, all_labels, loc='upper center', bbox_to_anchor=(0.5, 1.15),
           ncol=5, fontsize=14, frameon=False)
 
 # margin between the subplots
-plt.subplots_adjust(wspace=0.3)
+# plt.subplots_adjust(wspace=0.3)
 
 # Adjust layout and save
 plt.tight_layout()

@@ -5,9 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict, Optional, Tuple, List, Set
 from vllm.logger import init_logger
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import train_test_split
 import time
 import torch
@@ -16,64 +13,108 @@ from vllm.spec_decode.util import nvtx_range
 logger = init_logger(__name__)
 
 class CustomNonColocationModel:
+    """
+    Second-order polynomial model for non-colocation step latency.
+
+    Implements:
+        T_hat_no_coloc(B, gamma) = gamma * (alpha0 + alpha1*B + alpha2*B^2)
+                                    + delta0 + delta1*N_t + delta2*N_t^2
+        where N_t = B * (gamma + 1)
+    """
+
     def __init__(self):
-        self.X = None  # Coefficient for num_spec_tokens * batch_size
-        self.Y = None  # Coefficient for (num_spec_tokens + 1) * batch_size
-        self.Z = None  # Intercept
+        # Coefficients: [alpha0, alpha1, alpha2, delta0, delta1, delta2]
+        self.coeffs = None
 
     def fit(self, X, y):
-        # X should be array of [batch_size, num_spec_tokens]
+        # X: array of shape (n, 2) with columns [batch_size (B), num_spec_tokens (gamma)]
         batch_sizes = X[:, 0]
-        num_spec_tokens = X[:, 1]
-        
-        # Create design matrix for our specific formula
+        gamma = X[:, 1]
+
+        N_t = batch_sizes * (gamma + 1.0)
+
+        # Design matrix per formula above
         X_design = np.column_stack([
-            num_spec_tokens * batch_sizes,  # term1: num_spec_tokens * batch_size
-            (num_spec_tokens + 1) * batch_sizes,  # term2: (num_spec_tokens + 1) * batch_size
-            np.ones_like(batch_sizes)  # intercept term
+            gamma,                 # alpha0 term
+            gamma * batch_sizes,   # alpha1 term
+            gamma * (batch_sizes ** 2),  # alpha2 term
+            np.ones_like(batch_sizes),    # delta0 term
+            N_t,                   # delta1 term
+            N_t ** 2               # delta2 term
         ])
-        
-        # Solve using least squares
+
         coeffs, _, _, _ = np.linalg.lstsq(X_design, y, rcond=None)
-        self.X = coeffs[0]
-        self.Y = coeffs[1]
-        self.Z = coeffs[2]
+        self.coeffs = coeffs
 
     def predict(self, X):
         batch_sizes = X[:, 0]
-        num_spec_tokens = X[:, 1]
-        
-        return (self.X * num_spec_tokens * batch_sizes + 
-                self.Y * (num_spec_tokens + 1) * batch_sizes + 
-                self.Z)
+        gamma = X[:, 1]
+        N_t = batch_sizes * (gamma + 1.0)
+
+        X_design = np.column_stack([
+            gamma,
+            gamma * batch_sizes,
+            gamma * (batch_sizes ** 2),
+            np.ones_like(batch_sizes),
+            N_t,
+            N_t ** 2,
+        ])
+
+        return X_design @ self.coeffs
 
 class CustomColocationModel:
+    """
+    Second-order polynomial model for colocation step latency.
+
+    Implements:
+        T_hat_coloc(B, gamma) = 2 * (beta0 + beta1*N_s + beta2*N_s^2)
+                                    * (1 + phi1*B + phi2*B^2)
+        where N_s = (B/2) * (gamma + 1)
+
+    For efficient linear least squares, we expand the product and fit a linear
+    model over the monomials of N_s and B:
+        T = 2 * (c0 + c1*N_s + c2*N_s^2 + c3*B + c4*N_s*B + c5*N_s^2*B
+                 + c6*B^2 + c7*N_s*B^2 + c8*N_s^2*B^2)
+
+    This captures the specified structure while keeping fitting linear.
+    """
+
     def __init__(self):
-        self.X = None  # Coefficient for (num_spec_tokens + 1) * (batch_size / 2) * 2 
-        self.Y = None  # Intercept
+        # Coefficients for expanded monomials: length 9
+        self.coeffs = None
+
+    def _build_features(self, batch_sizes: np.ndarray, gamma: np.ndarray) -> np.ndarray:
+        # N_s = (B/2) * (gamma + 1)
+        N_s = 0.5 * batch_sizes * (gamma + 1.0)
+
+        base = np.column_stack([
+            np.ones_like(batch_sizes),   # c0
+            N_s,                         # c1
+            N_s ** 2,                    # c2
+            batch_sizes,                 # c3
+            N_s * batch_sizes,           # c4
+            (N_s ** 2) * batch_sizes,    # c5
+            (batch_sizes ** 2),          # c6
+            N_s * (batch_sizes ** 2),    # c7
+            (N_s ** 2) * (batch_sizes ** 2),  # c8
+        ])
+        # Include the leading factor 2 explicitly to preserve formula
+        return 2.0 * base
 
     def fit(self, X, y):
-        # X should be array of [batch_size, num_spec_tokens]
+        # X: array of shape (n, 2) with columns [batch_size (B), num_spec_tokens (gamma)]
         batch_sizes = X[:, 0]
-        num_spec_tokens = X[:, 1]
-        
-        # Create design matrix for our specific formula
-        X_design = np.column_stack([
-            (num_spec_tokens + 1) * batch_sizes,  # term: (num_spec_tokens + 1) * (batch_size / 2) * 2 = (num_spec_tokens + 1) * batch_size 
-            np.ones_like(batch_sizes)  # intercept term
-        ])
-        
-        # Solve using least squares
+        gamma = X[:, 1]
+
+        X_design = self._build_features(batch_sizes, gamma)
         coeffs, _, _, _ = np.linalg.lstsq(X_design, y, rcond=None)
-        self.X = coeffs[0]
-        self.Y = coeffs[1]
+        self.coeffs = coeffs
 
     def predict(self, X):
         batch_sizes = X[:, 0]
-        num_spec_tokens = X[:, 1]
-        
-        return (self.X * (num_spec_tokens + 1) * batch_sizes + 
-                self.Y)
+        gamma = X[:, 1]
+        X_design = self._build_features(batch_sizes, gamma)
+        return X_design @ self.coeffs
 
 class ColocationProfiler:
     """Class for handling colocation vs non-colocation profiling."""
@@ -90,8 +131,8 @@ class ColocationProfiler:
         self.colocation_mode = False
         
         # Regression models
-        self.colocation_model: Optional[LinearRegression] = None
-        self.non_colocation_model: Optional[LinearRegression] = None
+        self.colocation_model: Optional['CustomColocationModel'] = None
+        self.non_colocation_model: Optional['CustomNonColocationModel'] = None
         self.test_keys: Optional[List[Tuple[int, int]]] = None
         
         # Warmup settings
@@ -130,7 +171,6 @@ class ColocationProfiler:
             metrics = self._calculate_model_metrics()
             self._plot_speedup_heatmap()
             self._plot_regression_heatmap()
-            self._plot_roc_curve(metrics.get('fpr'), metrics.get('tpr'), metrics.get('AUROC'))
             
             return True
             
@@ -219,7 +259,6 @@ class ColocationProfiler:
             # Generate plots
             self._plot_speedup_heatmap()
             self._plot_regression_heatmap()
-            self._plot_roc_curve(metrics.get('fpr'), metrics.get('tpr'), metrics.get('AUROC'))
             
         except Exception as e:
             logger.error(f"Failed to write colocation profile results: {str(e)}")
@@ -335,56 +374,37 @@ class ColocationProfiler:
         X = np.array([[batch_size, num_spec_tokens]])
         
         # Make predictions
-        colocation_time = self.colocation_model.predict(X)[0]
-        non_colocation_time = self.non_colocation_model.predict(X)[0]
+        colocation_time = float(self.colocation_model.predict(X)[0])
+        non_colocation_time = float(self.non_colocation_model.predict(X)[0])
+        # Numerical stability: clamp to epsilon to avoid non-physical or zero division
+        eps = 1e-8
+        colocation_time = max(colocation_time, eps)
+        non_colocation_time = max(non_colocation_time, eps)
         
         # Calculate ratio (non-colocation / colocation)
-        ratio = non_colocation_time / colocation_time if colocation_time > 0 else 0.0
+        ratio = non_colocation_time / colocation_time
 
         # logger.info("[Dynamic Colocation] batch_size: {}, num_spec_tokens: {}, ratio: {}".format(batch_size, num_spec_tokens, ratio))
         
         return ratio
     
-    def _compute_metrics(self, actual_ratios: np.ndarray, predicted_ratios: np.ndarray) -> Dict:
-        """Compute regression and classification metrics."""
-        # Regression metrics
-        mae = np.mean(np.abs(predicted_ratios - actual_ratios))
-        rmse = np.sqrt(np.mean((predicted_ratios - actual_ratios) ** 2))
-        r2 = 1 - np.sum((actual_ratios - predicted_ratios) ** 2) / np.sum((actual_ratios - np.mean(actual_ratios)) ** 2)
-        
-        # Calibration error
-        num_bins = 10
-        bin_edges = np.linspace(0, 1, num_bins + 1)
-        bin_indices = np.digitize(predicted_ratios, bin_edges) - 1
-        ece = 0
-        
-        for i in range(num_bins):
-            mask = bin_indices == i
-            if np.sum(mask) > 0:
-                bin_pred = np.mean(predicted_ratios[mask])
-                bin_actual = np.mean(actual_ratios[mask])
-                ece += np.abs(bin_pred - bin_actual) * np.sum(mask) / len(actual_ratios)
-        
-        # Classification metrics (AUROC)
-        actual_binary = (actual_ratios > 1).astype(int)
-        predicted_scores = predicted_ratios
-        
-        auroc = None
-        fpr, tpr = None, None
-        if len(np.unique(actual_binary)) > 1:
-            fpr, tpr, _ = roc_curve(actual_binary, predicted_scores)
-            auroc = auc(fpr, tpr)
-        else:
-            logger.warning("AUROC cannot be calculated: all outcomes belong to same class")
-            
+    def _compute_metrics(self,
+                         actual_ratios: np.ndarray,
+                         predicted_ratios: np.ndarray) -> Dict:
+        """Compute regression metrics: R² and MAPE only."""
+
+        errors = predicted_ratios - actual_ratios
+        # R² with zero-variance guard
+        denom = np.sum((actual_ratios - np.mean(actual_ratios)) ** 2)
+        r2 = float(1 - np.sum((actual_ratios - predicted_ratios) ** 2) / denom) if denom > 0 else 0.0
+
+        # MAPE with epsilon for stability
+        eps = 1e-8
+        mape = float(np.mean(np.abs(errors) / (np.abs(actual_ratios) + eps)))
+
         return {
-            'MAE': mae,
-            'RMSE': rmse,
             'R²': r2,
-            'ECE': ece,
-            'AUROC': auroc,
-            'fpr': fpr,
-            'tpr': tpr
+            'MAPE': mape,
         }
     
     def _calculate_model_metrics(self) -> Dict:
@@ -427,7 +447,8 @@ class ColocationProfiler:
         actual_ratios = np.array(actual_ratios)
         predicted_ratios = np.array(predicted_ratios)
         
-        metrics = self._compute_metrics(actual_ratios, predicted_ratios)
+        metrics = self._compute_metrics(actual_ratios,
+                                        predicted_ratios)
         return metrics
     
     def _plot_speedup_heatmap(self):
@@ -514,8 +535,7 @@ class ColocationProfiler:
         
         # Calculate model metrics
         metrics = self._calculate_model_metrics()
-        # Exclude fpr/tpr from the text box
-        metrics_to_display = {k: v for k, v in metrics.items() if k not in ['fpr', 'tpr']}
+        metrics_to_display = metrics
         metrics_text = "\n".join([f"{k}: {v:.3f}" if v is not None else f"{k}: N/A" for k, v in metrics_to_display.items()])
         
         # Create heatmap
@@ -550,26 +570,4 @@ class ColocationProfiler:
         
         logger.info(f"Saved predicted speedup heatmap to {plot_file}")
         logger.info(f"Model metrics: {metrics_to_display}")
-    
-    def _plot_roc_curve(self, fpr, tpr, auroc):
-        """Plot the ROC curve."""
-        if fpr is None or tpr is None or auroc is None:
-            logger.info("Skipping ROC curve plot as AUROC could not be calculated.")
-            return
-
-        plt.figure()
-        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {auroc:.3f})')
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver Operating Characteristic (ROC) Curve')
-        plt.legend(loc="lower right")
-        
-        # Save plot
-        plot_file = os.path.join(self.profile_dir, "roc_curve.png")
-        plt.savefig(plot_file, bbox_inches='tight', dpi=300)
-        plt.close()
-        logger.info(f"Saved ROC curve plot to {plot_file}") 
         

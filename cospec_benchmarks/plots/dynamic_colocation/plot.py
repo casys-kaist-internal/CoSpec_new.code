@@ -67,9 +67,9 @@ plt.text(153, 140, 'Low (4 req/s)', fontsize=10, color='black', ha='center', fon
 
 # Add labels and legend
 plt.yscale('log')
-plt.xlabel('Time (s)', fontsize=11)
-plt.ylabel('Token Latency (ms)', fontsize=11)
-plt.legend(loc='upper center', ncol=4, fontsize=11, bbox_to_anchor=(0.5, 1.3), frameon=False)
+plt.xlabel('Time (s)', fontsize=12)
+plt.ylabel('Token Latency (ms)', fontsize=12)
+plt.legend(loc='upper center', ncol=3, fontsize=11, bbox_to_anchor=(0.5, 1.3), frameon=False)
 plt.xlim(0, 180)
 plt.ylim(10, 220)
 
@@ -94,6 +94,9 @@ plt.gca().add_patch(plt.Rectangle(
     zorder=10
 ))
 
+plt.tick_params(axis='both', which='major', labelsize=10)  # Changed from 12 to 14
+
+
 # Draw connecting lines
 plt.plot([25, 10], [11, 31], color='black', linestyle=':', linewidth=1.2)
 plt.plot([35, 32], [20, 30], color='black', linestyle=':', linewidth=1.2)
@@ -110,11 +113,13 @@ zoom_ax.set_yscale('log')
 zoom_ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 zoom_ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
 
+
 # Adjust layout
 plt.tight_layout()
 
+
 # Save the plot
-plt.savefig('token_latency_plot_with_colocation.pdf', bbox_inches='tight', format='pdf')
+plt.savefig('dynamic_colocation.pdf', bbox_inches='tight', format='pdf')
 plt.show()
 
 # Calculate speedup in the sections

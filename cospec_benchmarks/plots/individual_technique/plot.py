@@ -37,15 +37,15 @@ orange_palette = ['#FF8C00', '#FFA500', '#FFD700']  # Dark orange, Orange, Gold
 # Map configurations to colors
 config_colors = {
     'Spec 7': blue_palette[1],
-    'Dynamic Colocation': blue_palette[2],  # Medium blue
-    'Dynamic Colocation + Selective Validation': blue_palette[4],  # Dark blue
-    'Dynamic Colocation + Selective Validation + Consolidated Attention': green_palette[0],  # Forest green
+    'DC': blue_palette[2],  # Medium blue
+    'DC+TSV': blue_palette[4],  # Dark blue
+    'DC+TSV+CA': green_palette[0],  # Forest green
 }
 
 # Create figure with subplots for each CSV file
 n_files = len(CSV_FILES)
 # Adjust figure size for 2-column paper (typically 7.5 inches wide)
-fig, axes = plt.subplots(2, n_files, figsize=(8, 3.5))  # Reduced width from 7 to 6.5 inches
+fig, axes = plt.subplots(2, n_files, figsize=(7, 3.5))  # Reduced width from 7 to 6.5 inches
 
 # Adjust subplot spacing
 plt.subplots_adjust(wspace=0.15)  # Reduce horizontal space between subplots
@@ -74,19 +74,19 @@ for idx, csv_file in enumerate(CSV_FILES):
         # Define the desired order of configurations
         desired_order = [
             'Spec 7',
-            'Dynamic Colocation',
-            'Dynamic Colocation + Selective Validation',
-            'Dynamic Colocation + Selective Validation + Consolidated Attention',
+            'DC',
+            'DC+TSV',
+            'DC+TSV+CA',
             'AR'
         ]
         
         # Map old config names to new labels
         config_label_map = {
             'baseline': 'Spec 7',
-            'colocation': 'Dynamic Colocation',
-            'colocation_dynamic': 'Dynamic Colocation',
-            'colocation_dynamic_selective': 'Dynamic Colocation + Selective Validation',
-            'full_cospec': 'Dynamic Colocation + Selective Validation + Consolidated Attention'
+            'colocation': 'DC',
+            'colocation_dynamic': 'DC',
+            'colocation_dynamic_selective': 'DC+TSV',
+            'full_cospec': 'DC+TSV+CA'
         }
         
         # Create reverse mapping for finding config names
@@ -195,9 +195,9 @@ for idx, csv_file in enumerate(CSV_FILES):
         # Only show y-label for the leftmost plot
         if idx == 0:
             if row == 0:
-                ax.set_ylabel('Request Throughput\n(req/s)', fontsize=10)
+                ax.set_ylabel('Request Throughput\n(req/s)', fontsize=12, labelpad=10)
             else:
-                ax.set_ylabel('Mean Token Latency\n(s/token)', fontsize=10)
+                ax.set_ylabel('Token Latency\n(s/token)', fontsize=12, labelpad=8)
         else:
             ax.set_ylabel('')
         ax.grid(True, axis='y', linestyle='--', color='gray', alpha=0.5, linewidth=0.5, zorder=0)
@@ -210,7 +210,7 @@ for idx, csv_file in enumerate(CSV_FILES):
                 f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s, {GPU_NAMES["G.csv"]})',
                 f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s, {GPU_NAMES["H.csv"]})'
             ]
-            ax.text(0.5, -0.30, model_pairs[idx], transform=ax.transAxes, fontsize=10, fontweight='bold',
+            ax.text(0.5, -0.30, model_pairs[idx], transform=ax.transAxes, fontsize=11, fontweight='bold',
                     horizontalalignment='center')  # Center align the text
 
 # Create a single shared legend at the top
@@ -220,9 +220,9 @@ handles, labels = axes[0, 0].get_legend_handles_labels()
 desired_order = [
     'AR',
     'Spec 7',
-    'Dynamic Colocation',
-    'Dynamic Colocation + Selective Validation',
-    'Dynamic Colocation + Selective Validation + Consolidated Attention'
+    'DC',
+    'DC+TSV',
+    'DC+TSV+CA'
 ]
 
 # Create a custom line for AR in the legend
@@ -244,7 +244,7 @@ fig.legend(ordered_handles, ordered_labels, loc='upper center', bbox_to_anchor=(
           ncol=6, fontsize=12, frameon=False)
 
 # Adjust layout and save
-plt.tight_layout(pad=0.5)  # Reduced padding between subplots from 0.5 to 0.2
+plt.tight_layout(pad=0.1)  # Reduced padding between subplots from 0.5 to 0.2
 output_path = 'individual_technique.pdf'
 plt.savefig(output_path, bbox_inches='tight', format='pdf', pad_inches=0.05)  # Reduced padding around the figure from 0.1 to 0.05
 plt.close()

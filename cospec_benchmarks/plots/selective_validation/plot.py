@@ -47,10 +47,13 @@ bar_styles = [
 # Create figure with subplots for each CSV file
 n_files = len(CSV_FILES)
 # Adjust figure size for better visualization
-fig, axes = plt.subplots(1, n_files, figsize=(9, 2.5))  # Wider figure for better spacing
+fig, axes = plt.subplots(1, n_files, figsize=(9, 2.8))  # Wider figure for better spacing
 
 # Set style for better visualization
 plt.style.use('seaborn-v0_8-whitegrid')
+
+# Dictionary to store speedup values for all files
+all_speedups = {}
 
 # Process each CSV file
 for idx, csv_file in enumerate(CSV_FILES):
@@ -91,6 +94,7 @@ for idx, csv_file in enumerate(CSV_FILES):
         'Tiled 0.5'
     ]
     
+    
     # Map old config names to new labels
     config_label_map = {
         'without_selective_validation': 'Without Selective Validation',
@@ -115,6 +119,10 @@ for idx, csv_file in enumerate(CSV_FILES):
     configs = []
     max_speedup = 1.0  # Initialize with baseline value
     min_speedup = 1.0  # Initialize with baseline value
+    
+    # Store speedup values for this file
+    file_speedups = {}
+    
     for label in desired_order:
         if label == 'Without Selective Validation':
             continue
@@ -127,8 +135,12 @@ for idx, csv_file in enumerate(CSV_FILES):
                 configs.append((label, config_data))
                 if not baseline_data.empty:
                     speedup = baseline_data['mean_token_latency'].iloc[0] / config_data['mean_token_latency'].iloc[0]
+                    file_speedups[label] = speedup
                     max_speedup = max(max_speedup, speedup)
                     min_speedup = min(min_speedup, speedup)
+    
+    # Store speedups for this file
+    all_speedups[csv_file] = file_speedups
     
     # Calculate bar positions
     n_configs = len(configs)
@@ -174,7 +186,7 @@ for idx, csv_file in enumerate(CSV_FILES):
                              label='Without Selective Validation')
         
     # Set y-axis limits with some padding
-    y_padding = 0.05  # 5% padding
+    y_padding = 0.06  # 5% padding
     y_min = max(0.75, min_speedup * (1 - y_padding))  # Ensure minimum is at least 0.75
     y_max = max_speedup * (1 + y_padding)
     ax.set_ylim(y_min, y_max)
@@ -182,13 +194,13 @@ for idx, csv_file in enumerate(CSV_FILES):
     # Customize subplot
     ax.set_xlabel('')
     if idx == 0:
-        ax.set_ylabel('Mean Latency Speedup', fontsize=12)
+        ax.set_ylabel('Token Latency Speedup', fontsize=16)
     else:
         ax.set_ylabel('')
     
     # Improve grid appearance
     ax.grid(True, linestyle='--', alpha=0.3)
-    ax.tick_params(axis='both', which='major', labelsize=12)
+    ax.tick_params(axis='both', which='major', labelsize=12)  # Changed from 12 to 14
     
     # Add subplot label with improved styling
     model_pairs = [
@@ -196,20 +208,13 @@ for idx, csv_file in enumerate(CSV_FILES):
         f'(b) OPT-13B / OPT-125M\n({selected_request_rate} req/s, A100)',
         f'(c) OPT-30B / OPT-350M\n({selected_request_rate} req/s, H200)'
     ]
-    ax.text(0.5, -0.25, model_pairs[idx], transform=ax.transAxes, 
-            fontsize=12, fontweight='bold',
+    ax.text(0.5, -0.3, model_pairs[idx], transform=ax.transAxes, 
+            fontsize=16, fontweight='bold',
             horizontalalignment='center')
 
 # Create custom legend elements
 legend_elements = []
 legend_labels = []
-
-# Add baseline to legend elements first
-legend_elements.append(Line2D([0], [0], color='red', 
-                           linestyle='--', 
-                           linewidth=2,
-                           label='Without SV'))
-legend_labels.append('Without SV')
 
 # Add validation type patches with improved styling
 for vtype in validation_types:
@@ -228,20 +233,109 @@ for i, value in enumerate(threshold_values):
                               label=value))
     legend_labels.append(value)
 
+# Add baseline to legend elements first
+legend_elements.append(Line2D([0], [0], color='red', 
+                           linestyle='--', 
+                           linewidth=2,
+                           label='Without SV'))
+legend_labels.append('Without SV')
+
 # Create single legend
 fig.legend(legend_elements, 
           legend_labels,
           loc='upper center', 
-          bbox_to_anchor=(0.5, 1.15),
-          ncol=8,  # Adjust number of columns to fit all items in one row
-          fontsize=12,
+          bbox_to_anchor=(0.5, 1.3),
+          ncol=4,  # Adjust number of columns to fit all items in one row
+          fontsize=16,
           frameon=False,
           columnspacing=1.0)
 
 # Adjust layout and save with improved spacing
-plt.tight_layout(pad=0.5)
+plt.tight_layout(pad=0.2)
 output_path = 'selective_validation.pdf'
 plt.savefig(output_path, bbox_inches='tight', format='pdf', dpi=300)
 plt.close()
 
 print(f"Combined plot has been saved to '{output_path}'")
+
+# Print speedup values for the paper
+print("\n" + "="*80)
+print("SPEEDUP VALUES FOR PAPER")
+print("="*80)
+
+# Define model names for each file
+model_names = {
+    'F.csv': 'OPT-6.7B/OPT-125M (A6000)',
+    'G.csv': 'OPT-13B/OPT-125M (A100)', 
+    'H.csv': 'OPT-30B/OPT-350M (H200)'
+}
+
+# Print speedup values organized by validation type and threshold
+validation_types_for_print = ['Threshold', 'Linear', 'Polynomial', 'Tiled']
+threshold_values_for_print = ['0.1', '0.3', '0.5']
+
+print("\nSpeedup values by validation method and threshold:")
+print("-" * 60)
+
+for vtype in validation_types_for_print:
+    print(f"\n{vtype} Validation:")
+    for threshold in threshold_values_for_print:
+        config_label = f"{vtype} {threshold}"
+        print(f"  {threshold}: ", end="")
+        for csv_file in CSV_FILES:
+            if csv_file in all_speedups and config_label in all_speedups[csv_file]:
+                speedup = all_speedups[csv_file][config_label]
+                print(f"{speedup:.3f} ", end="")
+            else:
+                print("N/A ", end="")
+        print()
+
+print("\n" + "="*80)
+print("SUMMARY FOR PAPER PARAGRAPH:")
+print("="*80)
+
+# Calculate average speedups for each validation type
+print("\nAverage speedup by validation method:")
+for vtype in validation_types_for_print:
+    avg_speedups = []
+    for threshold in threshold_values_for_print:
+        config_label = f"{vtype} {threshold}"
+        for csv_file in CSV_FILES:
+            if csv_file in all_speedups and config_label in all_speedups[csv_file]:
+                avg_speedups.append(all_speedups[csv_file][config_label])
+    
+    if avg_speedups:
+        avg_speedup = sum(avg_speedups) / len(avg_speedups)
+        print(f"{vtype}: {avg_speedup:.3f}x")
+
+# Find best performing method
+best_method = None
+best_avg_speedup = 0
+for vtype in validation_types_for_print:
+    avg_speedups = []
+    for threshold in threshold_values_for_print:
+        config_label = f"{vtype} {threshold}"
+        for csv_file in CSV_FILES:
+            if csv_file in all_speedups and config_label in all_speedups[csv_file]:
+                avg_speedups.append(all_speedups[csv_file][config_label])
+    
+    if avg_speedups:
+        avg_speedup = sum(avg_speedups) / len(avg_speedups)
+        if avg_speedup > best_avg_speedup:
+            best_avg_speedup = avg_speedup
+            best_method = vtype
+
+print(f"\nBest performing method: {best_method} ({best_avg_speedup:.3f}x average speedup)")
+
+# Print specific values for Tiled method (since it's the focus)
+print(f"\nTiled validation speedups:")
+for threshold in threshold_values_for_print:
+    config_label = f"Tiled {threshold}"
+    print(f"  Threshold {threshold}: ", end="")
+    for csv_file in CSV_FILES:
+        if csv_file in all_speedups and config_label in all_speedups[csv_file]:
+            speedup = all_speedups[csv_file][config_label]
+            print(f"{speedup:.3f} ", end="")
+    print()
+
+print("="*80)

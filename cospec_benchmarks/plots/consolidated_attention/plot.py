@@ -46,11 +46,11 @@ def find_global_min_max():
 def plot_heatmaps(version):
     data = read_speedup_data(version)
     models = ['opt_6.7b', 'opt_13b', 'opt_30b']
-    display_names = ['(a) OPT-6.7B', '(b) OPT-13B', '(c) OPT-30B']
+    display_names = ['(a) OPT-6.7B (A6000)', '(b) OPT-13B (A100)', '(c) OPT-30B (H200)']
     model_configs = {
-        'opt_6.7b': '# Heads: 32, Head Size: 128\nSeq Len: 1024, GPU: A6000',
-        'opt_13b': '# Heads: 40, Head Size: 128\nSeq Len: 1024, GPU: A100',
-        'opt_30b': '# Heads: 56, Head Size: 128\nSeq Len: 1024, GPU: H200'
+        'opt_6.7b': '# Heads: 32, Head Size: 128\nSeq Len: 1024',
+        'opt_13b': '# Heads: 40, Head Size: 128\nSeq Len: 1024',
+        'opt_30b': '# Heads: 56, Head Size: 128\nSeq Len: 1024'
     }
     
     # Find global max
@@ -82,27 +82,37 @@ def plot_heatmaps(version):
                    center=center,
                    cbar=idx==0,  # Only show colorbar for first plot
                    cbar_ax=cbar_ax if idx==0 else None,
-                   cbar_kws={'label': 'Consolidated Attention Latency Speedup'},
+                   cbar_kws={'label': 'Latency Speedup'},
                    xticklabels=[1, 3, 5, 7],  # Speculative window sizes (subtracted 1)
                    yticklabels=data[model].index if idx==0 else [],  # Only show y-labels for first plot
                    annot=True,  # Show values
                    fmt='.2f',  # Format values to 2 decimal places
                    square=True,  # Make cells square
                    linewidths=0.5,  # Add borders
-                   linecolor='black')  # Border color
+                   linecolor='black',  # Border color
+                   annot_kws={'size': 12})  # Increase annotation font size
+        
+        # Move x-axis labels to top
+        axes[idx].xaxis.tick_top()
+        axes[idx].xaxis.set_label_position('top')
+        
+        # Increase tick label font sizes
+        axes[idx].tick_params(axis='both', which='major', labelsize=12)
         
         # Place the bold model name above the axis
-        axes[idx].text(0.5, 1.18, display_name, fontsize=10, fontweight='bold', ha='center', va='bottom', transform=axes[idx].transAxes)
+        axes[idx].text(0.5, -0.34, display_name, fontsize=14, fontweight='bold', ha='center', va='bottom', transform=axes[idx].transAxes)
         # Set the config as the normal title
-        axes[idx].set_title(model_configs[model], fontsize=10, fontweight='normal')
-        axes[idx].set_xlabel('Speculative Window Size', fontsize=12)
+        axes[idx].text(0.5, -0.2, model_configs[model], fontsize=12, fontweight='normal', ha='center', va='bottom', transform=axes[idx].transAxes)
+        axes[idx].set_xlabel('Speculation Size', fontsize=14)
         if idx == 0:  # Only show y-label for first plot
-            axes[idx].set_ylabel('Batch Size', fontsize=12)
+            axes[idx].set_ylabel('Batch Size', fontsize=14)
+            # Set colorbar label font size
+            cbar_ax.yaxis.label.set_size(14)
         else:
             axes[idx].set_ylabel('')
     
     # plt.tight_layout()
-    plt.savefig(f'speedup_heatmaps_v{version}.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'speedup_heatmaps_v{version}.pdf', format='pdf', dpi=300, bbox_inches='tight')
     plt.close()
 
 def main():

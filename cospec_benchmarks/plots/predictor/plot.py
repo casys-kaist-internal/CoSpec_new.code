@@ -39,22 +39,22 @@ def plot_calibration_curve(ax, calib_data, metrics_data=None):
     ax.plot([0, 1], [0, 1], '--', color='red', linewidth=2, 
             label='Perfect Calibration')
     
-    ax.set_xlabel('Predicted Probability', fontsize=12)
-    ax.set_ylabel('Actual Probability', fontsize=12)
-    ax.set_title('Calibration Curve', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Predicted Probability', fontsize=16)
+    ax.set_ylabel('Actual Probability', fontsize=16)
+    ax.set_title('Calibration Curve', fontsize=16, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.set_xlim([0, 1])
     ax.set_ylim([0, 1])
     
     # Add text label for perfect calibration line
-    ax.text(0.2, 0.28, 'Perfect Calibration (ECE=0)', rotation=40, fontsize=12, 
+    ax.text(0.08, 0.18, 'Perfect Calibration (ECE=0)', rotation=28, fontsize=14, 
             color='red', fontweight='bold')
     
     # Add ECE value if available
     if metrics_data is not None and 'ECE' in metrics_data['metric'].values:
         ece_value = metrics_data[metrics_data['metric'] == 'ECE']['value'].iloc[0]
-        ax.text(0.62, 0.1, f'ECE={ece_value:.4f}', 
-                transform=ax.transAxes, fontsize=12, fontweight='bold', color='#1f77b4',
+        ax.text(0.58, 0.1, f'ECE={ece_value:.4f}', 
+                transform=ax.transAxes, fontsize=14, fontweight='bold', color='#1f77b4',
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.9))
 
 def plot_roc_curve(ax, roc_data, metrics_data=None):
@@ -67,28 +67,28 @@ def plot_roc_curve(ax, roc_data, metrics_data=None):
     ax.plot([0, 1], [0, 1], '--', color='red', linewidth=2, 
             label='Random Classifier')
     
-    ax.set_xlabel('False Positive Rate', fontsize=12)
-    ax.set_ylabel('True Positive Rate', fontsize=12)
-    ax.set_title('ROC Curve', fontsize=14, fontweight='bold')
+    ax.set_xlabel('False Positive Rate', fontsize=16)
+    ax.set_ylabel('True Positive Rate', fontsize=16)
+    ax.set_title('ROC Curve', fontsize=16, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.set_xlim([0, 1])
     ax.set_ylim([0, 1])
     
     # Add text label for random classifier line
-    ax.text(0.15, 0.22, 'Random Classifier (AUROC=0.5)', rotation=40, fontsize=12, 
+    ax.text(0.01, 0.1, 'Random Classifier (AUROC=0.5)', rotation=28, fontsize=14, 
             color='red', fontweight='bold')
     
     # Add AUROC value if available
     if metrics_data is not None and 'AUROC' in metrics_data['metric'].values:
         auroc_value = metrics_data[metrics_data['metric'] == 'AUROC']['value'].iloc[0]
-        ax.text(0.55, 0.1, f'AUROC={auroc_value:.4f}', color='#1f77b4',
-                transform=ax.transAxes, fontsize=12, fontweight='bold',
+        ax.text(0.48, 0.1, f'AUROC={auroc_value:.4f}', color='#1f77b4',
+                transform=ax.transAxes, fontsize=14, fontweight='bold',
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="white", alpha=0.9))
 
 def create_plots(data):
     """Create subplots for calibration and ROC curves."""
     # Set up the figure with subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
     
     # Plot calibration curve
     if 'calibration' in data:

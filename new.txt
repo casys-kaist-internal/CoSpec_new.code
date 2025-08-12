@@ -1,0 +1,122 @@
+Have a non-directory at the top, so creating directory top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_C.abi3.so to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/__init__.py to top_dir
+Creating filelist for __pycache__
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_custom_ops.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_flashmla_C.abi3.so to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_ipex_ops.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_moe_C.abi3.so to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/_version.py to top_dir
+Creating filelist for adapter_commons
+Creating filelist for assets
+Creating filelist for attention
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/beam_search.py to top_dir
+Creating filelist for benchmarks
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/collect_env.py to top_dir
+Creating filelist for compilation
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/config.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/connections.py to top_dir
+Creating filelist for core
+Creating filelist for cospec
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/cumem_allocator.abi3.so to top_dir
+Creating filelist for device_allocator
+Creating filelist for distributed
+Creating filelist for engine
+Creating filelist for entrypoints
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/env_override.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/envs.py to top_dir
+Creating filelist for executor
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/forward_context.py to top_dir
+Creating filelist for inputs
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/jsontree.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/logger.py to top_dir
+Creating filelist for logging_utils
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/logits_process.py to top_dir
+Creating filelist for lora
+Creating filelist for model_executor
+Creating filelist for multimodal
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/outputs.py to top_dir
+Creating filelist for platforms
+Creating filelist for plugins
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/pooling_params.py to top_dir
+Creating filelist for profiler
+Creating filelist for prompt_adapter
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/py.typed to top_dir
+Creating filelist for reasoning
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/sampling_params.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/scalar_type.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/scripts.py to top_dir
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/sequence.py to top_dir
+Creating filelist for spec_decode
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/test_utils.py to top_dir
+Creating filelist for third_party
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/tracing.py to top_dir
+Creating filelist for transformers_utils
+Creating filelist for triton_utils
+Creating filelist for usage
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/utils.py to top_dir
+Creating filelist for v1
+Adding /home/sjchoi/sdb/CoSpec_new.code/vllm/version.py to top_dir
+Creating filelist for vllm_flash_attn
+Creating filelist for worker
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+81834   model_executor  python=81834
+14162   v1              python=14162
+11639   attention       python=11639
+11194   entrypoints     python=11194
+9455    worker          python=9455
+8890    top_dir         python=8890
+6119    engine          python=6119
+4892    third_party     python=4892
+4177    distributed     python=4177
+4111    lora            python=4111
+4102    transformers_utils python=4102
+3405    core            python=3405
+3108    multimodal      python=3108
+2823    spec_decode     python=2823
+2086    benchmarks      python=2086
+1664    compilation     python=1664
+1528    platforms       python=1528
+1460    executor        python=1460
+1167    cospec          python=1167
+1126    inputs          python=1126
+557     prompt_adapter  python=557
+413     vllm_flash_attn python=413
+408     profiler        python=408
+381     reasoning       python=381
+185     adapter_commons python=185
+173     usage           python=173
+148     device_allocator python=148
+142     assets          python=142
+52      plugins         python=52
+38      triton_utils    python=38
+14      logging_utils   python=14
+0       __pycache__     (none)
+
+
+Totals grouped by language (dominant language first):
+python:      181453 (100.00%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 181,453
+Development Effort Estimate, Person-Years (Person-Months) = 47.07 (564.82)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 2.31 (27.78)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 20.34
+Total Estimated Cost to Develop                           = $ 6,358,343
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."
