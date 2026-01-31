@@ -345,8 +345,7 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             self.model_runner.prepare_model_input(
                 execute_model_req.seq_group_metadata_list,
                 execute_model_req.virtual_engine,
-                execute_model_req.finished_requests_ids,
-                execute_model_req.consolidated_lens_tensor))
+                execute_model_req.finished_requests_ids))
 
         kwargs = extract_previous_hidden_states(execute_model_req)
 

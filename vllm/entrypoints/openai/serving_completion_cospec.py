@@ -10,7 +10,6 @@ from tqdm import tqdm
 import jinja2
 from fastapi import Request
 import os
-import pandas as pd
 import random
 import math
 
@@ -687,7 +686,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     async def profile_colocation(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_colocation_profile()
         if loaded_cached_profile:
-            time.sleep(10)
+            await asyncio.sleep(10)
             loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
             assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
             logger.info("Loaded cached profile. Skipping profiling.")
@@ -725,7 +724,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-        time.sleep(10)
+        await asyncio.sleep(10)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
         assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
 
@@ -811,7 +810,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_max_num_seqs(max_num_seqs)
         await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
 
-        time.sleep(10)
+        await asyncio.sleep(10)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
         assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
 
@@ -879,8 +878,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         current_batch_size = self.engine_client.get_num_requests() + self.engine_client2.get_num_requests()
         self._update_batch_size_ema(current_batch_size)
         batch_size = self.batch_size_ema
-
-        ratio = await self.engine_client.predict_colocation_speedup_ratio(batch_size)
 
         if self.selected_engine_idx == 0:
             ratio = await self.engine_client.predict_colocation_speedup_ratio(batch_size)

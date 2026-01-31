@@ -1459,9 +1459,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error("Shared memory cleanup failed: %s", str(e))
 
-    # Set attention backend to XFORMERS
-    os.environ["VLLM_ATTENTION_BACKEND"] = "XFORMERS"
-
     if envs.COSPEC:
         uvloop.run(run_server_cospec(args))
     else:

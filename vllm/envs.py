@@ -117,7 +117,6 @@ if TYPE_CHECKING:
     COSPEC_SELECTIVE_VALIDATION: bool = False
     COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile" # tile, linear, threshold, random
     COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.5
-    COSPEC_CONSOLIDATED_ATTENTION: bool = False
     COSPEC_CORRECTNESS_TEST: bool = False
 
 def get_default_cache_root():
@@ -750,9 +749,6 @@ environment_variables: dict[str, Callable[[], Any]] = {
 
     "COSPEC_SELECTIVE_VALIDATION_METHOD":
     lambda: str(os.getenv("COSPEC_SELECTIVE_VALIDATION_METHOD", "tile")),
-
-    "COSPEC_CONSOLIDATED_ATTENTION":
-    lambda: bool(int(os.getenv("COSPEC_CONSOLIDATED_ATTENTION", "0"))),
 
     "COSPEC_CORRECTNESS_TEST":
     lambda: bool(int(os.getenv("COSPEC_CORRECTNESS_TEST", "0"))),

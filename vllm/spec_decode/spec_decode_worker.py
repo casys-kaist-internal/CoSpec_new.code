@@ -349,8 +349,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             assert envs.COSPEC, "COSPEC is not enabled but COSPEC_DYNAMIC_COLOCATION is set"
         if envs.COSPEC_SELECTIVE_VALIDATION:
             assert envs.COSPEC, "COSPEC is not enabled but COSPEC_SELECTIVE_VALIDATION is set"
-        if envs.COSPEC_CONSOLIDATED_ATTENTION:
-            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_CONSOLIDATED_ATTENTION is set"
 
         self.cospec_manager = None
         if envs.COSPEC:
@@ -843,6 +841,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                                "workers generate no tokens")
         
         if envs.COSPEC_SELECTIVE_VALIDATION:
+            # Save original data before selective validation modifies proposals in-place
+            original_proposal_token_ids = proposals.proposal_token_ids.clone()
+            original_proposal_probs = proposals.proposal_probs.clone()
+            original_proposal_lens = proposals.proposal_lens.clone()
             proposals = self.cospec_manager.selective_validation(proposals, total_non_proposal_tokens)
         
         max_proposal_len = max(proposals.proposal_lens)
@@ -875,12 +877,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # Sync proposer KV cache for prefills.
             prefill_req = execute_model_req.clone(non_spec_seqs)
             # TODO avoid sampling here?
-            # we should remove consolidated_lens_tensor in draft run 
-            if envs.COSPEC_CONSOLIDATED_ATTENTION:
-                prefill_req.consolidated_lens_tensor = None
             self.proposer_worker.execute_model(prefill_req, is_target=False)
 
         if envs.COSPEC_SELECTIVE_VALIDATION and not envs.COSPEC_CORRECTNESS_TEST:
+            # Restore original proposals for accurate history training
+            proposals.proposal_token_ids = original_proposal_token_ids
+            proposals.proposal_probs = original_proposal_probs
+            proposals.proposal_lens = original_proposal_lens
             self.cospec_manager.update_proposal_history(proposals, proposal_scores)
 
         with Timer() as verification_timer:

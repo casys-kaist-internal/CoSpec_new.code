@@ -15,7 +15,7 @@ numeric_cols = [
 ]
 data[numeric_cols] = data[numeric_cols].apply(pd.to_numeric)
 
-boolean_cols = ['colocate', 'consolidated_attention', 'preempt_flag']
+boolean_cols = ['colocate', 'preempt_flag']
 data[boolean_cols] = data[boolean_cols].astype(bool)
 
 # Filter data for request rate 12

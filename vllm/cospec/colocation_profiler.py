@@ -1,11 +1,8 @@
 import os
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from typing import Dict, Optional, Tuple, List, Set
 from vllm.logger import init_logger
-from sklearn.model_selection import train_test_split
 import time
 import torch
 from vllm.spec_decode.util import nvtx_range
@@ -330,6 +327,7 @@ class ColocationProfiler:
     
     def _train_regression_models(self) -> None:
         """Train regression models using train/test split based on configurations."""
+        from sklearn.model_selection import train_test_split
         if not self.profile_results:
             logger.warning("No profile results to train models")
             return
@@ -453,6 +451,8 @@ class ColocationProfiler:
     
     def _plot_speedup_heatmap(self):
         """Plot heatmap of speedup ratio between colocation and non-colocation modes"""
+        import matplotlib.pyplot as plt
+        import seaborn as sns
         if not self.profile_results:
             logger.warning("No profile results to plot")
             return
@@ -517,6 +517,8 @@ class ColocationProfiler:
     
     def _plot_regression_heatmap(self):
         """Plot heatmap of predicted speedup ratio using regression models"""
+        import matplotlib.pyplot as plt
+        import seaborn as sns
         if self.colocation_model is None or self.non_colocation_model is None:
             logger.warning("Regression models not trained")
             return

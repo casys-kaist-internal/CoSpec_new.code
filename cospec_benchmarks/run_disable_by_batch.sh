@@ -61,7 +61,7 @@ PORT=8101
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
-    ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0; export COSPEC_CONSOLIDATED_ATTENTION=0"
+    ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0"
 )
 
 # Set nvidia-smi EXCLUSIVE_PROCESS 

@@ -9,9 +9,6 @@ from vllm.logger import init_logger
 from vllm.sequence import VLLM_INVALID_TOKEN_ID
 from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
 from vllm.spec_decode.util import nvtx_range
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score, roc_curve
-import pandas as pd
 import os
 from datetime import datetime
 
@@ -152,7 +149,7 @@ class SelectiveValidator:
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
         
-        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+        return (flat_mask.reshape(batch_size, max_proposal_len) & length_mask) | is_negative_one
 
     def _generate_threshold_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Generate mask for threshold-based selective validation."""
@@ -166,6 +163,7 @@ class SelectiveValidator:
         threshold_mask = cumulative_acceptance_probs >= self.selective_validation_threshold
         
         return (threshold_mask & length_mask) | is_negative_one
+
     
     def _generate_linear_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
@@ -209,7 +207,7 @@ class SelectiveValidator:
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
         
-        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+        return (flat_mask.reshape(batch_size, max_proposal_len) & length_mask) | is_negative_one
         
     def _generate_polynomial_mask(self, proposals: SpeculativeProposals, total_non_proposal_tokens: int) -> torch.Tensor:
         # Get predicted acceptance probabilities for all proposals
@@ -253,7 +251,7 @@ class SelectiveValidator:
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
         
-        return flat_mask.reshape(batch_size, max_proposal_len) & length_mask | is_negative_one
+        return (flat_mask.reshape(batch_size, max_proposal_len) & length_mask) | is_negative_one
         
     def _generate_random_mask(self, proposals: SpeculativeProposals) -> torch.Tensor:
         """Perform random drop for testing purpose"""
@@ -373,7 +371,7 @@ class SelectiveValidator:
 
         # Calculate acceptance probability as min(target_prob/draft_prob, 1)
         acceptance_probability = torch.minimum(
-            selected_target_probs / selected_draft_probs,
+            selected_target_probs / (selected_draft_probs + 1e-8),
             torch.full((1, ), 1, device=target_probs.device))
 
         return acceptance_probability
@@ -404,9 +402,10 @@ class SelectiveValidator:
         unscaled_temp_probs_np = unscaled_temp_probs_np.flatten()
         acceptance_probs_np = acceptance_probs_np.flatten()
 
-        # Filter out -1 values
+        # Filter out -1 values (from chunked prefill padding)
         valid_mask = unscaled_temp_probs_np != -1
         unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+        acceptance_probs_np = acceptance_probs_np[valid_mask]
 
         assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
 
@@ -439,7 +438,7 @@ class SelectiveValidator:
         self.is_model_trained = True
 
         logger.info(
-            f"Trained polynomial regression model (degree 2). "
+            f"Trained linear regression model. "
             f"Model coefficients: {self.regression_model.coef_}, "
             f"intercept: {self.regression_model.intercept_:.4f}, "
         )
@@ -488,11 +487,11 @@ class SelectiveValidator:
         unscaled_temp_probs_np = unscaled_temp_probs_np.flatten()
         acceptance_probs_np = acceptance_probs_np.flatten()
 
-        # Filter out -1 values
+        # Filter out -1 values (from chunked prefill padding)
         valid_mask = unscaled_temp_probs_np != -1
         unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+        acceptance_probs_np = acceptance_probs_np[valid_mask]
 
-        # Ensure both arrays have the same length
         assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
 
         # Assert there is no nan in the data
@@ -512,10 +511,13 @@ class SelectiveValidator:
 
     def evaluate_validation_data(self, save_path: str = 'validation_evaluation.png'):
         """Evaluate model performance on collected validation data.
-        
+
         Args:
             save_path: Path to save the evaluation plots
         """
+        import matplotlib.pyplot as plt
+        from sklearn.metrics import roc_auc_score, roc_curve
+        import pandas as pd
         # Convert validation data to numpy arrays
         X_val = np.array(self.validation_X, dtype=np.float32).reshape(-1, 1)
         y_val = np.array(self.validation_y, dtype=np.float32)

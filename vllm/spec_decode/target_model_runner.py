@@ -32,11 +32,10 @@ class TargetModelRunner(ModelRunnerWrapperBase):
         seq_group_metadata_list: List[SequenceGroupMetadata],
         virtual_engine: int = 0,
         finished_requests_ids: Optional[List[str]] = None,
-        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> ModelRunnerInputBase:
         model_input: ModelRunnerInputBase =\
             self.model_runner.prepare_model_input(
-            seq_group_metadata_list, virtual_engine, finished_requests_ids, consolidated_lens_tensor)
+            seq_group_metadata_list, virtual_engine, finished_requests_ids)
         # If token log probabilities is disabled then skip generating sampler
         # CPU output. We directly serialize the GPU sampled_token_id tensors
         # as needed. If log probabilities is enabled then synchronize all the

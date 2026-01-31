@@ -2,7 +2,6 @@ import torch
 import os
 import fcntl
 import time
-import matplotlib.pyplot as plt
 import numpy as np
 
 from vllm.logger import init_logger

@@ -181,12 +181,6 @@ def run_equality_correctness_test(
         logprobs: Optional[int] = None,
         prompt_logprobs: Optional[int] = None,
         disable_logprobs: bool = False):
-    """General function to run equality correctness tests with environment variable configuration.
-    
-    Args:
-        env_vars: Dictionary of environment variables to set for the test. 
-                 Key is the environment variable name, value is the value to set.
-    """
     org_args = {
         **common_llm_kwargs,
         **per_test_common_llm_kwargs,
