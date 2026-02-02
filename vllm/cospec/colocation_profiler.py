@@ -1,11 +1,10 @@
 import os
-import csv
 import numpy as np
 from typing import Dict, Optional, Tuple, List, Set
 from vllm.logger import init_logger
 import time
 import torch
-from vllm.spec_decode.util import nvtx_range
+from vllm.cospec.utils import remove_outliers
 
 logger = init_logger(__name__)
 
@@ -244,7 +243,7 @@ class ColocationProfiler:
                     return
                     
                 for (batch_size, num_spec_tokens, colocation_mode), step_times in self.profile_results.items():
-                    mean_time = self._remove_outliers(step_times)
+                    mean_time = remove_outliers(step_times)
                     f.write(f"{batch_size},{num_spec_tokens},{colocation_mode},{mean_time:.6f}\n")
             
             # Train regression models
@@ -260,26 +259,6 @@ class ColocationProfiler:
         except Exception as e:
             logger.error(f"Failed to write colocation profile results: {str(e)}")
     
-    def _remove_outliers(self, data: List[float]) -> float:
-        """Remove outliers using IQR method and return mean of remaining values."""
-        if not data:
-            return 0.0
-            
-        data = np.array(data)
-        Q1 = np.percentile(data, 25)
-        Q3 = np.percentile(data, 75)
-        IQR = Q3 - Q1
-        
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-        
-        filtered_data = data[(data >= lower_bound) & (data <= upper_bound)]
-        
-        if len(filtered_data) == 0:
-            return np.mean(data)
-            
-        return np.mean(filtered_data)
-    
     def _get_unique_configurations(self) -> List[Tuple[int, int]]:
         """Get list of unique (batch_size, num_spec_tokens) configurations."""
         return sorted(list(set((bs, ns) for bs, ns, _ in self.profile_results.keys())))
@@ -292,7 +271,7 @@ class ColocationProfiler:
             if key not in results_dict:
                 results_dict[key] = {'colocation': [], 'non_colocation': []}
             
-            mean_time = self._remove_outliers(step_times)
+            mean_time = remove_outliers(step_times)
             if colocation_mode:
                 results_dict[key]['colocation'].append(mean_time)
             else:
@@ -312,7 +291,7 @@ class ColocationProfiler:
             if config_key not in train_keys or not step_times:
                 continue
                 
-            mean_time = self._remove_outliers(step_times)
+            mean_time = remove_outliers(step_times)
             features = [batch_size, num_spec_tokens]
             
             if colocation_mode:
@@ -382,8 +361,6 @@ class ColocationProfiler:
         # Calculate ratio (non-colocation / colocation)
         ratio = non_colocation_time / colocation_time
 
-        # logger.info("[Dynamic Colocation] batch_size: {}, num_spec_tokens: {}, ratio: {}".format(batch_size, num_spec_tokens, ratio))
-        
         return ratio
     
     def _compute_metrics(self,
@@ -464,7 +441,7 @@ class ColocationProfiler:
             if key not in results_dict:
                 results_dict[key] = {'colocation': [], 'non_colocation': []}
             
-            step_times = self._remove_outliers(step_times)
+            step_times = remove_outliers(step_times)
 
             if colocation_mode:
                 results_dict[key]['colocation'].append(np.mean(step_times))

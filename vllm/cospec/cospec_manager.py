@@ -1,8 +1,6 @@
 import torch
 import os
 import fcntl
-import time
-import numpy as np
 
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
@@ -56,10 +54,8 @@ class CospecManager:
     
     def predict_colocation_speedup_ratio(self, batch_size: int) -> float:        
         if self.is_driver:
-            # torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
-            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size, 
-                                                                            self.get_num_speculative_tokens_ema()) 
-            # torch.cuda.nvtx.range_pop()
+            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size,
+                                                                            self.get_num_speculative_tokens_ema())
             return speedup_ratio
         return 1 
     
@@ -101,7 +97,6 @@ class CospecManager:
         if self.is_driver:            
             self.shm.delete("target_lock_acquired")
             torch.cuda.nvtx.range_pop()
-            # print("target_num_tokens, ", num_tokens)
             self.profiler.stop_target_marker(num_tokens)
             # Signal the other engine to early exit draft model execution
             # And reset the flag for the current engine 
@@ -157,13 +152,8 @@ class CospecManager:
         if self.profiler.is_profiling():
             return proposals
 
-        if self.is_driver:        
-            # torch.cuda.nvtx.range_push("selective_validation")
-            # start_time = time.perf_counter()
+        if self.is_driver:
             filtered_proposals = self.selective_validator.selective_validation(proposals, total_non_proposal_tokens)
-            # end_time = time.perf_counter()
-            # print(f"selective_validation time in ms {((end_time - start_time) * 1000):.2f}")
-            # torch.cuda.nvtx.range_pop()
             return filtered_proposals
         else:
             return proposals
@@ -179,10 +169,7 @@ class CospecManager:
             return
 
         if self.is_driver:
-            # if not self.is_selective_validator_trained():
-            # torch.cuda.nvtx.range_push("update_proposal_history")
             self.selective_validator.update_proposal_history(proposals, proposal_scores)
-            # torch.cuda.nvtx.range_pop()
 
     def get_num_speculative_tokens_ema(self) -> int:
         return self.selective_validator.get_mean_selective_validation_tokens_ema()

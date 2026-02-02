@@ -2,13 +2,11 @@ import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, List
 from vllm.logger import init_logger
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
-from vllm.spec_decode.util import nvtx_range
-import torch
+from vllm.cospec.utils import remove_outliers
 
 logger = init_logger(__name__)
 
@@ -44,7 +42,7 @@ class TilingProfiler:
         if not os.path.exists(self.profile_file):
             return False
         
-        print("Loading cached profiling results from ", self.profile_file)
+        logger.info(f"Loading cached profiling results from {self.profile_file}")
         try:
             with open(self.profile_file, "r") as f:
                 # Skip header
@@ -81,7 +79,6 @@ class TilingProfiler:
         target_duration = target_end_time - self.target_start_time
         # Reset target timing state
         self.target_start_time = None
-        # print("num_tokens", num_tokens, "target_duration", target_duration)
 
         if num_tokens not in self.input_tokens_capture_list:
             return
@@ -153,7 +150,7 @@ class TilingProfiler:
 
             # after remove outlier just save the mean latency
             for num_tokens, latencies in self.target_model_latencies.items():
-                mean_latency = self._remove_outliers(latencies)
+                mean_latency = remove_outliers(latencies)
                 self.target_model_latencies_mean[num_tokens] = mean_latency
 
             # Train linear regression model
@@ -199,26 +196,6 @@ class TilingProfiler:
         # precompute the polynomial latencies
         self.precomputed_latencies_polynomial = [self._predict_latency_polynomial(t) for t in range(1, self.max_precomputed_tokens + 1)]
 
-    def _remove_outliers(self, data: List[float]) -> float:
-        """Remove outliers using IQR method and return mean of remaining values."""
-        if not data:
-            return 0.0
-            
-        data = np.array(data)
-        Q1 = np.percentile(data, 25)
-        Q3 = np.percentile(data, 75)
-        IQR = Q3 - Q1
-        
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-        
-        filtered_data = data[(data >= lower_bound) & (data <= upper_bound)]
-        
-        if len(filtered_data) == 0:
-            return np.mean(data)
-            
-        return np.mean(filtered_data)
-    
     def _plot_tiling_effect(self):
         """Plot visualization of tiling effect on target model latency"""
         if not self.target_model_latencies_mean:

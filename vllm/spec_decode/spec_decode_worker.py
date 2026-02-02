@@ -827,13 +827,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         # Colocate this phase with the proposer worker
         with Timer() as proposal_timer:
-            # Generate proposals using draft worker.
-            # torch.cuda.nvtx.range_push("get_spec_proposals")
             proposals = self.proposer_worker.get_spec_proposals(
                 execute_model_req, self._seq_with_bonus_token_in_last_step,
                 is_target=False
             )
-            # torch.cuda.nvtx.range_pop()
 
         if not self._allow_zero_draft_token_step and proposals.no_proposals:
             #TODO: Fix it #5814
@@ -852,12 +849,10 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         # Colocate this phase with the scorer worker
         with Timer() as scoring_timer:
-            # torch.cuda.nvtx.range_push("score_proposals")
             proposal_scores = self.scorer.score_proposals(
                 execute_model_req,
                 proposals,
             )
-            # torch.cuda.nvtx.range_pop()
 
         _, (non_spec_seqs, non_spec_indices) = split_batch_by_proposal_len(
             execute_model_req.seq_group_metadata_list, proposals.proposal_lens)
@@ -887,11 +882,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             self.cospec_manager.update_proposal_history(proposals, proposal_scores)
 
         with Timer() as verification_timer:
-            # torch.cuda.nvtx.range_push("verify_tokens")
             accepted_token_ids, target_logprobs = self._verify_tokens(
                 execute_model_req.seq_group_metadata_list, proposal_scores,
                 proposals, max_proposal_len)
-            # torch.cuda.nvtx.range_pop()
         
         stage_times = (proposal_timer.elapsed_time_ms / num_lookahead_slots,
                        scoring_timer.elapsed_time_ms,
@@ -925,11 +918,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         Returns a tuple of Tensors, one for the accepted token ids and one for
         the logprobs according to the scoring model.
         """
-
-        # print("______________________________________________")
-        # print("proposal_token_ids", proposals.proposal_token_ids)
-        # print("proposal_lens", proposals.proposal_lens)
-        # print("proposal_scores.token_ids", proposal_scores.token_ids)
 
         proposal_lens_list = proposals.proposal_lens.tolist()
         # vLLM currently only supports proposal lens equal to zero or the batch
@@ -974,11 +962,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             **sampler_extra_kwargs,
         )
 
-        # total_proposal_tokens = proposal_lens.sum()
-        # # sum of accepted_tokens with element not -1 
-        # num_accepted_tokens = (accepted_token_ids[:, :-1] != -1).sum()
-        # print("accept probability ", num_accepted_tokens / total_proposal_tokens)
-        
         # Append output tokens from non-speculative sequences to
         # the accepted token ids tensor.
         non_spec_token_ids = non_spec_token_ids.expand(-1, max_proposal_len +
@@ -1326,23 +1309,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             for seq_id in self._request_id_seq_id_mapping[finished_request]:
                 self._seq_with_bonus_token_in_last_step.discard(seq_id)
             del self._request_id_seq_id_mapping[finished_request]
-
-    def _track_sequences_with_bonus_tokens(
-            self, seq_ids: List[int],
-            request_ids_seq_ids_mapping: Dict[str, Set[int]],
-            accepted_token_ids_by_step: List[List[int]]):
-        """
-        Updates the internal data structures which keep track of sequences
-        which have been assigned bonus tokens in their last forward pass.
-        """
-        for seq_index, seq_id in enumerate(seq_ids):
-            last_token_id = accepted_token_ids_by_step[-1][seq_index]
-            if last_token_id == -1:
-                self._seq_with_bonus_token_in_last_step.discard(seq_id)
-            else:
-                self._seq_with_bonus_token_in_last_step.add(seq_id)
-        for request_id, sequences in request_ids_seq_ids_mapping.items():
-            self._request_id_seq_id_mapping[request_id].update(sequences)
 
     def _track_sequences_with_bonus_tokens_per_sequence(
             self, seq_ids: List[int],

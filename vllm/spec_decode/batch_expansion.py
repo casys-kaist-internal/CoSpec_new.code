@@ -5,7 +5,6 @@ from itertools import chain, count
 from typing import Iterator, List, Optional, Tuple
 
 import torch
-from vllm.config import envs
 from vllm import SamplingParams
 
 from vllm.model_executor.layers.sampler import SamplerOutput
@@ -65,13 +64,6 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         proposal_lens_list = proposals.proposal_lens.tolist()
         proposal_token_ids_list = proposals.proposal_token_ids.tolist()
 
-        # COSPEC: We remove chunked prefills inside expand_batch
-        # Filter the list to ignore invalid proposals.
-        # proposal_token_ids_list_without_skips = [
-        #     proposals for proposals in proposal_token_ids_list
-        #     if VLLM_INVALID_TOKEN_ID not in proposals
-        # ] 
-
         (spec_indices, non_spec_indices, target_seq_group_metadata_list,
          num_scoring_tokens) = self._expand_batch(
              seq_group_metadata_list=execute_model_req.seq_group_metadata_list,
@@ -79,13 +71,11 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
              proposal_lens_list=proposal_lens_list,
          )
 
-        # torch.cuda.nvtx.range_push("execute_model")
         target_sampler_output = self._scorer_worker.execute_model(
             execute_model_req=execute_model_req.clone(
                 seq_group_metadata_list=target_seq_group_metadata_list),
                 is_target=True
             )
-        # torch.cuda.nvtx.range_pop()
         assert len(target_sampler_output) == 1, "expected single-step output"
         target_sampler_output = target_sampler_output[0]
     
@@ -230,17 +220,11 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         assert len(pad_len_list) == spec_expanded_bs, "invalid spec_expanded_bs"
 
         target_token_ids = reshape_and_pad(target_token_ids, pad_len_list)
-        # target_token_ids = target_token_ids.reshape(spec_expanded_bs, k + 1)
         target_probs = reshape_and_pad(target_probs, pad_len_list)
-        # target_probs = target_probs.reshape(*target_token_ids.shape,
-        #                                     self._vocab_size)
         target_logprobs = reshape_and_pad(target_logprobs, pad_len_list)
-        # target_logprobs = target_logprobs.reshape(target_probs.shape)
 
         if target_hidden_states is not None:
             target_hidden_states = reshape_and_pad(target_hidden_states, pad_len_list)
-            # target_hidden_states = target_hidden_states.reshape(
-            #     *target_token_ids.shape, target_hidden_states.shape[-1])
 
         all_tokens = target_token_ids.new_full(size=(contracted_bs, k + 1),
                                                fill_value=-1)
@@ -324,18 +308,6 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         target_hidden_states = target_sampler_output.hidden_states
         if target_hidden_states is not None:
             target_hidden_states = reshape_and_pad(target_hidden_states, pad_len_list)
-
-        # Reshape tensors to original batch size
-        # target_token_ids = target_sampler_output.sampled_token_ids.reshape(
-        #     contracted_bs, k + 1)
-        # target_probs = target_sampler_output.sampled_token_probs.reshape(
-        #     *target_token_ids.shape, self._vocab_size)
-        # target_logprobs = target_sampler_output.logprobs.reshape(
-        #     target_probs.shape)
-        # target_hidden_states = target_sampler_output.hidden_states
-        # if target_hidden_states is not None:
-        #     target_hidden_states = target_hidden_states.reshape(
-        #         *target_token_ids.shape, target_hidden_states.shape[-1])
 
         return SpeculativeScores(probs=target_probs,
                                  token_ids=target_token_ids,

@@ -1,18 +1,9 @@
 import torch
-import time
 import os
-import csv
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, Optional, Tuple, List, Set
+from typing import List
 from vllm.logger import init_logger
 from vllm.config import VllmConfig
 
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.metrics import roc_curve, auc
-from sklearn.model_selection import train_test_split
 from .colocation_profiler import ColocationProfiler
 from .tiling_profiler import TilingProfiler
 
