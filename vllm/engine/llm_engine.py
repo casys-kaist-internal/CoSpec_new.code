@@ -428,7 +428,7 @@ class LLMEngine:
         and the swap CPU cache.
         """
         start = time.time()
-        if envs.COSPEC:
+        if envs.COSPEC and self.speculative_config.is_primary is not None:
             logger.info("Using CoSpec for KV cache allocation")
             if self.speculative_config.is_primary:
                 logger.info("Primary process, determining num of blocks")
@@ -456,7 +456,7 @@ class LLMEngine:
         self.cache_config.num_gpu_blocks = num_gpu_blocks
         self.cache_config.num_cpu_blocks = num_cpu_blocks
 
-        if envs.COSPEC:
+        if envs.COSPEC and self.speculative_config.is_primary is not None:
             logger.info("Lazy initialize KV cache for CoSpec")
         else:
             self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
