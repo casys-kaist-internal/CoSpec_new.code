@@ -16,15 +16,16 @@ apt-get update
 apt-get install -y python3 python3-pip git python-is-python3
 pip3 install --upgrade pip
 
-# Install precompiled vllm wheel (includes compiled C++/CUDA extensions)
+# Install precompiled vllm wheel (includes compiled C++/CUDA extensions + deps)
 pip3 install vllm==0.8.5
 
-# Re-install in editable mode on top, reusing precompiled extensions
+# Re-install in editable mode, reusing precompiled extensions.
+# --no-deps prevents pip from pulling a different torch build (CPU vs CUDA).
 cd /workspace/vllm
-VLLM_USE_PRECOMPILED=1 pip3 install -e .
+VLLM_USE_PRECOMPILED=1 pip3 install -e . --no-deps
 
-# Extra dependency for CoSpec shared memory
-pip3 install UltraDict
+# Extra dependencies
+pip3 install UltraDict pytest
 
 echo "===== SETUP COMPLETE ====="
 exec bash
