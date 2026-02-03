@@ -1254,6 +1254,25 @@ class AsyncLLMEngine(EngineClient):
         return await self.engine.collective_rpc_async(method, timeout, args,
                                                       kwargs)
 
+    def get_num_requests(self) -> int:
+        """Get the number of unfinished requests in the engine."""
+        return self.engine.get_num_unfinished_requests()
+
+    async def set_num_speculative_tokens(
+            self, num_speculative_tokens: int) -> None:
+        """Set the number of speculative tokens."""
+        self.engine.set_num_speculative_tokens(num_speculative_tokens)
+
+    async def lazy_initialize_kv_cache(self) -> None:
+        """Lazy initialize the KV cache.
+        Note: For in-process AsyncLLMEngine, KV cache is already initialized.
+        """
+        pass
+
+    async def set_max_num_seqs(self, max_num_seqs: int) -> None:
+        """Set the maximum number of sequences."""
+        self.engine.set_max_num_seqs(max_num_seqs)
+
 
 # TODO(v1): Remove this class proxy when V1 goes default.
 if envs.is_set("VLLM_USE_V1") and envs.VLLM_USE_V1:

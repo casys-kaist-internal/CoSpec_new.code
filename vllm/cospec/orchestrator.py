@@ -38,7 +38,7 @@ class CoSpecOrchestrator:
         draft_rpc: RPC client to draft worker process.
         sm_controller: SM partition controller.
         max_spec_tokens: Maximum speculative tokens (γ).
-        sm_ratio: Fraction of SMs for target (rest for draft).
+        target_sm_ratio: Fraction of SMs for target model (draft gets 1.0 - target_sm_ratio).
     """
 
     def __init__(
@@ -48,7 +48,7 @@ class CoSpecOrchestrator:
         sm_controller: SMController,
         spec_decode_worker: Any = None,
         max_spec_tokens: int = 7,
-        sm_ratio: float = 0.7,
+        target_sm_ratio: float = 0.7,
         shared_logit_buffer: Any = None,
     ):
         self.target_worker = target_worker
@@ -56,7 +56,7 @@ class CoSpecOrchestrator:
         self.sm_controller = sm_controller
         self.spec_decode_worker = spec_decode_worker
         self.max_spec_tokens = max_spec_tokens
-        self.sm_ratio = sm_ratio
+        self.target_sm_ratio = target_sm_ratio
         self.shared_logit_buffer = shared_logit_buffer
 
         # Two-queue state for pipelining
@@ -86,13 +86,13 @@ class CoSpecOrchestrator:
         gamma = num_lookahead_slots or self.max_spec_tokens
 
         return self._step_colocated_sd(
-            seq_group_metadata_list, gamma, self.sm_ratio)
+            seq_group_metadata_list, gamma, self.target_sm_ratio)
 
     def _step_colocated_sd(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
         gamma: int,
-        sm_ratio: float,
+        target_sm_ratio: float,
     ) -> List[Any]:
         """Colocated SD mode: concurrent draft + target with SM partitioning.
 
@@ -158,8 +158,8 @@ class CoSpecOrchestrator:
             return []  # no-op step
 
         # === Concurrent phase ===
-        self.sm_controller.set_partition(stream, sm_ratio)
-        self.draft_rpc.set_partition(1.0 - sm_ratio)
+        self.sm_controller.set_partition(stream, target_sm_ratio)
+        self.draft_rpc.set_partition(1.0 - target_sm_ratio)
 
         # Draft proposes draft_seqs concurrently
         if draft_seqs:

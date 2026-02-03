@@ -1,0 +1,30 @@
+{
+  "completed": 200,
+  "failed": 0,
+  "total_time_s": 243.048935727973,
+  "request_throughput": 0.8228795546911815,
+  "input_tok_throughput": 179.22316701173932,
+  "output_tok_throughput": 166.24224203648592,
+  "mean_ttft_ms": 6611.61225601536,
+  "mean_tpot_ms": 530.1487238043875,
+  "mean_itl_ms": 388.86688696530194,
+  "mean_e2e_ms": 85132.10876830533,
+  "args": {
+    "host": "127.0.0.1",
+    "port": 8100,
+    "model": "Qwen/Qwen3-8B",
+    "dataset": "sharegpt",
+    "dataset_path": "/workspace/vllm/ShareGPT_V3_unfiltered_cleaned_split.json",
+    "num_prompts": 200,
+    "request_rate": 4.0,
+    "max_concurrency": null,
+    "seed": 0,
+    "save_result": true,
+    "result_dir": "/workspace/vllm/results/qwen3_cospec_sharegpt_20260202_160752",
+    "random_input_len": 256,
+    "random_output_len": 128,
+    "random_range_ratio": 1.0,
+    "random_prefix_len": 0,
+    "sharegpt_output_len": null
+  }
+}

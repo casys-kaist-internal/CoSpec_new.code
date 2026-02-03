@@ -113,6 +113,7 @@ if TYPE_CHECKING:
 
     # CoSpec specific env vars
     COSPEC: bool = False
+    COSPEC_TARGET_SM_RATIO: float = 0.7
 
 def get_default_cache_root():
     return os.getenv(
@@ -732,6 +733,11 @@ environment_variables: dict[str, Callable[[], Any]] = {
 
     "COSPEC":
     lambda: bool(int(os.getenv("COSPEC", "0"))),
+
+    # CoSpec target SM ratio (fraction of SMs for target model, 0.0-1.0)
+    # Draft model gets 1.0 - COSPEC_TARGET_SM_RATIO
+    "COSPEC_TARGET_SM_RATIO":
+    lambda: float(os.getenv("COSPEC_TARGET_SM_RATIO", "0.7")),
 
 }
 

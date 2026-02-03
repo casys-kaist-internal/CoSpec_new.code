@@ -3,8 +3,8 @@
 from typing import List, Optional, Set, Tuple
 
 import torch
-import logging
 
+from vllm.logger import init_logger
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
@@ -12,7 +12,7 @@ from vllm.spec_decode.interfaces import (SpeculativeProposals,
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
 from vllm.spec_decode.util import sampler_output_to_torch
 
-logger = logging.getLogger(__name__)
+logger = init_logger(__name__)
 
 class Top1Proposer(SpeculativeProposer):
     """Helper class which separates out sequences which would exceed the max
@@ -43,7 +43,6 @@ class Top1Proposer(SpeculativeProposer):
         self.max_proposal_len = max_proposal_len
         self._vocab_size = vocab_size
 
-    # important
     def get_spec_proposals(
         self,
         execute_model_req: ExecuteModelRequest,

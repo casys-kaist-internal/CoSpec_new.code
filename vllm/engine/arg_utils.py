@@ -1581,13 +1581,6 @@ class EngineArgs:
         # Set max_num_seqs to 256 for VLLM_V0.
         if self.max_num_seqs is None:
             self.max_num_seqs = 256
-            
-        # For correctness test there is chunked prefill test that fails when max_num_seq is divided 
-        # by 2 because the max_num_seq is so small and has to match max_num_batched_tokens
-        # For normal case since we are using two engines, we halve the max_num_seqs.
-        if envs.COSPEC:
-            self.max_num_seqs = self.max_num_seqs // 2
-            logger.info("Cospec half the max_num_seqs: %d", self.max_num_seqs)
 
     def _set_default_args_v1(self, usage_context: UsageContext) -> None:
         """Set Default Arguments for V1 Engine."""

@@ -15,16 +15,32 @@ MAIN_MODEL = "JackFram/llama-68m"
 
 
 def _check_mps_available():
-    """Check if MPS is available by looking for the MPS control daemon."""
+    """Check if MPS is available by looking for the MPS control daemon or socket."""
     import subprocess
+    import glob
+    # Check for MPS process (works on host)
     try:
         result = subprocess.run(
             ["pgrep", "-f", "nvidia-cuda-mps-control"],
             capture_output=True, text=True
         )
-        return result.returncode == 0
+        if result.returncode == 0:
+            return True
     except Exception:
-        return False
+        pass
+    # Check for MPS control socket (works in Docker containers)
+    mps_paths = [
+        "/tmp/nvidia-mps/control",
+        os.path.join(os.path.dirname(__file__), "../../../log/mps/nvidia-mps/control"),
+    ]
+    # Also check CUDA_MPS_PIPE_DIRECTORY env var
+    mps_pipe_dir = os.environ.get("CUDA_MPS_PIPE_DIRECTORY")
+    if mps_pipe_dir:
+        mps_paths.insert(0, os.path.join(mps_pipe_dir, "control"))
+    for path in mps_paths:
+        if os.path.exists(path):
+            return True
+    return False
 
 
 def init_cospec():

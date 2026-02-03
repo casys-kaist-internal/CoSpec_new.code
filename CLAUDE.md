@@ -186,7 +186,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 24. **Restored `VLLM_USE_V1` default to `1`**: Fixed accidental change that set V1 default to `0` for ALL users. Now V1 is default, users must set `VLLM_USE_V1=0` explicitly for speculative decoding.
 
 ### Known Hardcoded Values
-- `cost_model.py`: Always returns `COLOCATED_SD` mode, `sm_ratio=0.7`, `gamma=5`
+- `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`, `gamma=5`
 - `cost_model.py`: EMA coefficients `alpha=0.8`, `ema_weight=0.3`, `batch_ema_weight=0.5` (untuned)
 - `cost_model.py`: Latency formula coefficients are placeholders (never profiled)
 - `shared_kv_cache.py` / `shared_logit_buffer.py`: `instance_id="default"` (collision risk)

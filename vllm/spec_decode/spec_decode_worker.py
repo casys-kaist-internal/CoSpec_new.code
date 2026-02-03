@@ -486,14 +486,16 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         logger.info("CoSpec: draft worker process connected")
 
-        # Create orchestrator
+        # Create orchestrator (SM ratio from env var or default 0.7)
+        target_sm_ratio = envs.COSPEC_TARGET_SM_RATIO
+        logger.info("CoSpec: using target SM ratio %.2f", target_sm_ratio)
         self.orchestrator = CoSpecOrchestrator(
             target_worker=self.scorer_worker,
             draft_rpc=draft_rpc,
             sm_controller=self.cospec_manager.sm_controller,
             spec_decode_worker=self,
             max_spec_tokens=num_spec_tokens,
-            sm_ratio=0.7,
+            target_sm_ratio=target_sm_ratio,
             shared_logit_buffer=shared_logit_buffer,
         )
 

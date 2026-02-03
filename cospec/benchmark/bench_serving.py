@@ -7,6 +7,11 @@ Usage:
     python3 bench_serving.py --model Qwen/Qwen3-8B --dataset sharegpt \
         --dataset-path ShareGPT_V3_unfiltered_cleaned_split.json \
         --num-prompts 200 --request-rate 4
+
+    # Duration-based benchmark (runs for 5 minutes)
+    python3 bench_serving.py --model Qwen/Qwen3-8B --dataset sharegpt \
+        --dataset-path ShareGPT_V3_unfiltered_cleaned_split.json \
+        --duration 300 --request-rate 4
 """
 
 import argparse
@@ -120,8 +125,20 @@ async def benchmark(
     requests: list,
     request_rate: float,
     max_concurrency: Optional[int],
+    duration: Optional[float] = None,
+    temperature: float = 0.0,
 ) -> list[RequestResult]:
-    """Run the benchmark with Poisson-distributed request arrivals."""
+    """Run the benchmark with Poisson-distributed request arrivals.
+
+    Args:
+        url: The API endpoint URL.
+        model: Model name/ID.
+        requests: List of (prompt, prompt_len, output_len) tuples.
+        request_rate: Requests per second (Poisson arrival rate).
+        max_concurrency: Max concurrent requests (None = unlimited).
+        duration: If set, run for this many seconds instead of all requests.
+        temperature: Sampling temperature (0.0 = greedy).
+    """
     sem = asyncio.Semaphore(max_concurrency) if max_concurrency else None
     connector = aiohttp.TCPConnector(limit=0)
     timeout = aiohttp.ClientTimeout(total=600)
@@ -130,28 +147,61 @@ async def benchmark(
         connector=connector, timeout=timeout
     ) as session:
         tasks = []
-        pbar = tqdm(total=len(requests), desc="Requests")
 
-        async def run_one(prompt, prompt_len, output_len):
-            if sem:
-                async with sem:
+        # Duration-based: cycle through requests until time is up
+        if duration is not None:
+            pbar = tqdm(desc="Requests", unit="req")
+            start_time = time.perf_counter()
+            request_idx = 0
+            num_requests = len(requests)
+
+            async def run_one(prompt, prompt_len, output_len):
+                if sem:
+                    async with sem:
+                        r = await send_request(
+                            session, url, model, prompt, prompt_len, output_len, temperature
+                        )
+                else:
                     r = await send_request(
-                        session, url, model, prompt, prompt_len, output_len, 0.0
+                        session, url, model, prompt, prompt_len, output_len, temperature
                     )
-            else:
-                r = await send_request(
-                    session, url, model, prompt, prompt_len, output_len, 0.0
-                )
-            pbar.update(1)
-            return r
+                pbar.update(1)
+                return r
 
-        for prompt, prompt_len, output_len in requests:
-            tasks.append(asyncio.create_task(run_one(prompt, prompt_len, output_len)))
-            if request_rate < float("inf"):
-                await asyncio.sleep(np.random.exponential(1.0 / request_rate))
+            while (time.perf_counter() - start_time) < duration:
+                prompt, prompt_len, output_len = requests[request_idx % num_requests]
+                tasks.append(asyncio.create_task(run_one(prompt, prompt_len, output_len)))
+                request_idx += 1
+                if request_rate < float("inf"):
+                    await asyncio.sleep(np.random.exponential(1.0 / request_rate))
 
-        results = await asyncio.gather(*tasks)
-        pbar.close()
+            # Wait for all pending tasks to complete
+            results = await asyncio.gather(*tasks)
+            pbar.close()
+        else:
+            # Fixed number of requests mode
+            pbar = tqdm(total=len(requests), desc="Requests")
+
+            async def run_one(prompt, prompt_len, output_len):
+                if sem:
+                    async with sem:
+                        r = await send_request(
+                            session, url, model, prompt, prompt_len, output_len, temperature
+                        )
+                else:
+                    r = await send_request(
+                        session, url, model, prompt, prompt_len, output_len, temperature
+                    )
+                pbar.update(1)
+                return r
+
+            for prompt, prompt_len, output_len in requests:
+                tasks.append(asyncio.create_task(run_one(prompt, prompt_len, output_len)))
+                if request_rate < float("inf"):
+                    await asyncio.sleep(np.random.exponential(1.0 / request_rate))
+
+            results = await asyncio.gather(*tasks)
+            pbar.close()
     return list(results)
 
 
@@ -223,6 +273,11 @@ def print_metrics(results: list[RequestResult], elapsed: float):
         )
     print("=" * 60)
 
+    p_ttft = percentiles(ttfts)
+    p_tpot = percentiles(tpots)
+    p_itl = percentiles(itls)
+    p_e2e = percentiles(latencies)
+
     return {
         "completed": len(ok),
         "failed": failed,
@@ -230,10 +285,31 @@ def print_metrics(results: list[RequestResult], elapsed: float):
         "request_throughput": len(ok) / elapsed,
         "input_tok_throughput": total_input / elapsed,
         "output_tok_throughput": total_output / elapsed,
+        # TTFT metrics (ms)
         "mean_ttft_ms": float(np.mean(ttfts)) * 1000 if ttfts else 0,
+        "p50_ttft_ms": p_ttft[50] * 1000,
+        "p90_ttft_ms": p_ttft[90] * 1000,
+        "p99_ttft_ms": p_ttft[99] * 1000,
+        # TPOT metrics (ms)
         "mean_tpot_ms": float(np.mean(tpots)) * 1000 if tpots else 0,
+        "p50_tpot_ms": p_tpot[50] * 1000,
+        "p90_tpot_ms": p_tpot[90] * 1000,
+        "p99_tpot_ms": p_tpot[99] * 1000,
+        # ITL metrics (ms)
         "mean_itl_ms": float(np.mean(itls)) * 1000 if itls else 0,
+        "p50_itl_ms": p_itl[50] * 1000,
+        "p90_itl_ms": p_itl[90] * 1000,
+        "p99_itl_ms": p_itl[99] * 1000,
+        # E2E metrics (ms)
         "mean_e2e_ms": float(np.mean(latencies)) * 1000,
+        "p50_e2e_ms": p_e2e[50] * 1000,
+        "p90_e2e_ms": p_e2e[90] * 1000,
+        "p99_e2e_ms": p_e2e[99] * 1000,
+        # Raw data for detailed analysis
+        "ttfts": [t * 1000 for t in ttfts],  # ms
+        "tpots": [t * 1000 for t in tpots],  # ms
+        "itls": [t * 1000 for t in itls],  # ms
+        "e2es": [t * 1000 for t in latencies],  # ms
     }
 
 
@@ -273,12 +349,21 @@ def parse_args():
         default="sharegpt",
     )
     parser.add_argument("--dataset-path", default=None)
-    parser.add_argument("--num-prompts", type=int, default=200)
-    parser.add_argument("--request-rate", type=float, default=4.0)
-    parser.add_argument("--max-concurrency", type=int, default=None)
+    parser.add_argument("--num-prompts", type=int, default=200,
+        help="Number of prompts to process (ignored if --duration is set)")
+    parser.add_argument("--duration", type=float, default=None,
+        help="Run benchmark for this many seconds (cycles through prompts)")
+    parser.add_argument("--request-rate", type=float, default=4.0,
+        help="Requests per second (Poisson arrival rate)")
+    parser.add_argument("--max-concurrency", type=int, default=None,
+        help="Maximum concurrent requests (None = unlimited)")
+    parser.add_argument("--temperature", type=float, default=0.0,
+        help="Sampling temperature (0.0 = greedy)")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--save-result", action="store_true")
     parser.add_argument("--result-dir", default="results")
+    parser.add_argument("--result-filename", default=None,
+        help="Output filename (auto-generated if not specified)")
 
     # Random dataset options
     parser.add_argument("--random-input-len", type=int, default=256)
@@ -309,10 +394,17 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    print(f"Benchmarking {url} @ {args.request_rate} req/s")
+    if args.duration:
+        print(f"Benchmarking {url} @ {args.request_rate} req/s for {args.duration}s")
+    else:
+        print(f"Benchmarking {url} @ {args.request_rate} req/s ({args.num_prompts} prompts)")
+
     t0 = time.perf_counter()
     results = asyncio.run(
-        benchmark(url, args.model, requests, args.request_rate, args.max_concurrency)
+        benchmark(
+            url, args.model, requests, args.request_rate, args.max_concurrency,
+            duration=args.duration, temperature=args.temperature
+        )
     )
     elapsed = time.perf_counter() - t0
 
@@ -320,7 +412,10 @@ def main():
 
     if args.save_result and metrics:
         Path(args.result_dir).mkdir(parents=True, exist_ok=True)
-        out = Path(args.result_dir) / "results.json"
+        if args.result_filename:
+            out = Path(args.result_dir) / args.result_filename
+        else:
+            out = Path(args.result_dir) / "results.json"
         with open(out, "w") as f:
             json.dump({**metrics, "args": vars(args)}, f, indent=2)
         print(f"\nResults saved to {out}")

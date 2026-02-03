@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "=== Installing Python dependencies ==="
-pip3 install Cython UltraDict pytest
+pip3 install Cython pytest
 
 echo "=== Installing vLLM (editable) ==="
 cd "$PROJECT_ROOT"
