@@ -122,13 +122,6 @@ class RPCUProfileRequest(Enum):
     START_PROFILE = 1
     STOP_PROFILE = 2
 
-class RPCCospecProfileRequest(Enum):
-    START_COLOCATION_PROFILE = 1
-    START_TILING_PROFILE = 2
-    STOP_PROFILE = 3
-    SET_COLOCATION_MODE_TRUE = 4
-    SET_COLOCATION_MODE_FALSE = 5
-
 @dataclass
 class RPCSetNumSpeculativeTokensRequest:
     num_speculative_tokens: int
@@ -136,10 +129,6 @@ class RPCSetNumSpeculativeTokensRequest:
 @dataclass
 class RPCSetMaxNumSeqsRequest:
     max_num_seqs: int
-
-@dataclass
-class RPCSetProfileBatchSizeRequest:
-    batch_size: int
 
 @dataclass
 class RPCResetPrefixCacheRequest:
@@ -180,67 +169,16 @@ class RPCAdapterLoadedResponse:
     request_id: str
 
 @dataclass
-class RPCMaybeLoadCachedColocationProfileRequest:
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-@dataclass
-class RPCMaybeLoadCachedTilingProfileRequest:
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-@dataclass
-class RPCPredictColocationSpeedupRatioRequest:
-    batch_size: int
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    
-@dataclass
-class RPCGetNumSpeculativeTokensEmaRequest:
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-@dataclass
-class RPCGetNumSpeculativeTokensEmaResponse:
-    num_speculative_tokens_ema: int
-    request_id: str
-
-@dataclass
 class RPCLazyInitializeKVCacheRequest:
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
-@dataclass
-class RPCPredictColocationSpeedupRatioResponse:
-    request_id: str
-    speedup_ratio: float
-
-@dataclass
-class RPCMaybeLoadCachedColocationProfileResponse:
-    request_id: str
-    loaded: bool
-
-@dataclass
-class RPCMaybeLoadCachedTilingProfileResponse:
-    request_id: str
-    loaded: bool
-
-@dataclass
-class RPCIsSelectiveValidatorTrainedRequest:
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-@dataclass
-class RPCIsSelectiveValidatorTrainedResponse:
-    request_id: str
-    trained: bool
-
-
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
-                      RPCUProfileRequest, RPCCospecProfileRequest, RPCLoadAdapterRequest,
+                      RPCUProfileRequest, RPCLoadAdapterRequest,
                       RPCResetPrefixCacheRequest, RPCSleepRequest,
-                      RPCWakeUpRequest, RPCIsSleepingRequest, RPCMaybeLoadCachedColocationProfileRequest, 
-                      RPCMaybeLoadCachedTilingProfileRequest, RPCIsSelectiveValidatorTrainedRequest,
-                      RPCPredictColocationSpeedupRatioRequest, RPCGetNumSpeculativeTokensEmaRequest]
+                      RPCWakeUpRequest, RPCIsSleepingRequest]
 
 REQUEST_OUTPUTS_T = Union[List[RequestOutput], RPCAdapterLoadedResponse,
-                          RPCIsSleepingResponse, RPCError, RPCMaybeLoadCachedColocationProfileResponse, 
-                          RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse,
-                          RPCPredictColocationSpeedupRatioResponse, RPCGetNumSpeculativeTokensEmaResponse]
+                          RPCIsSleepingResponse, RPCError]
 
 
 def ENGINE_DEAD_ERROR(

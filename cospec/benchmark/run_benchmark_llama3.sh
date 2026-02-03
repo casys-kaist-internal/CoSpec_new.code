@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================
-# CoSpec Benchmark: Qwen3-8B + Qwen3-0.6B
+# CoSpec Benchmark: Llama-3.1-8B + Llama-3.1-1B
 # =============================================
 
 ulimit -n 65535
@@ -10,8 +10,8 @@ ulimit -n 65535
 SKIP_BASELINE=false
 
 # Model Configuration
-export TARGET_MODEL="Qwen/Qwen3-8B"
-export DRAFT_MODEL="Qwen/Qwen3-0.6B"
+export TARGET_MODEL="meta-llama/Llama-3.1-8B"
+export DRAFT_MODEL="meta-llama/Llama-3.1-1B"
 export TENSOR_PARALLEL_SIZE=1
 export DRAFT_TENSOR_PARALLEL_SIZE=1
 
@@ -45,17 +45,15 @@ PORT=8100
 
 # CoSpec Feature Configuration
 declare -A COSPEC_CONFIGS=(
-    ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0"
-    ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0; export COSPEC_SELECTIVE_VALIDATION=0"
-    ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=0"
-    ["full_cospec"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1; export COSPEC_SELECTIVE_VALIDATION=1; export COSPEC_SELECTIVE_VALIDATION_METHOD=tile; export COSPEC_SELECTIVE_VALIDATION_THRESHOLD=0.3"
+    ["baseline"]="export COSPEC=0; export COSPEC_DYNAMIC_COLOCATION=0"
+    ["colocation"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=0"
+    ["colocation_dynamic"]="export COSPEC=1; export COSPEC_DYNAMIC_COLOCATION=1"
 )
 
 # Define the configurations to run
 declare -a CONFIG_ORDER=(
     "colocation"
     "colocation_dynamic"
-    "full_cospec"
 )
 
 # =============================================
@@ -63,7 +61,7 @@ declare -a CONFIG_ORDER=(
 # =============================================
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-RESULTS_DIR="results_qwen3_8b_0.6b_${TIMESTAMP}"
+RESULTS_DIR="results_llama3.1_8b_1b_${TIMESTAMP}"
 mkdir -p $RESULTS_DIR
 
 echo "config,spec_tokens,temperature,request_rate,dataset,tensor_parallel_size,draft_tensor_parallel_size,successful_requests,benchmark_duration,total_input_tokens,total_generated_tokens,request_throughput,output_token_throughput,total_token_throughput,mean_ttft,median_ttft,p99_ttft,mean_tpot,median_tpot,p99_tpot,mean_itl,median_itl,p99_itl,mean_e2el,median_e2el,p99_e2el,mean_token_latency,median_token_latency,p99_token_latency" > "$RESULTS_DIR/benchmark_results.csv"

@@ -556,5 +556,3 @@ class OpenAIServingCompletion(OpenAIServing):
             top_logprobs=out_top_logprobs,
         )
 
-    async def is_selective_validator_trained(self) -> bool:
-        return True

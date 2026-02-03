@@ -1779,10 +1779,13 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
             model_forward_start.record()
 
         if cospec_manager is not None:
+            stream = torch.cuda.current_stream()
             if is_target:
-                cospec_manager.target_start()
+                cospec_manager.sm_controller.set_partition(
+                    stream, cospec_manager.target_sm_ratio)
             else:
-                cospec_manager.draft_start()
+                cospec_manager.sm_controller.set_partition(
+                    stream, 1.0 - cospec_manager.target_sm_ratio)
 
         if not bypass_model_exec:
             with set_forward_context(model_input.attn_metadata,
@@ -1836,10 +1839,8 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
         logits = self.model.compute_logits(hidden_or_intermediate_states,
                                            model_input.sampling_metadata)
         if cospec_manager is not None:
-            if is_target:
-                cospec_manager.target_finish(model_input.input_tokens.shape[0])
-            else:
-                cospec_manager.draft_finish()
+            stream = torch.cuda.current_stream()
+            cospec_manager.sm_controller.set_full_gpu(stream)
 
         if not self.is_driver_worker:
             return []

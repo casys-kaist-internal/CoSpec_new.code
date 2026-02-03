@@ -87,8 +87,6 @@ class Top1Proposer(SpeculativeProposer):
                     seq_ids_with_bonus_token_in_last_step,
                 is_target=is_target
             )
-            # Should adjust the proposal_lens here 
-            adjusted_proposal_len = self._adjust_proposal_lens(proposal_lens, maybe_sampler_output)
             (
                 proposal_lens,
                 maybe_sampler_output,
@@ -106,7 +104,7 @@ class Top1Proposer(SpeculativeProposer):
         # representation.
         proposal_tokens, proposal_probs, proposal_lens, unscaled_temp_probs = self._merge_outputs(
             batch_size=len(seq_group_metadata_list),
-            proposal_len=adjusted_proposal_len,
+            proposal_len=proposal_len,
             maybe_sampler_output=maybe_sampler_output,
             proposal_lens=proposal_lens,
             nonzero_proposal_len_indices=nonzero_proposal_len_indices,
@@ -166,13 +164,6 @@ class Top1Proposer(SpeculativeProposer):
             nonzero_proposal_len_indices,
         )
     
-    def _adjust_proposal_lens(self, proposal_lens, maybe_sampler_output):
-        adjusted_proposal_len = len(maybe_sampler_output)
-        for i in range(len(proposal_lens)):
-            if proposal_lens[i] > adjusted_proposal_len:
-                proposal_lens[i] = adjusted_proposal_len
-        return adjusted_proposal_len
-
     @staticmethod
     def _remove_no_proposal_seqs(proposal_lens, maybe_sampler_output,
                                  nonzero_proposal_len_indices, transposed):

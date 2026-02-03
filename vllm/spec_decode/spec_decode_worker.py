@@ -201,6 +201,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                     enable_lm_head_weight_load = True
 
                 proposer_worker = MultiStepWorker(**draft_worker_kwargs)
+                # Save kwargs for CoSpec separate-process draft spawning
+                cls._draft_worker_kwargs = draft_worker_kwargs.copy()
                 if draft_model_config.hf_config.model_type == "deepseek_mtp":
                     num_spec_prefill_steps = \
                         draft_model_config.hf_config.n_predict
@@ -247,7 +249,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                     "[Speculative Decoding] Disabling MQA scorer as the "
                     "target model is not running in eager mode.")
 
-        return SpecDecodeWorker(
+        worker = SpecDecodeWorker(
             proposer_worker,
             scorer_worker,
             disable_mqa_scorer=disable_mqa_scorer,
@@ -258,6 +260,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             allow_zero_draft_token_step=allow_zero_draft_token_step,
             enable_lm_head_weight_load=enable_lm_head_weight_load,
             num_spec_prefill_steps=num_spec_prefill_steps)
+
+        # Save draft worker kwargs for CoSpec separate-process spawning
+        if hasattr(cls, '_draft_worker_kwargs'):
+            worker._draft_worker_kwargs = cls._draft_worker_kwargs
+            del cls._draft_worker_kwargs
+
+        return worker
 
     def __init__(
         self,
@@ -344,14 +353,13 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self._num_spec_prefill_steps = num_spec_prefill_steps
 
 
-        # Check CoSpec Environment Variables
-        if envs.COSPEC_DYNAMIC_COLOCATION:
-            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_DYNAMIC_COLOCATION is set"
-        if envs.COSPEC_SELECTIVE_VALIDATION:
-            assert envs.COSPEC, "COSPEC is not enabled but COSPEC_SELECTIVE_VALIDATION is set"
-
+        # CoSpec: SM partitioning via orchestrator
         self.cospec_manager = None
+        self.orchestrator = None
+        self._draft_process = None
+        self._cospec_skip = None  # Set per-step by orchestrator
         if envs.COSPEC:
+            _assert_mps_running()
             self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
             self.scorer_worker.cospec_manager = self.cospec_manager
 
@@ -359,8 +367,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                 self.proposer_worker._worker.worker.cospec_manager = self.cospec_manager
             elif isinstance(self.proposer_worker, MultiStepWorker):
                 self.proposer_worker.worker.cospec_manager = self.cospec_manager
-            else:
-                raise ValueError(f"Unsupported proposer worker type: {type(self.proposer_worker)}")
+
+            logger.info("CoSpec enabled (SM partitioning)")
 
         logger.info("SpecDecodeWorker initialized")
 
@@ -410,6 +418,100 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                                  vocab_size=self._vocab_size)
 
         self._configure_model_sampler_for_spec_decode()
+
+    def _init_cospec_draft_process(self) -> None:
+        """Spawn a separate OS process for the draft model via MPS.
+
+        Creates a pipe for RPC communication, spawns the child process,
+        and sets up the orchestrator with always-colocated cost model.
+        """
+        import multiprocessing as mp
+
+        from vllm.cospec.cost_model import CostModel
+        from vllm.cospec.orchestrator import CoSpecOrchestrator
+        from vllm.cospec.shared_logit_buffer import SharedLogitBuffer
+        from vllm.cospec.worker_rpc import DraftWorkerRPC, create_draft_worker_pipe
+
+        parent_conn, child_conn = create_draft_worker_pipe()
+
+        # Create shared logit buffer (target=owner, draft=client).
+        # Must be created before spawning draft so the IPC handle file exists.
+        num_spec_tokens = self.max_spec_tokens
+        max_batch = self.scorer_worker.vllm_config.scheduler_config.max_num_seqs
+        vocab_size = self._vocab_size
+        shared_logit_buffer = SharedLogitBuffer(
+            max_batch=max_batch,
+            max_spec_tokens=num_spec_tokens,
+            vocab_size=vocab_size,
+            dtype=self.probs_dtype,
+            mode="owner",
+        )
+        self._shared_logit_buffer = shared_logit_buffer
+
+        # Spawn draft worker as a separate OS process for true MPS
+        # SM-partitioned concurrency. The draft process creates its own
+        # CUDA context, loads model weights from CUDA IPC handles
+        # (exported by SharedMemoryModelLoader), and initializes its
+        # own KV cache.
+        logit_buffer_config = {
+            "max_batch": max_batch,
+            "max_spec_tokens": num_spec_tokens,
+            "vocab_size": vocab_size,
+            "dtype": self.probs_dtype,
+        }
+
+        ctx = mp.get_context('spawn')
+        draft_process = ctx.Process(
+            target=_draft_process_entry,
+            args=(child_conn, self._draft_worker_kwargs,
+                  self._num_gpu_blocks, self._num_cpu_blocks,
+                  logit_buffer_config),
+            name="cospec-draft-worker",
+        )
+        draft_process.start()
+        self._draft_process = draft_process
+
+        logger.info("CoSpec: draft worker process spawned (PID: %d)",
+                     draft_process.pid)
+
+        # Wait for draft process to signal ready (or error)
+        signal, payload = parent_conn.recv()
+        if signal == "ERROR":
+            raise RuntimeError(
+                f"Draft worker process failed to start:\n{payload}")
+        assert signal == "READY", f"Unexpected signal: {signal}"
+        logger.info("CoSpec: draft worker process ready (PID: %d)", payload)
+
+        # Create RPC client
+        draft_rpc = DraftWorkerRPC(parent_conn)
+
+        logger.info("CoSpec: draft worker process connected")
+
+        # Create cost model (hardcoded always-colocated)
+        cost_model = CostModel(
+            max_spec_tokens=num_spec_tokens,
+            default_sm_ratio=0.7,
+        )
+
+        # Create orchestrator
+        self.orchestrator = CoSpecOrchestrator(
+            target_worker=self.scorer_worker,
+            draft_rpc=draft_rpc,
+            cost_model=cost_model,
+            sm_controller=self.cospec_manager.sm_controller,
+            spec_decode_worker=self,
+            max_spec_tokens=num_spec_tokens,
+            shared_logit_buffer=shared_logit_buffer,
+        )
+
+        logger.info("CoSpec: orchestrator created with always-colocated mode")
+
+    @cached_property
+    def max_spec_tokens(self) -> int:
+        """Get the maximum number of speculative tokens."""
+        if hasattr(self.proposer_worker, 'max_proposal_len'):
+            return self.proposer_worker.max_proposal_len
+        return 5  # default
 
     def load_model(self, *args, **kwargs):
         pass
@@ -467,8 +569,16 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         """
         self.scorer_worker.initialize_cache(num_gpu_blocks=num_gpu_blocks,
                                             num_cpu_blocks=num_cpu_blocks)
-        self.proposer_worker.initialize_cache(num_gpu_blocks=num_gpu_blocks,
-                                              num_cpu_blocks=num_cpu_blocks)
+
+        if envs.COSPEC and self.cospec_manager is not None:
+            # Draft process handles its own cache initialization
+            self._num_gpu_blocks = num_gpu_blocks
+            self._num_cpu_blocks = num_cpu_blocks
+            self._init_cospec_draft_process()
+        else:
+            self.proposer_worker.initialize_cache(
+                num_gpu_blocks=num_gpu_blocks,
+                num_cpu_blocks=num_cpu_blocks)
 
     def get_model(self) -> nn.Module:
         return self.scorer_worker.get_model()
@@ -566,14 +676,33 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                                      skip_proposer=disable_all_speculation)
             return result
 
-        if self.cospec_manager is not None:
-            self.cospec_manager.start_step_marker(num_lookahead_slots)
-        result =  self._run_speculative_decoding_step(execute_model_req,
-                                                   num_lookahead_slots, 
+        # CoSpec: delegate to orchestrator when available
+        if self.orchestrator is not None:
+            result = self.orchestrator.step(
+                execute_model_req.seq_group_metadata_list,
+                num_lookahead_slots)
+            # Two-queue colocated SD may return partial results (only for
+            # verify_seqs + prefills). Compute skip indices for the engine.
+            output_seq_ids = self.orchestrator.last_output_seq_ids
+            if result and output_seq_ids is not None:
+                cospec_seq_ids = set(output_seq_ids)
+                skip_indices = []
+                for i, sgm in enumerate(
+                        execute_model_req.seq_group_metadata_list):
+                    sid = next(iter(sgm.seq_data.keys()))
+                    if sid not in cospec_seq_ids:
+                        skip_indices.append(i)
+                if skip_indices:
+                    self._cospec_skip = skip_indices
+                else:
+                    self._cospec_skip = None
+            else:
+                self._cospec_skip = None
+            return result
+
+        return self._run_speculative_decoding_step(execute_model_req,
+                                                   num_lookahead_slots,
                                                    total_non_proposal_tokens)
-        if self.cospec_manager is not None:
-            self.cospec_manager.stop_step_marker()
-        return result
 
     @torch.inference_mode()
     def start_worker_execution_loop(self) -> None:
@@ -781,18 +910,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             for _ in range(max(num_lookahead_slots, 1)):
                 self.proposer_worker.execute_model(is_target=False)
 
-                if num_lookahead_slots != 0:
-                    if isinstance(self.proposer_worker, SmallerTpProposerWorker):
-                        if self.proposer_worker._worker.worker.cospec_manager is not None:
-                            if self.proposer_worker._worker.worker.cospec_manager.check_early_exit_draft():
-                                break
-                    elif isinstance(self.proposer_worker, MultiStepWorker):
-                        if self.proposer_worker.worker.cospec_manager is not None:
-                            if self.proposer_worker.worker.cospec_manager.check_early_exit_draft():
-                                break
-                    else:
-                        raise ValueError(f"Unsupported proposer worker type: {type(self.proposer_worker)}")
-
         if not data["no_spec"]:
             self.scorer_worker.execute_model(is_target=True)
             if data["run_spec_proposer_for_prefill"]:
@@ -837,13 +954,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             raise RuntimeError("Cannot handle cases where distributed draft "
                                "workers generate no tokens")
         
-        if envs.COSPEC_SELECTIVE_VALIDATION:
-            # Save original data before selective validation modifies proposals in-place
-            original_proposal_token_ids = proposals.proposal_token_ids.clone()
-            original_proposal_probs = proposals.proposal_probs.clone()
-            original_proposal_lens = proposals.proposal_lens.clone()
-            proposals = self.cospec_manager.selective_validation(proposals, total_non_proposal_tokens)
-        
         max_proposal_len = max(proposals.proposal_lens)
         execute_model_req.previous_hidden_states = None
 
@@ -874,13 +984,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # TODO avoid sampling here?
             self.proposer_worker.execute_model(prefill_req, is_target=False)
 
-        if envs.COSPEC_SELECTIVE_VALIDATION and not envs.COSPEC_CORRECTNESS_TEST:
-            # Restore original proposals for accurate history training
-            proposals.proposal_token_ids = original_proposal_token_ids
-            proposals.proposal_probs = original_proposal_probs
-            proposals.proposal_lens = original_proposal_lens
-            self.cospec_manager.update_proposal_history(proposals, proposal_scores)
-
         with Timer() as verification_timer:
             accepted_token_ids, target_logprobs = self._verify_tokens(
                 execute_model_req.seq_group_metadata_list, proposal_scores,
@@ -890,10 +993,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                        scoring_timer.elapsed_time_ms,
                        verification_timer.elapsed_time_ms)
         
-        if self.cospec_manager is not None:
-            if self.cospec_manager.is_profiling():
-                accepted_token_ids[:, 1:] = -1
-
         return self._create_output_sampler_list(
             execute_model_req.seq_group_metadata_list,
             accepted_token_ids,
@@ -1187,10 +1286,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if self._disable_log_stats:
             return
         
-        if self.cospec_manager is not None:
-            if self.cospec_manager.is_profiling():
-                return
-
         logger.info(
             "SpecDecodeWorker stage times: "
             "average_time_per_proposal_tok_ms=%.02f "
@@ -1308,6 +1403,9 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         for finished_request in execute_model_req.finished_requests_ids:
             for seq_id in self._request_id_seq_id_mapping[finished_request]:
                 self._seq_with_bonus_token_in_last_step.discard(seq_id)
+                # Clean up orchestrator queues for finished sequences
+                if self.orchestrator is not None:
+                    self.orchestrator.remove_sequence(seq_id)
             del self._request_id_seq_id_mapping[finished_request]
 
     def _track_sequences_with_bonus_tokens_per_sequence(
@@ -1371,46 +1469,158 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if isinstance(self.scorer_worker, WorkerBase):
             self.scorer_worker.stop_profile()
 
-    def start_cospec_profile(self, mode: str):
-        if self.cospec_manager is not None:
-            self.cospec_manager.start_profile(mode)
+    def __del__(self):
+        """Clean up CoSpec draft process on shutdown."""
+        if getattr(self, 'orchestrator', None) is not None:
+            try:
+                self.orchestrator.shutdown()
+            except Exception:
+                pass
+            self.orchestrator = None
+        if getattr(self, '_draft_process', None) is not None:
+            try:
+                self._draft_process.terminate()
+                self._draft_process.join(timeout=5.0)
+                if self._draft_process.is_alive():
+                    self._draft_process.kill()
+            except Exception:
+                pass
+            self._draft_process = None
+        # Clean up stale IPC handles
+        try:
+            from vllm.cospec.cospec_manager import cleanup_cospec_resources
+            cleanup_cospec_resources()
+        except Exception:
+            pass
 
-    def stop_cospec_profile(self):
-        if self.cospec_manager is not None:
-            self.cospec_manager.stop_profile()
+def _assert_mps_running() -> None:
+    """Assert that NVIDIA MPS daemon is running.
 
-    def set_colocation_mode(self, colocation_mode: bool):
-        if self.cospec_manager is not None:
-            self.cospec_manager.set_colocation_mode(colocation_mode)
+    CoSpec requires MPS for true concurrent execution of target and draft
+    processes on the same GPU with SM partitioning.
+    """
+    import os
+    import subprocess
 
-    def set_profile_batch_size(self, batch_size: int):
-        if self.cospec_manager is not None:
-            self.cospec_manager.set_profile_batch_size(batch_size)
+    # Check standard MPS pipe directory locations
+    mps_pipe_dir = os.environ.get("CUDA_MPS_PIPE_DIRECTORY", "")
+    if mps_pipe_dir and os.path.isdir(mps_pipe_dir):
+        return
 
-    def maybe_load_cached_colocation_profile(self) -> bool:
-        if self.cospec_manager is not None:
-            return self.cospec_manager.maybe_load_cached_colocation_profile()
-        return False
-    
-    def maybe_load_cached_tiling_profile(self) -> bool:
-        if self.cospec_manager is not None:
-            return self.cospec_manager.maybe_load_cached_tiling_profile()
-        return False
+    # Check default location
+    if os.path.isdir("/tmp/nvidia-mps"):
+        return
 
-    def is_selective_validator_trained(self) -> bool:
-        if self.cospec_manager is not None:
-            return self.cospec_manager.is_selective_validator_trained()
-        return False
-    
-    def get_num_speculative_tokens_ema(self) -> int:
-        if self.cospec_manager is not None:
-            return self.cospec_manager.get_num_speculative_tokens_ema()
-        return 0
-    
-    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
-        if self.cospec_manager is not None:
-            return self.cospec_manager.predict_colocation_speedup_ratio(batch_size)
-        return 1.0
+    # Fall back to checking if MPS control daemon process is running
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "nvidia-cuda-mps-control"],
+            capture_output=True, timeout=5)
+        if result.returncode == 0:
+            return
+    except Exception:
+        pass
+
+    raise RuntimeError(
+        "CoSpec requires NVIDIA MPS (Multi-Process Service) to be running. "
+        "Start MPS with: cospec/scripts/start_mps.sh "
+        "or: nvidia-cuda-mps-control -d")
+
+
+def _draft_process_entry(
+    child_conn,
+    draft_worker_kwargs: dict,
+    num_gpu_blocks: int,
+    num_cpu_blocks: int,
+    logit_buffer_config: Optional[dict] = None,
+) -> None:
+    """Entry point for the draft worker process (separate OS process).
+
+    This runs in a new process with its own CUDA context, enabling true
+    MPS SM-partitioned concurrency with the target process.
+    """
+    import os
+    import traceback
+
+    try:
+        import torch
+
+        from vllm.cospec.sm_controller import SMController
+        from vllm.cospec.worker_rpc import DraftWorkerServer
+        from vllm.spec_decode.multi_step_worker import MultiStepWorker
+
+        # Initialize CUDA in the new process
+        device = draft_worker_kwargs['vllm_config'].device_config.device
+        if device.index is None:
+            device = torch.device(device.type, 0)
+        torch.cuda.set_device(device)
+
+        # Create draft worker (loads model weights from CUDA IPC handles
+        # via SharedMemoryModelLoader when handles file exists)
+        proposer_worker = MultiStepWorker(**draft_worker_kwargs)
+
+        # Init distributed env on a different port to avoid conflict
+        # with the target process's torch.distributed
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('', 0))
+        free_port = sock.getsockname()[1]
+        sock.close()
+
+        vllm_config = draft_worker_kwargs['vllm_config']
+        # Clear static forward context — it was pickled from the target
+        # process and contains stale attention layer references
+        vllm_config.compilation_config.static_forward_context.clear()
+
+        proposer_worker.worker.distributed_init_method = \
+            f"tcp://localhost:{free_port}"
+        proposer_worker.init_device()
+        proposer_worker.load_model()
+
+        # Set shared KV cache mode to "client" so the draft process
+        # imports KV cache tensors via CUDA IPC from the target process
+        proposer_worker.worker.cospec_shared_mode = "client"
+
+        # Initialize KV cache
+        proposer_worker.initialize_cache(
+            num_gpu_blocks=num_gpu_blocks,
+            num_cpu_blocks=num_cpu_blocks,
+        )
+
+        # Configure sampler for speculative decoding
+        proposer_worker.set_include_gpu_probs_tensor()
+        proposer_worker.set_should_modify_greedy_probs_inplace()
+
+        # Create SM controller for draft process
+        sm_controller = SMController(is_target=False)
+
+        # Open shared logit buffer (client side)
+        shared_logit_buffer = None
+        if logit_buffer_config is not None:
+            from vllm.cospec.shared_logit_buffer import SharedLogitBuffer
+            shared_logit_buffer = SharedLogitBuffer(
+                mode="client", **logit_buffer_config)
+
+        # Start server event loop (blocks until shutdown)
+        server = DraftWorkerServer(
+            conn=child_conn,
+            draft_worker=proposer_worker,
+            sm_controller=sm_controller,
+            shared_logit_buffer=shared_logit_buffer,
+        )
+
+        # Signal parent that we're ready
+        logger.info("CoSpec draft process: ready (PID: %d)", os.getpid())
+        child_conn.send(("READY", os.getpid()))
+        server.serve()
+
+    except Exception:
+        traceback.print_exc()
+        # Send error back over the pipe so parent doesn't hang
+        try:
+            child_conn.send(("ERROR", traceback.format_exc()))
+        except Exception:
+            pass
 
 
 def split_num_cache_blocks_evenly(scorer_cache_block_size_bytes: int,

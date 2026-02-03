@@ -1,35 +1,26 @@
 #!/bin/bash
+# Launch CoSpec Docker container with GPU access.
+# Runs install.sh inside the container on first creation.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VLLM_SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONTAINER_NAME="${CONTAINER_NAME:-cospec-vllm}"
 IMAGE="vllm/vllm-openai:v0.8.5"
 
-# HF cache on /mnt/sdb to avoid filling root
-HF_CACHE="${HF_CACHE:-/mnt/sdb/sjchoi/.cache/huggingface/hub}"
+HF_CACHE="${HF_CACHE:-${HOME}/.cache/huggingface/hub}"
 
-# Setup commands on first creation
 read -r -d '' SETUP_COMMANDS << 'EOF' || true
 set -e
-
-# Extra dependencies (install before vllm since UltraDict needs Cython)
-pip3 install Cython UltraDict pytest
-
-# Overlay CoSpec source in editable mode, rebuilding C extensions
-# against the container's PyTorch to avoid ABI mismatches
-cd /workspace/vllm
-pip3 install -e . --no-build-isolation
-
-echo "===== SETUP COMPLETE ====="
+cd /workspace
+bash cospec/scripts/install.sh
 exec bash
 EOF
 
-# Check if container already exists
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "Reusing existing container: $CONTAINER_NAME"
     docker start "$CONTAINER_NAME" 2>/dev/null || true
-    docker exec -it -w /workspace/vllm "$CONTAINER_NAME" bash
+    docker exec -it -w /workspace "$CONTAINER_NAME" bash
 else
     echo "Creating new container: $CONTAINER_NAME"
     docker run -it \
@@ -39,10 +30,10 @@ else
         --ulimit memlock=-1 \
         --ulimit stack=67108864 \
         --entrypoint /bin/bash \
-        -v "$VLLM_SRC":/workspace/vllm \
+        -v "$PROJECT_ROOT":/workspace \
         -v "$HF_CACHE":/root/.cache/huggingface/hub \
         -e HF_HOME=/root/.cache/huggingface \
-        -w /workspace/vllm \
+        -w /workspace \
         "$IMAGE" \
         -c "$SETUP_COMMANDS"
 fi

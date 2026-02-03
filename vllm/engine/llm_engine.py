@@ -20,7 +20,7 @@ from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
                          ObservabilityConfig, ParallelConfig, SchedulerConfig,
                          VllmConfig)
 from vllm.core.scheduler import ScheduledSequenceGroup, SchedulerOutputs
-from vllm.cospec.shm import SharedMemory
+from vllm.cospec.cospec_manager import SharedMemory
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics_types import StatLoggerBase, Stats
 from vllm.engine.output_processor.interfaces import (
@@ -429,18 +429,13 @@ class LLMEngine:
         """
         start = time.time()
         if envs.COSPEC and self.speculative_config.is_primary is not None:
-            logger.info("Using CoSpec for KV cache allocation")
+            logger.info("CoSpec: determining KV cache blocks")
+            num_gpu_blocks, num_cpu_blocks = (
+                self.model_executor.determine_num_available_blocks())
+            # Share block counts for draft process via shared memory
             if self.speculative_config.is_primary:
-                logger.info("Primary process, determining num of blocks")
-                num_gpu_blocks, num_cpu_blocks = self.model_executor.determine_num_available_blocks()
-                num_gpu_blocks = num_gpu_blocks // 2
-                num_cpu_blocks = num_cpu_blocks // 2
                 self.shm.put("gpu_blocks", num_gpu_blocks)
                 self.shm.put("cpu_blocks", num_cpu_blocks)
-            else:
-                logger.info("Secondary process, getting num of blocks")
-                num_gpu_blocks = self.shm.get("gpu_blocks")
-                num_cpu_blocks = self.shm.get("cpu_blocks")
         else:
             num_gpu_blocks, num_cpu_blocks = (
                 self.model_executor.determine_num_available_blocks())
@@ -456,13 +451,10 @@ class LLMEngine:
         self.cache_config.num_gpu_blocks = num_gpu_blocks
         self.cache_config.num_cpu_blocks = num_cpu_blocks
 
-        if envs.COSPEC and self.speculative_config.is_primary is not None:
-            logger.info("Lazy initialize KV cache for CoSpec")
-        else:
-            self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
-            elapsed = time.time() - start
-            logger.info(("init engine (profile, create kv cache, "
-                        "warmup model) took %.2f seconds"), elapsed)
+        self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
+        elapsed = time.time() - start
+        logger.info(("init engine (profile, create kv cache, "
+                    "warmup model) took %.2f seconds"), elapsed)
 
     def lazy_initialize_kv_cache(self) -> None:
         """
@@ -1028,6 +1020,19 @@ class LLMEngine:
             seq_group.update_num_computed_tokens(
                 seq_group_meta.token_chunk_size)
 
+    def _get_cospec_skip(self) -> Optional[List[int]]:
+        """Get skip indices from CoSpec spec_decode_worker, if available."""
+        try:
+            executor = self.model_executor
+            worker = getattr(executor, 'driver_worker', None)
+            if worker is None:
+                return None
+            # WorkerWrapperBase wraps the actual worker
+            actual = getattr(worker, 'worker', worker)
+            return getattr(actual, '_cospec_skip', None)
+        except Exception:
+            return None
+
     def _process_model_outputs(self,
                                ctx: SchedulerContext,
                                request_id: Optional[str] = None) -> None:
@@ -1058,6 +1063,15 @@ class LLMEngine:
         assert len(seq_group_metadata_list) == len(
             scheduler_outputs.scheduled_seq_groups)
 
+        # CoSpec two-queue: outputs may be partial (only verify_seqs +
+        # prefills). Add skip indices for draft-phase sequences.
+        if outputs and envs.COSPEC:
+            cospec_skip = self._get_cospec_skip()
+            if cospec_skip:
+                for idx in cospec_skip:
+                    if idx not in skip:
+                        skip.append(idx)
+
         has_multiple_outputs: bool = len(outputs) > 1
         outputs_by_sequence_group: List[List[SequenceGroupOutput]]
         if has_multiple_outputs:
@@ -1069,19 +1083,44 @@ class LLMEngine:
                 outputs_by_sequence_group = create_output_by_sequence_group(
                     outputs, len(seq_group_metadata_list))
             elif self.speculative_config:
+                # CoSpec two-queue: outputs are indexed by target_batch
+                # (subset), not full seq_group_metadata_list. Count
+                # non-skipped prefills/decodes for correct remapping.
+                cospec_skip_set = set(skip) if skip else set()
+
                 # Decodes are multi-steps while prefills are not, outputting at
                 # most 1 token. Separate them so that we can trigger chunk
                 # processing without having to pad or copy over prompts K times
                 # to match decodes structure (costly with prompt_logprobs).
-                num_prefills = sum(sg.is_prompt
-                                   for sg in seq_group_metadata_list)
+                num_prefills = sum(
+                    sg.is_prompt for i, sg in
+                    enumerate(seq_group_metadata_list)
+                    if i not in cospec_skip_set)
                 prefills, decodes = outputs[:num_prefills], outputs[
                     num_prefills:]
+                num_non_skip_decodes = sum(
+                    1 for i, sg in enumerate(seq_group_metadata_list)
+                    if not sg.is_prompt and i not in cospec_skip_set)
                 outputs_by_sequence_group = create_output_by_sequence_group(
                     decodes,
-                    num_seq_groups=len(seq_group_metadata_list) - num_prefills)
+                    num_seq_groups=num_non_skip_decodes)
                 outputs_by_sequence_group = [p.outputs for p in prefills
                                              ] + outputs_by_sequence_group
+
+                # Remap: insert empty placeholders for skipped sequences
+                # so indices align with seq_group_metadata_list
+                if cospec_skip_set:
+                    full_outputs: List = [None] * len(
+                        seq_group_metadata_list)
+                    out_idx = 0
+                    for i in range(len(seq_group_metadata_list)):
+                        if i in cospec_skip_set:
+                            full_outputs[i] = []  # placeholder
+                        else:
+                            full_outputs[i] = outputs_by_sequence_group[
+                                out_idx]
+                            out_idx += 1
+                    outputs_by_sequence_group = full_outputs
             # We have outputs for multiple steps submitted in a single burst,
             # so invalidate is_first_step_output.
             is_first_step_output = None
@@ -1449,6 +1488,10 @@ class LLMEngine:
                 outputs = self.model_executor.execute_model(
                     execute_model_req=execute_model_req)
                 self._skip_scheduling_next_step = False
+                # CoSpec two-queue: empty output means no-op step (bootstrap
+                # or sequences in draft phase). Skip processing, reschedule.
+                if not outputs and envs.COSPEC:
+                    return ctx.request_outputs
             except InputProcessingError as e:
                 # The input for this request cannot be processed, so we must
                 # abort it. If there are remaining requests in the batch that
@@ -1952,41 +1995,12 @@ class LLMEngine:
     def stop_profile(self) -> None:
         self.model_executor.stop_profile()
 
-    def start_cospec_profile(self, mode: str) -> None:
-        self.stat_loggers["logging"].disable_log()
-        self.model_executor.start_cospec_profile(mode)
-
-    def stop_cospec_profile(self) -> None:
-        self.stat_loggers["logging"].enable_log()
-        self.model_executor.stop_cospec_profile()
-
-    def set_colocation_mode(self, colocation_mode: bool) -> None:
-        self.model_executor.set_colocation_mode(colocation_mode)
-
-    def set_profile_batch_size(self, batch_size: int) -> None:
-        self.model_executor.set_profile_batch_size(batch_size)
-
-    def maybe_load_cached_colocation_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_colocation_profile()
-    
-    def maybe_load_cached_tiling_profile(self) -> bool:
-        return self.model_executor.maybe_load_cached_tiling_profile()
-    
-    def is_selective_validator_trained(self) -> bool:
-        return self.model_executor.is_selective_validator_trained()
-
-    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
-        return self.model_executor.predict_colocation_speedup_ratio(batch_size)
-
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
         self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
 
     def set_max_num_seqs(self, max_num_seqs: int) -> None:
         self.vllm_config.scheduler_config.max_num_seqs = max_num_seqs
-
-    def get_num_speculative_tokens_ema(self) -> int:
-        return self.model_executor.get_num_speculative_tokens_ema()
 
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (

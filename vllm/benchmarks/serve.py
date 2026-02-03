@@ -596,7 +596,6 @@ def add_cli_args(parser: argparse.ArgumentParser):
         "--dataset-name",
         type=str,
         default="random",
-        choices=["random"],
         help="Name of the dataset to benchmark on.",
     )
     parser.add_argument(
@@ -842,6 +841,21 @@ def main(args: argparse.Namespace):
             tokenizer=tokenizer,
         )
 
+    elif args.dataset_name == "sharegpt":
+        from vllm.benchmarks.datasets import ShareGPTDataset
+        dataset = ShareGPTDataset(
+            dataset_path=args.dataset_path,
+            random_seed=args.seed,
+        )
+        samples = dataset.sample(
+            tokenizer=tokenizer,
+            num_requests=args.num_prompts,
+            output_len=getattr(args, 'sharegpt_output_len', None),
+        )
+        input_requests = [
+            (s.prompt, s.prompt_len, s.expected_output_len)
+            for s in samples
+        ]
     else:
         raise ValueError(f"Unknown dataset: {args.dataset_name}")
 

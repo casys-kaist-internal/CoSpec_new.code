@@ -13,7 +13,7 @@ from vllm.sequence import (VLLM_INVALID_TOKEN_ID, VLLM_TOKEN_ID_ARRAY_TYPE,
                            SequenceGroupMetadata, get_all_seq_ids)
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
                                          SpeculativeScorer, SpeculativeScores)
-from vllm.spec_decode.util import nvtx_range, split_batch_by_proposal_len, reshape_and_pad
+from vllm.spec_decode.util import nvtx_range, split_batch_by_proposal_len
 
 SeqId = int
 TargetSeqId = int
@@ -216,15 +216,15 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         non_spec_expanded_bs = len(non_spec_indices)
         spec_expanded_bs = expanded_batch_size - non_spec_expanded_bs
 
-        pad_len_list = [proposal_lens_list[i] + 1 for i in spec_indices if proposal_lens_list[i] > 0]
-        assert len(pad_len_list) == spec_expanded_bs, "invalid spec_expanded_bs"
-
-        target_token_ids = reshape_and_pad(target_token_ids, pad_len_list)
-        target_probs = reshape_and_pad(target_probs, pad_len_list)
-        target_logprobs = reshape_and_pad(target_logprobs, pad_len_list)
+        target_token_ids = target_token_ids.reshape(spec_expanded_bs, k + 1)
+        target_probs = target_probs.reshape(spec_expanded_bs, k + 1,
+                                            self._vocab_size)
+        target_logprobs = target_logprobs.reshape(spec_expanded_bs, k + 1,
+                                                  self._vocab_size)
 
         if target_hidden_states is not None:
-            target_hidden_states = reshape_and_pad(target_hidden_states, pad_len_list)
+            target_hidden_states = target_hidden_states.reshape(
+                spec_expanded_bs, k + 1, target_hidden_states.shape[-1])
 
         all_tokens = target_token_ids.new_full(size=(contracted_bs, k + 1),
                                                fill_value=-1)
@@ -299,15 +299,17 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
         # Map distinct sequences used to score each token
         # of shape [batch_size * k + 1] back to [batch_size, k + 1].
         contracted_bs, k = proposals.proposal_token_ids.shape
-        assert contracted_bs == len(proposal_lens_list), "invalid contracted_bs"
-        pad_len_list = [proposal_lens_list[i] + 1 for i in range(contracted_bs)]
 
-        target_token_ids = reshape_and_pad(target_sampler_output.sampled_token_ids.flatten(), pad_len_list)
-        target_probs = reshape_and_pad(target_sampler_output.sampled_token_probs, pad_len_list)
-        target_logprobs = reshape_and_pad(target_sampler_output.logprobs, pad_len_list)
+        target_token_ids = target_sampler_output.sampled_token_ids.flatten(
+            ).reshape(contracted_bs, k + 1)
+        target_probs = target_sampler_output.sampled_token_probs.reshape(
+            contracted_bs, k + 1, self._vocab_size)
+        target_logprobs = target_sampler_output.logprobs.reshape(
+            contracted_bs, k + 1, self._vocab_size)
         target_hidden_states = target_sampler_output.hidden_states
         if target_hidden_states is not None:
-            target_hidden_states = reshape_and_pad(target_hidden_states, pad_len_list)
+            target_hidden_states = target_hidden_states.reshape(
+                contracted_bs, k + 1, target_hidden_states.shape[-1])
 
         return SpeculativeScores(probs=target_probs,
                                  token_ids=target_token_ids,

@@ -1039,7 +1039,7 @@ class EngineArgs:
         )
 
     def create_load_config(self) -> LoadConfig:
-        if envs.COSPEC and not envs.COSPEC_CORRECTNESS_TEST:
+        if envs.COSPEC:
             logger.info("For CoSpec, using shared memory to load models")
             self.load_format = "shared_memory"
 
@@ -1585,7 +1585,7 @@ class EngineArgs:
         # For correctness test there is chunked prefill test that fails when max_num_seq is divided 
         # by 2 because the max_num_seq is so small and has to match max_num_batched_tokens
         # For normal case since we are using two engines, we halve the max_num_seqs.
-        if envs.COSPEC and not envs.COSPEC_CORRECTNESS_TEST:
+        if envs.COSPEC:
             self.max_num_seqs = self.max_num_seqs // 2
             logger.info("Cospec half the max_num_seqs: %d", self.max_num_seqs)
 

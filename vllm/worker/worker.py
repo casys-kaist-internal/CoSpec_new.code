@@ -307,9 +307,16 @@ class Worker(LocalOrDistributedWorkerBase):
 
     def _init_cache_engine(self):
         assert self.cache_config.num_gpu_blocks is not None
+        # CoSpec: use shared KV cache
+        # "owner" = target process (allocate + export IPC handles)
+        # "client" = draft process (import from IPC handles)
+        shared_mode = getattr(self, 'cospec_shared_mode', None)
+        if shared_mode is None and getattr(self, 'cospec_manager', None) is not None:
+            shared_mode = "owner"
         self.cache_engine = [
             CacheEngine(self.cache_config, self.model_config,
-                        self.parallel_config, self.device_config)
+                        self.parallel_config, self.device_config,
+                        shared_mode=shared_mode)
             for _ in range(self.parallel_config.pipeline_parallel_size)
         ]
         self.gpu_cache = [
@@ -338,10 +345,6 @@ class Worker(LocalOrDistributedWorkerBase):
         # the model initialization and profiling.
         set_random_seed(self.model_config.seed)
     
-    def profile_tiling(self, max_batch_size:int):
-        for batch_size in range(max_batch_size):
-            self.model_runner._profile_tiling(batch_size)
-
     @property
     def do_metadata_broadcast(self) -> bool:
         return self.parallel_config.tensor_parallel_size > 1

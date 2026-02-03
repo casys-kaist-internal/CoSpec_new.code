@@ -25,20 +25,9 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
                                          RPCStartupResponse,
-                                         RPCUProfileRequest, RPCCospecProfileRequest,
+                                         RPCUProfileRequest,
                                          RPCWakeUpRequest, RPCSetNumSpeculativeTokensRequest,
                                          RPCSetMaxNumSeqsRequest,
-                                         RPCMaybeLoadCachedColocationProfileResponse,
-                                         RPCMaybeLoadCachedColocationProfileRequest,
-                                         RPCSetProfileBatchSizeRequest,
-                                         RPCPredictColocationSpeedupRatioRequest,
-                                         RPCPredictColocationSpeedupRatioResponse,
-                                         RPCIsSelectiveValidatorTrainedRequest,
-                                         RPCIsSelectiveValidatorTrainedResponse,
-                                         RPCMaybeLoadCachedTilingProfileRequest,
-                                         RPCMaybeLoadCachedTilingProfileResponse,
-                                         RPCGetNumSpeculativeTokensEmaRequest,
-                                         RPCGetNumSpeculativeTokensEmaResponse,
                                          RPCLazyInitializeKVCacheRequest)
 # yapf: enable
 from vllm.logger import init_logger
@@ -281,22 +270,6 @@ class MQLLMEngine:
                         self.start_profile()
                     else:
                         self.stop_profile()
-                elif isinstance(request, RPCCospecProfileRequest):
-                    if request == RPCCospecProfileRequest.START_TILING_PROFILE:
-                        self.start_cospec_profile(mode="tiling")
-                    elif request == RPCCospecProfileRequest.START_COLOCATION_PROFILE:
-                        self.start_cospec_profile(mode="colocation")
-                    elif request == RPCCospecProfileRequest.STOP_PROFILE:
-                        self.stop_cospec_profile()
-                    elif request == RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE:
-                        self.set_colocation_mode(True)
-                    elif request == RPCCospecProfileRequest.SET_COLOCATION_MODE_FALSE:
-                        self.set_colocation_mode(False)
-                    else:
-                        raise ValueError("Unknown RPCCospecProfileRequest: "
-                                         f"{type(request)}")
-                elif isinstance(request, RPCSetProfileBatchSizeRequest):
-                    self.set_profile_batch_size(request.batch_size)
                 elif isinstance(request, RPCSetNumSpeculativeTokensRequest):
                     self.set_num_speculative_tokens(request.num_speculative_tokens)
                 elif isinstance(request, RPCLazyInitializeKVCacheRequest):
@@ -313,16 +286,6 @@ class MQLLMEngine:
                     self.wake_up(request.tags)
                 elif isinstance(request, RPCIsSleepingRequest):
                     self._handle_is_sleeping_request(request)
-                elif isinstance(request, RPCMaybeLoadCachedColocationProfileRequest):
-                    self._handle_maybe_load_cached_colocation_profile_request(request)
-                elif isinstance(request, RPCMaybeLoadCachedTilingProfileRequest):
-                    self._handle_maybe_load_cached_tiling_profile_request(request)
-                elif isinstance(request, RPCIsSelectiveValidatorTrainedRequest):
-                    self._handle_is_selective_validator_trained_request(request)
-                elif isinstance(request, RPCPredictColocationSpeedupRatioRequest):
-                    self._handle_predict_colocation_speedup_ratio_request(request)
-                elif isinstance(request, RPCGetNumSpeculativeTokensEmaRequest):
-                    self._handle_get_num_speculative_tokens_ema_request(request)
                 else:
                     raise ValueError("Unknown RPCRequest Type: "
                                      f"{type(request)}")
@@ -455,50 +418,6 @@ class MQLLMEngine:
     def stop_profile(self) -> None:
         self.engine.stop_profile()
 
-    def start_cospec_profile(self, mode: str) -> None:
-        self.engine.start_cospec_profile(mode)
-
-    def stop_cospec_profile(self) -> None:
-        self.engine.stop_cospec_profile()
-
-    def set_colocation_mode(self, colocation_mode: bool) -> None:
-        self.engine.set_colocation_mode(colocation_mode)
-
-    def _handle_maybe_load_cached_colocation_profile_request(self, 
-                                                         request: RPCMaybeLoadCachedColocationProfileRequest) -> bool:
-        loaded = self.engine.maybe_load_cached_colocation_profile()
-        self._send_outputs(
-            RPCMaybeLoadCachedColocationProfileResponse(request_id=request.request_id, 
-                                                    loaded=loaded))
-    
-    def _handle_maybe_load_cached_tiling_profile_request(self, 
-                                                         request: RPCMaybeLoadCachedTilingProfileRequest) -> bool:
-        loaded = self.engine.maybe_load_cached_tiling_profile()
-        self._send_outputs(
-            RPCMaybeLoadCachedTilingProfileResponse(request_id=request.request_id, 
-                                                    loaded=loaded))
-
-    def _handle_is_selective_validator_trained_request(self, 
-                                                       request: RPCIsSelectiveValidatorTrainedRequest) -> bool:
-        trained = self.engine.is_selective_validator_trained()
-        self._send_outputs(
-            RPCIsSelectiveValidatorTrainedResponse(request_id=request.request_id, 
-                                                    trained=trained))
-
-    def _handle_predict_colocation_speedup_ratio_request(self, 
-                                                         request: RPCPredictColocationSpeedupRatioRequest) -> float:
-        speedup_ratio = self.engine.predict_colocation_speedup_ratio(request.batch_size)
-        self._send_outputs(
-            RPCPredictColocationSpeedupRatioResponse(request_id=request.request_id, 
-                                                    speedup_ratio=speedup_ratio))
-        
-    def _handle_get_num_speculative_tokens_ema_request(self,
-                                                       request: RPCGetNumSpeculativeTokensEmaRequest) -> float:
-        num_speculative_tokens_ema = self.engine.get_num_speculative_tokens_ema()
-        self._send_outputs(
-            RPCGetNumSpeculativeTokensEmaResponse(request_id=request.request_id, 
-                                                    num_speculative_tokens_ema=num_speculative_tokens_ema))
-
     def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         self.engine.set_num_speculative_tokens(num_speculative_tokens)
 
@@ -507,9 +426,6 @@ class MQLLMEngine:
 
     def set_max_num_seqs(self, max_num_seqs: int) -> None:
         self.engine.set_max_num_seqs(max_num_seqs)
-
-    def set_profile_batch_size(self, batch_size: int) -> None:
-        self.engine.set_profile_batch_size(batch_size)
 
     def reset_prefix_cache(self) -> bool:
         return self.engine.reset_prefix_cache()

@@ -73,7 +73,6 @@ from vllm.entrypoints.openai.protocol import (ChatCompletionRequest,
 # yapf: enable
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 from vllm.entrypoints.openai.serving_completion import OpenAIServingCompletion
-from vllm.entrypoints.openai.serving_completion_cospec import OpenAIServingCompletionCoSpec
 from vllm.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
 from vllm.entrypoints.openai.serving_engine import OpenAIServing
 from vllm.entrypoints.openai.serving_models import (BaseModelPath,
@@ -504,17 +503,6 @@ async def get_server_load_metrics(request: Request):
     # - /v2/rerank
     return JSONResponse(
         content={'server_load': request.app.state.server_load_metrics})
-
-@router.api_route("/selective_validator_trained", methods=["GET"])
-async def selective_validator_trained(raw_request: Request) -> Response:
-    """Check if the selective validator is trained"""
-    handler = completion(raw_request)
-    if handler is None:
-        return base(raw_request).create_error_response(
-            message="The model does not support Completions API")
-    
-    is_trained = await handler.is_selective_validator_trained()
-    return JSONResponse(content={"is_trained": is_trained})
 
 @router.api_route("/ping", methods=["GET", "POST"])
 async def ping(raw_request: Request) -> Response:
@@ -1127,94 +1115,6 @@ async def init_app_state(
     state.server_load_metrics = 0
 
 
-async def init_app_state_cospec(
-    engine_client: EngineClient,
-    engine_client2: EngineClient,
-    vllm_config: VllmConfig,
-    state: State,
-    args: Namespace,
-) -> None:
-    if args.served_model_name is not None:
-        served_model_names = args.served_model_name
-    else:
-        served_model_names = [args.model]
-
-    if args.disable_log_requests:
-        request_logger = None
-    else:
-        request_logger = RequestLogger(max_log_len=args.max_log_len)
-
-    base_model_paths = [
-        BaseModelPath(name=name, model_path=args.model)
-        for name in served_model_names
-    ]
-
-    state.engine_client = engine_client
-    state.engine_client2 = engine_client2
-    state.log_stats = not args.disable_log_stats
-    state.vllm_config = vllm_config
-    model_config = vllm_config.model_config
-
-    resolved_chat_template = load_chat_template(args.chat_template)
-    if resolved_chat_template is not None:
-        # Get the tokenizer to check official template
-        tokenizer = await engine_client.get_tokenizer()
-
-        if isinstance(tokenizer, MistralTokenizer):
-            # The warning is logged in resolve_mistral_chat_template.
-            resolved_chat_template = resolve_mistral_chat_template(
-                chat_template=resolved_chat_template)
-        else:
-            hf_chat_template = resolve_hf_chat_template(
-                tokenizer,
-                chat_template=None,
-                tools=None,
-                trust_remote_code=model_config.trust_remote_code)
-
-            if hf_chat_template != resolved_chat_template:
-                logger.warning(
-                    "Using supplied chat template: %s\n"
-                    "It is different from official chat template '%s'. "
-                    "This discrepancy may lead to performance degradation.",
-                    resolved_chat_template, args.model)
-
-    state.openai_serving_models = OpenAIServingModels(
-        engine_client=engine_client,
-        engine_client2=engine_client2,
-        model_config=model_config,
-        base_model_paths=base_model_paths,
-        lora_modules=args.lora_modules,
-        prompt_adapters=args.prompt_adapters,
-    )
-    await state.openai_serving_models.init_static_loras()
-
-    # Only Serving Completion is supported for CoSpec
-    state.openai_serving_completion = OpenAIServingCompletionCoSpec(
-        engine_client,
-        engine_client2,
-        model_config,
-        state.openai_serving_models,
-        request_logger=request_logger,
-        return_tokens_as_token_ids=args.return_tokens_as_token_ids,
-    ) if model_config.runner_type == "generate" else None
-
-    state.task = model_config.task
-    state.enable_server_load_tracking = args.enable_server_load_tracking
-    state.server_load_metrics = 0
-
-    # Cospec Lazy Initialize KV Cache
-    await state.openai_serving_completion.lazy_initialize_kv_cache()
-
-    # Cospec Warmup
-    await state.openai_serving_completion.warmup()
-
-    # Cospec Profiling
-    await state.openai_serving_completion.cospec_profile()
-    
-    # Start the background colocation state manager
-    if state.openai_serving_completion is not None:
-        await state.openai_serving_completion.start()
-
 def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     family = socket.AF_INET
     if is_valid_ipv6_address(addr[0]):
@@ -1228,9 +1128,38 @@ def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     return sock
 
 
+def _start_mps_daemon() -> None:
+    """Start NVIDIA MPS daemon for CoSpec concurrent execution."""
+    # Skip if MPS is already running
+    result = subprocess.run(["pgrep", "-f", "nvidia-cuda-mps-control"],
+                            capture_output=True)
+    if result.returncode == 0:
+        logger.info("NVIDIA MPS daemon already running, skipping startup")
+        return
+    os.environ.setdefault("CUDA_MPS_PIPE_DIRECTORY", "/tmp/nvidia-mps")
+    os.environ.setdefault("CUDA_MPS_LOG_DIRECTORY", "/tmp/nvidia-log")
+    subprocess.run(["nvidia-cuda-mps-control", "-d"], check=True)
+    logger.info("NVIDIA MPS daemon started")
+
+
+def _stop_mps_daemon() -> None:
+    """Stop NVIDIA MPS daemon."""
+    try:
+        subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"],
+                       check=True)
+        logger.info("NVIDIA MPS daemon stopped")
+    except Exception as e:
+        logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
+
+
 async def run_server(args, **uvicorn_kwargs) -> None:
-    logger.info("vLLM API server version %s", VLLM_VERSION)
+    cospec_mode = envs.COSPEC
+    logger.info("vLLM API server version %s%s", VLLM_VERSION,
+                " (CoSpec)" if cospec_mode else "")
     logger.info("args: %s", args)
+
+    if cospec_mode:
+        _start_mps_daemon()
 
     if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
         ToolParserManager.import_tool_parser(args.tool_parser_plugin)
@@ -1253,20 +1182,16 @@ async def run_server(args, **uvicorn_kwargs) -> None:
     # see https://github.com/vllm-project/vllm/issues/8204
     sock_addr = (args.host or "", args.port)
     sock = create_server_socket(sock_addr)
-
-    # workaround to avoid footguns where uvicorn drops requests with too
-    # many concurrent requests active
     set_ulimit()
 
     def signal_handler(*_) -> None:
-        # Interrupt server on sigterm while initializing
         raise KeyboardInterrupt("terminated")
 
     signal.signal(signal.SIGTERM, signal_handler)
 
-    async with build_async_engine_client(args) as engine_client:
+    is_primary = True if cospec_mode else None
+    async with build_async_engine_client(args, is_primary=is_primary) as engine_client:
         app = build_app(args)
-        state = app.state
         vllm_config = await engine_client.get_vllm_config()
         await init_app_state(engine_client, vllm_config, app.state, args)
 
@@ -1287,8 +1212,6 @@ async def run_server(args, **uvicorn_kwargs) -> None:
             host=args.host,
             port=args.port,
             log_level=args.uvicorn_log_level,
-            # NOTE: When the 'disable_uvicorn_access_log' value is True,
-            # no access log will be output.
             access_log=not args.disable_uvicorn_access_log,
             timeout_keep_alive=TIMEOUT_KEEP_ALIVE,
             ssl_keyfile=args.ssl_keyfile,
@@ -1298,140 +1221,13 @@ async def run_server(args, **uvicorn_kwargs) -> None:
             **uvicorn_kwargs,
         )
 
-    # NB: Await server shutdown only after the backend context is exited
     try:
         await shutdown_task
     finally:
         sock.close()
+        if cospec_mode:
+            _stop_mps_daemon()
 
-
-async def run_server_cospec(args, **uvicorn_kwargs) -> None:
-    logger.info("vLLM API server version %s", VLLM_VERSION)
-    logger.info("args: %s", args)
-
-    # Stop the already running MPS daemon
-    try:
-        subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
-        logger.info("NVIDIA MPS daemon stopped successfully. Rerun the command to start it again.")
-    except Exception as e:
-        logger.error("No running MPS daemon found")
-
-    time.sleep(10)
-
-    try:
-        logger.info("Initializing NVIDIA MPS...")
-        
-        # Set MPS environment variables
-        # mps_dir = f"/tmp/nvidia-mps-{os.getpid()}"
-        # log_dir = f"/tmp/nvidia-log-{os.getpid()}"
-        mps_dir = f"/tmp/nvidia-mps"
-        log_dir = f"/tmp/nvidia-log"
-        os.environ["CUDA_MPS_PIPE_DIRECTORY"] = mps_dir
-        os.environ["CUDA_MPS_LOG_DIRECTORY"] = log_dir
-        
-        # # Create directories if they don't exist with proper permissions
-        # os.makedirs(mps_dir, mode=0o777, exist_ok=True)
-        # os.makedirs(log_dir, mode=0o777, exist_ok=True)
-        
-        # # Change ownership to root:root to match nvidia-mps
-        # subprocess.run(["chown", "root:root", mps_dir], check=True)
-        # subprocess.run(["chown", "root:root", log_dir], check=True)
-        
-        # # Set exact permissions to match nvidia-mps (drwxrwxrwx)
-        # subprocess.run(["chmod", "777", mps_dir], check=True)
-        
-        # Start MPS control daemon
-        subprocess.run(["nvidia-cuda-mps-control", "-d"], check=True)
-        logger.info("NVIDIA MPS daemon started successfully as a background process")
-        
-    except Exception as e:
-        logger.error("Failed to initialize NVIDIA MPS: %s", str(e))
-        raise
-
-    if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
-        ToolParserManager.import_tool_parser(args.tool_parser_plugin)
-
-    valid_tool_parses = ToolParserManager.tool_parsers.keys()
-    if args.enable_auto_tool_choice \
-        and args.tool_call_parser not in valid_tool_parses:
-        raise KeyError(f"invalid tool call parser: {args.tool_call_parser} "
-                       f"(chose from {{ {','.join(valid_tool_parses)} }})")
-
-    valid_reasoning_parses = ReasoningParserManager.reasoning_parsers.keys()
-    if args.enable_reasoning \
-        and args.reasoning_parser not in valid_reasoning_parses:
-        raise KeyError(
-            f"invalid reasoning parser: {args.reasoning_parser} "
-            f"(chose from {{ {','.join(valid_reasoning_parses)} }})")
-
-    # workaround to make sure that we bind the port before the engine is set up.
-    # This avoids race conditions with ray.
-    # see https://github.com/vllm-project/vllm/issues/8204
-    sock_addr = (args.host or "", args.port)
-    sock = create_server_socket(sock_addr)
-
-    # workaround to avoid footguns where uvicorn drops requests with too
-    # many concurrent requests active
-    set_ulimit()
-
-    def signal_handler(*_) -> None:
-        # Interrupt server on sigterm while initializing
-        raise KeyboardInterrupt("terminated")
-
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    async with build_async_engine_client(args, is_primary=True) as engine_client, \
-        build_async_engine_client(args, is_primary=False) as engine_client2:
-        app = build_app(args)
-        state = app.state
-
-        vllm_config = await engine_client.get_vllm_config()
-        await init_app_state_cospec(engine_client, engine_client2, vllm_config, app.state, args)
-
-        def _listen_addr(a: str) -> str:
-            if is_valid_ipv6_address(a):
-                return '[' + a + ']'
-            return a or "0.0.0.0"
-
-        is_ssl = args.ssl_keyfile and args.ssl_certfile
-        logger.info("Starting vLLM API server on http%s://%s:%d",
-                    "s" if is_ssl else "", _listen_addr(sock_addr[0]),
-                    sock_addr[1])
-
-        shutdown_task = await serve_http(
-            app,
-            sock=sock,
-            enable_ssl_refresh=args.enable_ssl_refresh,
-            host=args.host,
-            port=args.port,
-            log_level=args.uvicorn_log_level,
-            # NOTE: When the 'disable_uvicorn_access_log' value is True,
-            # no access log will be output.
-            access_log=not args.disable_uvicorn_access_log,
-            timeout_keep_alive=TIMEOUT_KEEP_ALIVE,
-            ssl_keyfile=args.ssl_keyfile,
-            ssl_certfile=args.ssl_certfile,
-            ssl_ca_certs=args.ssl_ca_certs,
-            ssl_cert_reqs=args.ssl_cert_reqs,
-            **uvicorn_kwargs,
-        )
-
-    # NB: Await server shutdown only after the backend context is exited
-    try:
-        await shutdown_task
-    finally:
-        # Stop the background colocation state manager
-        if state.openai_serving_completion is not None:
-            await state.openai_serving_completion.stop()
-        sock.close()
-        # Stop MPS control daemon
-        try:
-            subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"], check=True)
-            logger.info("NVIDIA MPS daemon stopped successfully")
-            # subprocess.run(["rm", "-rf", f"/tmp/nvidia-mps-{os.getpid()}"], check=True)
-            
-        except Exception as e:
-            logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
 
 if __name__ == "__main__":
     # NOTE(simon):
@@ -1444,22 +1240,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     validate_parsed_serve_args(args)
 
-    # Cleanup previous shared memory files on server start
+    # Cleanup previous CoSpec IPC handles on server start
     try:
-        import glob
-        shm_files = glob.glob('/tmp/cospec*')
-        for f in shm_files:
-            try:
-                if os.path.isfile(f):
-                    os.remove(f)
-                    logger.debug("Cleaned up shared memory file: %s", f)
-            except Exception as e:
-                logger.warning("Failed to remove %s: %s", f, str(e))
-        logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
+        from vllm.cospec.cospec_manager import cleanup_cospec_resources
+        cleanup_cospec_resources()
     except Exception as e:
-        logger.error("Shared memory cleanup failed: %s", str(e))
+        logger.error("CoSpec IPC cleanup failed: %s", str(e))
 
-    if envs.COSPEC:
-        uvloop.run(run_server_cospec(args))
-    else:
-        uvloop.run(run_server(args))
+    uvloop.run(run_server(args))

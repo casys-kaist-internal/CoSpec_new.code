@@ -198,42 +198,6 @@ class ExecutorBase(ABC):
     def stop_profile(self) -> None:
         self.collective_rpc("stop_profile")
 
-    def start_cospec_profile(self, mode: str) -> None:
-        run_method(self.driver_worker, "start_cospec_profile", 
-                          args=(mode, ), kwargs={})
-
-    def stop_cospec_profile(self) -> None:
-        run_method(self.driver_worker, "stop_cospec_profile", 
-                          args=(), kwargs={})
-
-    def set_colocation_mode(self, colocation_mode: bool) -> None:
-        run_method(self.driver_worker, "set_colocation_mode", 
-                          args=(colocation_mode, ), kwargs={})
-
-    def set_profile_batch_size(self, batch_size: int) -> None:
-        run_method(self.driver_worker, "set_profile_batch_size", 
-                          args=(batch_size, ), kwargs={})
-
-    def maybe_load_cached_colocation_profile(self) -> bool:
-        return run_method(self.driver_worker, "maybe_load_cached_colocation_profile", 
-                          args=(), kwargs={})
-    
-    def maybe_load_cached_tiling_profile(self) -> bool:
-        return run_method(self.driver_worker, "maybe_load_cached_tiling_profile", 
-                          args=(), kwargs={})
-    
-    def is_selective_validator_trained(self) -> bool:
-        return run_method(self.driver_worker, "is_selective_validator_trained", 
-                          args=(), kwargs={})
-        
-    def get_num_speculative_tokens_ema(self) -> int:
-        return run_method(self.driver_worker, "get_num_speculative_tokens_ema", 
-                          args=(), kwargs={})
-                          
-    def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
-        return run_method(self.driver_worker, "predict_colocation_speedup_ratio", 
-                          args=(batch_size, ), kwargs={})
-    
     def sleep(self, level: int = 1):
         if self.is_sleeping:
             logger.warning("Executor is already sleeping.")

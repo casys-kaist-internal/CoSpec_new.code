@@ -276,36 +276,6 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
-    async def start_cospec_profile(self, mode: str) -> None:
-        """Start profiling the engine"""
-        ...
-
-    @abstractmethod
-    async def stop_cospec_profile(self) -> None:
-        """Stop profiling the engine"""
-        ...
-
-    @abstractmethod
-    async def set_colocation_mode(self, colocation_mode: bool) -> None:
-        """Set the colocation mode for the engine"""
-        ...
-
-    @abstractmethod
-    async def set_profile_batch_size(self, batch_size: int) -> None:
-        """Set the batch size for subsequent profiling"""
-        ...
-
-    @abstractmethod
-    async def maybe_load_cached_colocation_profile(self) -> bool:
-        """Load cached cospec profile if exists"""
-        ...
-
-    @abstractmethod
-    async def maybe_load_cached_tiling_profile(self) -> bool:
-        """Load cached tiling profile if exists"""
-        ...
-
-    @abstractmethod
     async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         """Set the number of speculative tokens"""
         ...
@@ -318,21 +288,6 @@ class EngineClient(ABC):
     @abstractmethod
     async def set_max_num_seqs(self, max_num_seqs: int) -> None:
         """Set the maximum number of sequences"""
-        ...
-
-    @abstractmethod
-    async def get_num_speculative_tokens_ema(self) -> int:
-        """Get the number of speculative tokens ema"""
-        ...
-
-    @abstractmethod
-    async def is_selective_validator_trained(self) -> bool:
-        """Check if the selective validation model has completed training"""
-        ...
-
-    @abstractmethod
-    async def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
-        """Predict the speedup ratio for colocation"""
         ...
 
     @abstractmethod

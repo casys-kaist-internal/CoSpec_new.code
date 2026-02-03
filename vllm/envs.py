@@ -112,12 +112,7 @@ if TYPE_CHECKING:
     VLLM_MSGPACK_ZERO_COPY_THRESHOLD: int = 256
 
     # CoSpec specific env vars
-    COSPEC: bool = False 
-    COSPEC_DYNAMIC_COLOCATION: bool = False
-    COSPEC_SELECTIVE_VALIDATION: bool = False
-    COSPEC_SELECTIVE_VALIDATION_METHOD: str = "tile" # tile, linear, threshold, random
-    COSPEC_SELECTIVE_VALIDATION_THRESHOLD: float = 0.5
-    COSPEC_CORRECTNESS_TEST: bool = False
+    COSPEC: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -738,20 +733,6 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "COSPEC":
     lambda: bool(int(os.getenv("COSPEC", "0"))),
 
-    "COSPEC_DYNAMIC_COLOCATION":
-    lambda: bool(int(os.getenv("COSPEC_DYNAMIC_COLOCATION", "0"))),
-
-    "COSPEC_SELECTIVE_VALIDATION":
-    lambda: bool(int(os.getenv("COSPEC_SELECTIVE_VALIDATION", "0"))),
-
-    "COSPEC_SELECTIVE_VALIDATION_THRESHOLD":
-    lambda: float(os.getenv("COSPEC_SELECTIVE_VALIDATION_THRESHOLD", "0.5")),
-
-    "COSPEC_SELECTIVE_VALIDATION_METHOD":
-    lambda: str(os.getenv("COSPEC_SELECTIVE_VALIDATION_METHOD", "tile")),
-
-    "COSPEC_CORRECTNESS_TEST":
-    lambda: bool(int(os.getenv("COSPEC_CORRECTNESS_TEST", "0"))),
 }
 
 # end-env-vars-definition

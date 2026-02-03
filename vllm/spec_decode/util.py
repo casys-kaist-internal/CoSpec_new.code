@@ -282,35 +282,3 @@ class Timer:
         self.end_time = time.time()
         self.elapsed_time_s = self.end_time - self.start_time
         self.elapsed_time_ms = self.elapsed_time_s * 1000
-
-def reshape_and_pad(tensor: torch.Tensor, len_list: List[int]) -> torch.Tensor:
-    """Reshape and pad a flattened tensor according to the lengths in len_list.
-    
-    Args:
-        tensor: A flattened tensor of shape [total_elements, vocab_size] or [total_elements]
-        len_list: List of lengths for each sequence in the batch
-        
-    Returns:
-        A tensor of shape [batch_size, max_len, vocab_size] or [batch_size, max_len]
-        where each row keeps original elements up to len_list[i] and pads the rest with zeros
-    """
-    if len(tensor) == 0:
-        return tensor
-    
-    max_len = max(len_list)
-    batch_size = len(len_list)
-    
-    # Handle both 1D and 2D input tensors
-    if len(tensor.shape) == 2:
-        vocab_size = tensor.shape[1]
-        output = torch.zeros((batch_size, max_len, vocab_size), device=tensor.device, dtype=tensor.dtype)
-    else:
-        output = torch.zeros((batch_size, max_len), device=tensor.device, dtype=tensor.dtype)
-    
-    # For each row, copy elements up to its length
-    start_idx = 0
-    for i, len_ in enumerate(len_list):
-        output[i, :len_] = tensor[start_idx:start_idx + len_]
-        start_idx += len_
-            
-    return output

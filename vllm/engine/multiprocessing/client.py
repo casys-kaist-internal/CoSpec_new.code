@@ -35,18 +35,7 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCSleepRequest, RPCStartupRequest,
                                          RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
                                          RPCSetMaxNumSeqsRequest,
-                                         RPCSetProfileBatchSizeRequest,
-                                         RPCUProfileRequest, RPCCospecProfileRequest, RPCWakeUpRequest,
-                                         RPCMaybeLoadCachedColocationProfileResponse,
-                                         RPCMaybeLoadCachedColocationProfileRequest,
-                                         RPCPredictColocationSpeedupRatioRequest,
-                                         RPCPredictColocationSpeedupRatioResponse,
-                                         RPCIsSelectiveValidatorTrainedRequest,
-                                         RPCIsSelectiveValidatorTrainedResponse,
-                                         RPCMaybeLoadCachedTilingProfileRequest,
-                                         RPCMaybeLoadCachedTilingProfileResponse,
-                                         RPCGetNumSpeculativeTokensEmaRequest,
-                                         RPCGetNumSpeculativeTokensEmaResponse,
+                                         RPCUProfileRequest, RPCWakeUpRequest,
                                          RPCLazyInitializeKVCacheRequest)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
@@ -263,9 +252,7 @@ class MQLLMEngineClient(EngineClient):
                 # Put each output into the appropriate queue.
                 elif isinstance(
                         request_outputs,
-                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse, RPCMaybeLoadCachedColocationProfileResponse,
-                     RPCMaybeLoadCachedTilingProfileResponse, RPCIsSelectiveValidatorTrainedResponse, RPCPredictColocationSpeedupRatioResponse,
-                     RPCGetNumSpeculativeTokensEmaResponse)):
+                    (RPCAdapterLoadedResponse, RPCIsSleepingResponse)):
                     self._add_output(request_outputs)
                 else:
                     for request_output in request_outputs:
@@ -276,12 +263,7 @@ class MQLLMEngineClient(EngineClient):
 
     def _add_output(self, request_output: Union[RequestOutput,
                                                 RPCAdapterLoadedResponse,
-                                                RPCIsSleepingResponse,
-                                                RPCMaybeLoadCachedColocationProfileResponse,
-                                                RPCMaybeLoadCachedTilingProfileResponse,
-                                                RPCIsSelectiveValidatorTrainedResponse,
-                                                RPCPredictColocationSpeedupRatioResponse,
-                                                RPCGetNumSpeculativeTokensEmaResponse]):
+                                                RPCIsSleepingResponse]):
         queue = self.output_queues.get(request_output.request_id)
         if queue is not None:
             queue.put_nowait(request_output)
@@ -713,106 +695,6 @@ class MQLLMEngineClient(EngineClient):
         await self._send_one_way_rpc_request(
             request=RPCUProfileRequest.STOP_PROFILE, socket=self.input_socket)
         
-    async def start_cospec_profile(self, mode: str) -> None:
-        """Start profiling the engine"""
-        if mode == "tiling":
-            await self._send_one_way_rpc_request(
-                request=RPCCospecProfileRequest.START_TILING_PROFILE, socket=self.input_socket)
-        elif mode == "colocation":
-            await self._send_one_way_rpc_request(
-                request=RPCCospecProfileRequest.START_COLOCATION_PROFILE, socket=self.input_socket)
-        else:
-            raise ValueError(f"Invalid mode: {mode}")
-
-    async def stop_cospec_profile(self) -> None:
-        """Stop profiling the engine"""
-
-        await self._send_one_way_rpc_request(
-            request=RPCCospecProfileRequest.STOP_PROFILE, socket=self.input_socket)
-        
-    async def set_colocation_mode(self, colocation_mode: bool) -> None:
-        """Set the colocation mode for the engine"""
-
-        await self._send_one_way_rpc_request(
-            request=RPCCospecProfileRequest.SET_COLOCATION_MODE_TRUE if colocation_mode else RPCCospecProfileRequest.SET_COLOCATION_MODE_FALSE, socket=self.input_socket)
-        
-    async def set_profile_batch_size(self, batch_size: int) -> None:
-        """Set the batch size for subsequent profiling"""
-        await self._send_one_way_rpc_request(
-            request=RPCSetProfileBatchSizeRequest(batch_size), socket=self.input_socket)
-
-    async def maybe_load_cached_colocation_profile(self) -> bool:
-        """Load cached cospec profile if exists"""
-        request = RPCMaybeLoadCachedColocationProfileRequest()
-
-        queue: asyncio.Queue[Union[BaseException,
-                                   RPCMaybeLoadCachedColocationProfileResponse]] = asyncio.Queue()
-        self.output_queues[request.request_id] = queue
-
-        request_bytes = pickle.dumps(request)
-        await self.input_socket.send_multipart((request_bytes, ), copy=False)
-        
-        request_output = await queue.get()
-        self.output_queues.pop(request.request_id)
-
-        if isinstance(request_output, BaseException):
-            raise request_output
-        return request_output.loaded
-    
-    async def maybe_load_cached_tiling_profile(self) -> bool:
-        """Load cached tiling profile if exists"""
-        request = RPCMaybeLoadCachedTilingProfileRequest()
-
-        queue: asyncio.Queue[Union[BaseException,
-                                   RPCMaybeLoadCachedTilingProfileResponse]] = asyncio.Queue()
-        self.output_queues[request.request_id] = queue
-
-        request_bytes = pickle.dumps(request)
-        await self.input_socket.send_multipart((request_bytes, ), copy=False)
-        
-        request_output = await queue.get()
-        self.output_queues.pop(request.request_id)
-
-        if isinstance(request_output, BaseException):
-            raise request_output
-        return request_output.loaded
-    
-    async def is_selective_validator_trained(self) -> bool:
-        """Check if the selective validation model has completed training"""
-        request = RPCIsSelectiveValidatorTrainedRequest()
-
-        queue: asyncio.Queue[Union[BaseException,
-                                   RPCIsSelectiveValidatorTrainedResponse]] = asyncio.Queue()
-        self.output_queues[request.request_id] = queue
-
-        request_bytes = pickle.dumps(request)
-        await self.input_socket.send_multipart((request_bytes, ), copy=False)
-        
-        request_output = await queue.get()
-        self.output_queues.pop(request.request_id)
-
-        if isinstance(request_output, BaseException):
-            raise request_output
-        return request_output.trained
-        
-    async def predict_colocation_speedup_ratio(self, batch_size: int) -> float:
-        """Predict the speedup ratio for colocation"""
-        request = RPCPredictColocationSpeedupRatioRequest(batch_size=batch_size)
-
-        queue: asyncio.Queue[Union[BaseException,
-                                   RPCPredictColocationSpeedupRatioResponse]] = asyncio.Queue()
-        self.output_queues[request.request_id] = queue
-
-        request_bytes = pickle.dumps(request)
-        await self.input_socket.send_multipart((request_bytes, ), copy=False)
-
-        request_output = await queue.get()
-        self.output_queues.pop(request.request_id)
-
-        if isinstance(request_output, BaseException):
-            raise request_output
-        return request_output.speedup_ratio
-        
     async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
         """Set the number of speculative tokens"""
 
@@ -820,23 +702,6 @@ class MQLLMEngineClient(EngineClient):
             request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
             socket=self.input_socket)
 
-    async def get_num_speculative_tokens_ema(self) -> int:
-        request = RPCGetNumSpeculativeTokensEmaRequest()
-
-        queue: asyncio.Queue[Union[BaseException,
-                                   RPCGetNumSpeculativeTokensEmaResponse]] = asyncio.Queue()
-        self.output_queues[request.request_id] = queue
-
-        request_bytes = pickle.dumps(request)
-        await self.input_socket.send_multipart((request_bytes, ), copy=False)
-
-        request_output = await queue.get()
-        self.output_queues.pop(request.request_id)
-
-        if isinstance(request_output, BaseException):
-            raise request_output
-        return request_output.num_speculative_tokens_ema
-    
     async def lazy_initialize_kv_cache(self) -> None:
         """Lazy initialize the KV cache"""
         await self._send_one_way_rpc_request(

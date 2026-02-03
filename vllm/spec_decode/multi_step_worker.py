@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import torch
 
-from vllm.cospec.cospec_manager import CospecManager
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.model_executor.model_loader.weight_utils import default_weight_loader
 from vllm.platforms import current_platform
@@ -116,9 +115,6 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                     indices_of_seq_with_bonus_tokens)
                 model_outputs.append(model_output)
 
-                if self.worker.cospec_manager is not None:
-                    if self.worker.cospec_manager.check_early_exit_draft():
-                        break
 
         # move indices to device to avoid stream sync
         indices_of_seq_with_bonus_tokens = torch.tensor(

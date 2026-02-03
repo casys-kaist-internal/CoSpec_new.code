@@ -1514,9 +1514,14 @@ class RunaiModelStreamerLoader(BaseModelLoader):
         return model.eval()
 
 
-class SharedMemoryModelLoader(BaseModelLoader):    
+class SharedMemoryModelLoader(BaseModelLoader):
     SHARED_HANDLES_FILE = "/tmp/cospec_{model}_shm_rank_{rank}.pkl"
     LOCK_FILE = "/tmp/cospec_{model}_lock_rank_{rank}.lock"
+
+    # Class-level cache: when target and draft are in the same process,
+    # store the primary model's state_dict directly to avoid CUDA IPC
+    # (which doesn't work intra-process).
+    _inprocess_state_dicts: dict = {}
 
     def __init__(self, load_config: LoadConfig):
         super().__init__(load_config)
@@ -1558,19 +1563,32 @@ class SharedMemoryModelLoader(BaseModelLoader):
         with open(lock_path, "w") as _:
             pass
 
+        cache_key = f"{self.model_identifier}_rank{rank}"
+
         with open(lock_path, "r+") as lock_file:
             fcntl.flock(lock_file, fcntl.LOCK_EX)
-            
-            try:
-                if os.path.exists(shared_handles_path):
-                    # Load secondary model from shared memory
-                    # 1. First initializes empty tensors
-                    # 2. Then swaps them with the actual shared memory tensors
-                    # 3. Finally garbage collects the initial empty tensors
-                    # Note: This approach requires the total available memory of GPU to be at least 2x the model size,
-                    # as we temporarily need space for both the empty tensors and the shared memory tensors.
 
-                    logger.info("Secondary process - loading model from shared memory")
+            try:
+                # Prefer in-process sharing (same CUDA context, no IPC needed)
+                if cache_key in SharedMemoryModelLoader._inprocess_state_dicts:
+                    logger.info("Secondary model - loading from in-process "
+                                "shared state_dict (same process)")
+                    state_dict = SharedMemoryModelLoader._inprocess_state_dicts[
+                        cache_key]
+
+                    with set_default_torch_dtype(model_config.dtype):
+                        with target_device:
+                            model = _initialize_model(vllm_config=vllm_config)
+                            model.load_state_dict(state_dict, assign=True)
+
+                    torch.cuda.empty_cache()
+                    logger.info("Secondary model - finished loading from "
+                                "in-process shared state_dict")
+
+                elif os.path.exists(shared_handles_path):
+                    # Cross-process: load from CUDA IPC handles
+                    logger.info("Secondary process - loading model from "
+                                "shared memory (CUDA IPC)")
                     with open(shared_handles_path, "rb") as f:
                         handles_dict = pickle.load(f)
 
@@ -1578,22 +1596,22 @@ class SharedMemoryModelLoader(BaseModelLoader):
                     for name, (storage_info, dtype, shape, stride) in handles_dict.items():
                         cuda_args = storage_info[:8]
                         storage = torch.Storage._new_shared_cuda(*cuda_args)
-                        
+
                         tensor = torch.tensor([], dtype=dtype, device=target_device)
                         tensor.set_(storage, 0, shape, stride)
                         state_dict[name] = tensor
 
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
-                            model = _initialize_model(vllm_config=vllm_config) 
+                            model = _initialize_model(vllm_config=vllm_config)
                             model.load_state_dict(state_dict, assign=True)
 
-                    torch.cuda.empty_cache() # garbage collect empty tensors
-                    logger.info("Secondary process - Finished loading model from shared memory")
+                    torch.cuda.empty_cache()
+                    logger.info("Secondary process - finished loading from "
+                                "shared memory")
 
                 else:
                     logger.info("Primary process - initializing model")
-                    # Primary process - store separated storage info and dtype
                     with set_default_torch_dtype(model_config.dtype):
                         with target_device:
                             model = _initialize_model(vllm_config=vllm_config)
@@ -1601,15 +1619,21 @@ class SharedMemoryModelLoader(BaseModelLoader):
                             model.load_weights(weights_iterator)
                             _process_weights_after_loading(model, model_config, target_device)
 
+                    # Store state_dict in class-level cache for in-process
+                    # secondary loads (draft model in same process)
+                    SharedMemoryModelLoader._inprocess_state_dicts[
+                        cache_key] = model.state_dict()
+
+                    # Also write CUDA IPC handles for cross-process use
                     handles_dict = {}
                     for name, param in model.state_dict().items():
                         if param.device.type != "cuda":
                             continue
-                            
+
                         storage = param.storage()
-                        storage_info = storage._share_cuda_() 
+                        storage_info = storage._share_cuda_()
                         handles_dict[name] = (
-                            storage_info,  
+                            storage_info,
                             param.dtype,
                             param.shape,
                             param.stride()
@@ -1617,7 +1641,7 @@ class SharedMemoryModelLoader(BaseModelLoader):
 
                     with open(shared_handles_path, "wb") as f:
                         pickle.dump(handles_dict, f)
-                    
+
                     self.handles_created = True
                     self.model_ref = model
 
