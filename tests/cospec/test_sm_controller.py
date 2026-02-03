@@ -56,16 +56,20 @@ class TestSMControllerGPU:
         stream = torch.cuda.current_stream()
         try:
             controller.set_full_gpu(stream)
-        except PermissionError:
-            pytest.skip("libsmctrl requires MPS or elevated privileges")
+        except RuntimeError as e:
+            if "MPS not available" in str(e):
+                pytest.skip("libsmctrl requires MPS or elevated privileges")
+            raise
 
     def test_set_partition(self, controller):
         import torch
         stream = torch.cuda.current_stream()
         try:
             controller.set_partition(stream, 0.7)
-        except PermissionError:
-            pytest.skip("libsmctrl requires MPS or elevated privileges")
+        except RuntimeError as e:
+            if "MPS not available" in str(e):
+                pytest.skip("libsmctrl requires MPS or elevated privileges")
+            raise
 
     def test_set_partition_explicit_stream(self, controller):
         """Test with a non-default CUDA stream (uses stream mask, not global)."""
@@ -73,5 +77,7 @@ class TestSMControllerGPU:
         stream = torch.cuda.Stream()
         try:
             controller.set_partition(stream, 0.7)
-        except PermissionError:
-            pytest.skip("libsmctrl requires MPS or elevated privileges")
+        except RuntimeError as e:
+            if "MPS not available" in str(e):
+                pytest.skip("libsmctrl requires MPS or elevated privileges")
+            raise

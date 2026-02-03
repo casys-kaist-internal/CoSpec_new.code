@@ -1,14 +1,31 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests which cover integration of the speculative decoding framework with
 other features, e.g. cuda graphs.
+
+NOTE: These tests require NVIDIA MPS to be running for SM partitioning.
+Start MPS with: bash cospec/scripts/start_mps.sh
 """
 
-import pytest
 import os
+import pytest
 
 from .conftest import run_equality_correctness_test_with_env
 
 MAIN_MODEL = "JackFram/llama-68m"
+
+
+def _check_mps_available():
+    """Check if MPS is available by looking for the MPS control daemon."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "nvidia-cuda-mps-control"],
+            capture_output=True, text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
 
 def init_cospec():
     # Cleanup previous CoSpec IPC handles
@@ -17,6 +34,14 @@ def init_cospec():
         cleanup_cospec_resources()
     except Exception as e:
         print("CoSpec IPC cleanup failed: %s" % str(e))
+
+
+# Skip all CoSpec tests if MPS is not running
+pytestmark = pytest.mark.skipif(
+    not _check_mps_available(),
+    reason="CoSpec requires NVIDIA MPS. Start with: bash cospec/scripts/start_mps.sh"
+)
+
 
 @pytest.mark.parametrize(
     "common_llm_kwargs",

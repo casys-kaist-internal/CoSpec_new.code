@@ -1,11 +1,7 @@
 import glob
 import os
 import shutil
-import time
-from typing import Any, Optional
-
-import torch
-from UltraDict import UltraDict
+from typing import Optional
 
 from vllm.config import VllmConfig
 from vllm.cospec.sm_controller import SMController
@@ -31,40 +27,6 @@ def cleanup_cospec_resources() -> None:
         logger.info("Cleaned up %d CoSpec IPC entries", count)
 
 
-class SharedMemory:
-    """Inter-process shared memory via UltraDict for signaling
-    between target and draft processes."""
-
-    def __init__(self):
-        self.shared_dict = UltraDict(name="cospec_shared_3", shared_lock=True)
-
-    def put(self, key: str, value: Any) -> None:
-        with self.shared_dict.lock:
-            self.shared_dict[key] = value
-
-    def get(self, key: str) -> Any:
-        with self.shared_dict.lock:
-            return self.shared_dict.get(key)
-
-    def wait_for_exists(self, key: str, poll_interval: float = 0.01) -> None:
-        while key not in self.shared_dict:
-            time.sleep(poll_interval)
-
-    def delete(self, key: str) -> None:
-        with self.shared_dict.lock:
-            self.shared_dict.pop(key, None)
-
-    def cleanup(self) -> None:
-        """Explicitly close and clean up shared memory."""
-        try:
-            self.shared_dict.close()
-        except Exception:
-            pass
-
-    def __del__(self):
-        self.cleanup()
-
-
 class CospecManager:
     """Central coordinator for CoSpec v2.
 
@@ -76,7 +38,6 @@ class CospecManager:
     def __init__(self, vllm_config: VllmConfig):
         # Clean stale IPC handles from previous runs
         cleanup_cospec_resources()
-        self.shm = SharedMemory()
         self.rank = vllm_config.parallel_config.rank
         self.is_primary = vllm_config.speculative_config.is_primary
         self.is_driver = self.rank == 0

@@ -20,7 +20,6 @@ from vllm.config import (DecodingConfig, LoRAConfig, ModelConfig,
                          ObservabilityConfig, ParallelConfig, SchedulerConfig,
                          VllmConfig)
 from vllm.core.scheduler import ScheduledSequenceGroup, SchedulerOutputs
-from vllm.cospec.cospec_manager import SharedMemory
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics_types import StatLoggerBase, Stats
 from vllm.engine.output_processor.interfaces import (
@@ -240,9 +239,6 @@ class LLMEngine:
         self.observability_config = vllm_config.observability_config or ObservabilityConfig(  # noqa
         )
 
-        if envs.COSPEC:
-            self.shm = SharedMemory()
-
         logger.info(
             "Initializing a V0 LLM engine (v%s) with config: %s, "
             "use_cached_outputs=%s, ",
@@ -428,17 +424,8 @@ class LLMEngine:
         and the swap CPU cache.
         """
         start = time.time()
-        if envs.COSPEC and self.speculative_config.is_primary is not None:
-            logger.info("CoSpec: determining KV cache blocks")
-            num_gpu_blocks, num_cpu_blocks = (
-                self.model_executor.determine_num_available_blocks())
-            # Share block counts for draft process via shared memory
-            if self.speculative_config.is_primary:
-                self.shm.put("gpu_blocks", num_gpu_blocks)
-                self.shm.put("cpu_blocks", num_cpu_blocks)
-        else:
-            num_gpu_blocks, num_cpu_blocks = (
-                self.model_executor.determine_num_available_blocks())
+        num_gpu_blocks, num_cpu_blocks = (
+            self.model_executor.determine_num_available_blocks())
 
         if self.cache_config.num_gpu_blocks_override is not None:
             num_gpu_blocks_override = self.cache_config.num_gpu_blocks_override
@@ -459,11 +446,11 @@ class LLMEngine:
     def lazy_initialize_kv_cache(self) -> None:
         """
         Workaround to avoid OOM errors when loading model from shared memory.
+        Note: This is for the multiprocessing engine path, not used by CoSpec.
         """
-        num_gpu_blocks = self.shm.get("gpu_blocks")
-        num_cpu_blocks = self.shm.get("cpu_blocks")
-        self.model_executor.initialize_cache(num_gpu_blocks, num_cpu_blocks)
-        logger.info("Lazy initialized KV cache")
+        raise NotImplementedError(
+            "lazy_initialize_kv_cache requires shared memory setup. "
+            "CoSpec uses direct CUDA IPC for KV cache sharing.")
 
     @classmethod
     def _get_executor_cls(cls,

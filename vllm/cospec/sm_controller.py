@@ -132,7 +132,6 @@ class SMController:
         self.total_tpcs = self._lib.get_tpc_count(
             torch.cuda.current_device())
         self._current_stream: Optional[torch.cuda.Stream] = None
-        self._mps_available: Optional[bool] = None  # lazy check
         logger.info("SMController initialized: total_tpcs=%d, is_target=%s",
                      self.total_tpcs, is_target)
 
@@ -153,12 +152,12 @@ class SMController:
         mask = self._lib.make_mask(low, high)
         try:
             self._lib.set_stream_mask(stream, mask)
-        except PermissionError:
-            if self._mps_available is None:
-                self._mps_available = False
-                logger.warning("SMController: set_partition failed "
-                               "(MPS not available). SM partitioning disabled.")
-            return
+        except PermissionError as e:
+            raise RuntimeError(
+                "SMController: set_partition failed - MPS not available. "
+                "CoSpec requires NVIDIA MPS for SM partitioning. "
+                "Start MPS with: bash cospec/scripts/start_mps.sh"
+            ) from e
         self._current_stream = stream
         logger.debug("SMController partition: tpcs [%d, %d) for %s",
                      low, high, "target" if self.is_target else "draft")
@@ -172,12 +171,12 @@ class SMController:
         mask = self._lib.make_mask(0, self.total_tpcs)
         try:
             self._lib.set_stream_mask(stream, mask)
-        except PermissionError:
-            if self._mps_available is None:
-                self._mps_available = False
-                logger.warning("SMController: set_full_gpu failed "
-                               "(MPS not available). SM partitioning disabled.")
-            return
+        except PermissionError as e:
+            raise RuntimeError(
+                "SMController: set_full_gpu failed - MPS not available. "
+                "CoSpec requires NVIDIA MPS for SM partitioning. "
+                "Start MPS with: bash cospec/scripts/start_mps.sh"
+            ) from e
         self._current_stream = stream
         logger.debug("SMController full GPU for %s",
                      "target" if self.is_target else "draft")

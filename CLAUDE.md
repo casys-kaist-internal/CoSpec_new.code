@@ -78,7 +78,10 @@ Both processes on same GPU via MPS.
 |----------|---------|-------------|
 | `COSPEC` | `0` | Master switch. Enables CoSpec with SM partitioning and MPS. |
 
-**Important**: Do NOT set `VLLM_ATTENTION_BACKEND`. Let vLLM auto-select the optimal backend (FLASH_ATTN). Never force XFORMERS — it is slower.
+**Important notes**:
+- Do NOT set `VLLM_ATTENTION_BACKEND`. Let vLLM auto-select the optimal backend (FLASH_ATTN). Never force XFORMERS — it is slower.
+- `VLLM_USE_V1` defaults to `0` (V0 engine) because V1 doesn't support speculative decoding.
+- **MPS is required**: CoSpec will fail immediately if NVIDIA MPS is not running. Start MPS with `bash cospec/scripts/start_mps.sh`.
 
 ## Colocated SD Data Flow — Two-Queue Model
 
@@ -208,11 +211,12 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 - This is a vLLM fork; standard vLLM build (`pip install -e .`).
 - Build libsmctrl: `cd cospec/csrc && mkdir -p build && cd build && cmake .. && make`
-- Requires `UltraDict` for shared memory (`pip install UltraDict`).
+- **Start MPS before running**: `bash cospec/scripts/start_mps.sh`
 - CoSpec server: set `COSPEC=1` and run the normal `vllm.entrypoints.openai.api_server`.
 - Tests: `pytest tests/cospec/` (unit tests) or `pytest tests/spec_decode/e2e/test_cospec.py` (requires GPU).
 - Run in Docker: `docker exec -w /workspace/vllm cospec-vllm python3 -m pytest tests/cospec/`
 - **Do NOT set `VLLM_ATTENTION_BACKEND`** — let vLLM auto-select FLASH_ATTN for best performance.
+- **MPS must be running** — CoSpec fails immediately without MPS. Tests skip automatically if MPS is not detected.
 
 ## Code Review Notes
 
