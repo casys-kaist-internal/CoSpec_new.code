@@ -207,7 +207,7 @@ class CoSpecOrchestrator:
         prefill_seqs: List[SequenceGroupMetadata] = []
 
         for sgm in seq_group_metadata_list:
-            sid = next(iter(sgm.seq_data.keys()))
+            sid = self._get_seq_id(sgm)
             if sgm.is_prompt:
                 prefill_seqs.append(sgm)
             elif sid in self._verify_queue:
@@ -237,7 +237,7 @@ class CoSpecOrchestrator:
                 self._materialize_probs(proposals)
                 # Move drafted sequences to verify_queue
                 for i, sgm in enumerate(draft_seqs):
-                    sid = next(iter(sgm.seq_data.keys()))
+                    sid = self._get_seq_id(sgm)
                     self._verify_queue[sid] = (
                         sgm, self._slice_proposal(proposals, i,
                                                   len(draft_seqs)))
@@ -290,20 +290,20 @@ class CoSpecOrchestrator:
         # Store seq_ids present in the output for engine matching
         seq_ids = []
         for sgm in target_batch:
-            seq_ids.append(next(iter(sgm.seq_data.keys())))
+            seq_ids.append(self._get_seq_id(sgm))
         self.last_output_seq_ids = seq_ids
 
         # Rotate queues:
         # Verified sequences → draft_queue (need new proposals next step)
         for sgm in verify_seqs:
-            sid = next(iter(sgm.seq_data.keys()))
+            sid = self._get_seq_id(sgm)
             self._draft_queue[sid] = sgm
 
         # Drafted sequences → verify_queue (have proposals, verify next step)
         if draft_seqs and new_proposals is not None:
             self._materialize_probs(new_proposals)
             for i, sgm in enumerate(draft_seqs):
-                sid = next(iter(sgm.seq_data.keys()))
+                sid = self._get_seq_id(sgm)
                 self._verify_queue[sid] = (
                     sgm, self._slice_proposal(new_proposals, i,
                                               len(draft_seqs)))
@@ -344,6 +344,12 @@ class CoSpecOrchestrator:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _get_seq_id(self, sgm: SequenceGroupMetadata) -> int:
+        """Extract the single sequence ID from a SequenceGroupMetadata."""
+        if not sgm.seq_data:
+            raise ValueError("SequenceGroupMetadata has no sequences")
+        return self._get_seq_id(sgm)
 
     def _dict_to_proposals(self, proposals_dict: Dict[str, Any],
                            device: torch.device) -> SpeculativeProposals:
@@ -393,16 +399,18 @@ class CoSpecOrchestrator:
     def _slice_proposal(self, proposals_dict: Dict[str, Any],
                         index: int, batch_size: int) -> Dict[str, Any]:
         """Extract a single-sequence proposal from a batched proposals dict."""
+        if index < 0 or index >= batch_size:
+            raise IndexError(
+                f"Proposal slice index {index} out of bounds for "
+                f"batch_size {batch_size}")
+
         result = {}
         for key in ("proposal_token_ids", "proposal_probs", "proposal_lens"):
             val = proposals_dict.get(key)
             if val is None:
                 result[key] = None
             elif isinstance(val, torch.Tensor):
-                if key == "proposal_lens":
-                    result[key] = val[index:index + 1]
-                else:
-                    result[key] = val[index:index + 1]
+                result[key] = val[index:index + 1]
             elif isinstance(val, list):
                 result[key] = [val[index]]
             else:

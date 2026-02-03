@@ -93,11 +93,19 @@ class DraftWorkerRPC:
             "num_spec_tokens": num_spec_tokens,
         }))
 
-    def propose_collect(self) -> Dict[str, Any]:
+    def propose_collect(self, timeout: float = 60.0) -> Dict[str, Any]:
         """Collect response from a previous propose_async call.
 
-        Blocks until the draft worker sends back its result.
+        Args:
+            timeout: Maximum seconds to wait for response.
+
+        Raises:
+            RuntimeError: If draft worker responds with error or times out.
         """
+        if not self._conn.poll(timeout):
+            raise RuntimeError(
+                f"Draft worker did not respond within {timeout}s "
+                "(may have crashed)")
         status, result = self._conn.recv()
         if status == DraftResponse.ERROR:
             raise RuntimeError(f"Draft worker error: {result}")
