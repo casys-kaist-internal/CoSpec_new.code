@@ -42,24 +42,22 @@ Both processes on same GPU via MPS.
 
 | File | Purpose |
 |------|---------|
-| `cospec_manager.py` | Central coordinator. Creates SMController, manages shared memory signals. `cleanup_cospec_resources()` removes stale IPC handles from `/dev/shm` and `/tmp`. |
-| `sm_controller.py` | ctypes wrapper around `cospec/csrc/build/libsmctrl.so`. Provides `set_partition(stream, ratio)` and `set_full_gpu(stream)` for SM partitioning. |
-| `shared_kv_cache.py` | `SharedKVCacheAllocator`: Target allocates KV tensors, exports CUDA IPC handles to `/dev/shm`. Draft opens handles. |
-| `shared_logit_buffer.py` | `SharedLogitBuffer`: Pre-allocated GPU buffer `[max_batch, max_spec_tokens, vocab_size]`. Draft writes logits, target reads for verification. |
-| `worker_rpc.py` | `DraftWorkerRPC` (client in target process) and `DraftWorkerServer` (in draft process). Commands over `multiprocessing.Pipe`, large data via shared GPU memory. |
-| `cost_model.py` | `CostModel`: Analytical model with `decide(B, α, S) → (Mode, γ, r)`. **Currently hardcoded to always return COLOCATED_SD** (latency formulas are placeholders). |
-| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining. Sequences alternate between `draft_queue` and `verify_queue` for true concurrent execution. |
+| `__init__.py` | Module exports and `cleanup_cospec_resources()` for removing stale IPC handles. |
+| `sm_controller.py` | `SMController`: ctypes wrapper for libsmctrl SM partitioning. `CospecManager`: creates controller, holds config. |
+| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining. `Mode` enum. Always uses colocated mode with SM ratio 0.7. |
+| `worker_rpc.py` | `DraftWorkerRPC` (client) and `DraftWorkerServer` (draft process). Commands over pipe, large data via shared GPU memory. |
+| `shared_memory.py` | `SharedKVCache` and `SharedLogitBuffer`: CUDA IPC for sharing GPU tensors between target and draft processes. |
 
 ### Modified vLLM Files
 
 | File | CoSpec Changes |
 |------|----------------|
-| `vllm/envs.py` | Defines `COSPEC` environment variable (master switch) |
+| `vllm/envs.py` | Defines `COSPEC` environment variable (master switch). `VLLM_USE_V1` defaults to `1` (non-CoSpec users get V1). |
 | `vllm/worker/cache_engine.py` | `shared_mode` parameter in `_allocate_kv_cache()`: `"owner"` (allocate + export IPC), `"client"` (open IPC), `None` (legacy) |
-| `vllm/worker/model_runner.py` | Uses `sm_controller.set_partition()` / `set_full_gpu()` around model execution |
+| `vllm/worker/model_runner.py` | Standard vLLM model runner. SM partitioning is managed by the orchestrator, not model_runner. |
 | `vllm/spec_decode/spec_decode_worker.py` | Creates `CospecManager` with SM controller, wires to workers. Handles two-queue partial outputs via `_cospec_skip`. Calls `orchestrator.remove_sequence()` on finished requests. |
 | `vllm/engine/llm_engine.py` | Handles CoSpec empty outputs (no-op bootstrap steps) and partial outputs (`_cospec_skip` indices for draft-phase sequences). |
-| `vllm/entrypoints/openai/api_server.py` | `run_server_cospec()` entry point. Calls `cleanup_cospec_resources()` on startup. |
+| `vllm/entrypoints/openai/api_server.py` | Engine selection: `COSPEC=1` → in-process AsyncLLMEngine, else V1/V0 branching. Calls `cleanup_cospec_resources()` on startup. |
 | `vllm/config.py` | `SpeculativeConfig.is_primary` field |
 | `vllm/engine/arg_utils.py` | `is_primary` parameter threading |
 
@@ -77,10 +75,11 @@ Both processes on same GPU via MPS.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COSPEC` | `0` | Master switch. Enables CoSpec with SM partitioning and MPS. |
+| `VLLM_USE_V1` | `1` | Use V1 engine. Set to `0` for speculative decoding (V1 doesn't support it). |
 
 **Important notes**:
 - Do NOT set `VLLM_ATTENTION_BACKEND`. Let vLLM auto-select the optimal backend (FLASH_ATTN). Never force XFORMERS — it is slower.
-- `VLLM_USE_V1` defaults to `0` (V0 engine) because V1 doesn't support speculative decoding.
+- **Set `VLLM_USE_V1=0` when using CoSpec or speculative decoding** — V1 engine doesn't support spec decode yet.
 - **MPS is required**: CoSpec will fail immediately if NVIDIA MPS is not running. Start MPS with `bash cospec/scripts/start_mps.sh`.
 
 ## Colocated SD Data Flow — Two-Queue Model
@@ -148,7 +147,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
    - `_track_finished_requests()`: calls `orchestrator.remove_sequence()` for finished seq_ids.
 6. **`worker.py`**: `_init_cache_engine()` checks `cospec_shared_mode` attribute first ("owner"/"client"), falls back to "owner" when `cospec_manager` is present.
 7. **`shared_kv_cache.py`**: Fixed `_import_from_handles()` to create CUDA tensor before `set_()` (was creating CPU tensor, causing device mismatch in cross-process IPC).
-8. **`llm_engine.py`**: Handles empty CoSpec output (returns early) and `_cospec_skip` via `_get_cospec_skip()` (reads from worker through executor chain, skips draft-phase sequences, remaps outputs with placeholders).
+8. **`llm_engine.py`**: Handles empty CoSpec output (returns early when `outputs=[]` during bootstrap) and `_cospec_skip` via `_get_cospec_skip()` (reads from worker through executor chain, skips draft-phase sequences, remaps outputs with placeholders).
 9. **`cospec_manager.py`**: `cleanup_cospec_resources()` removes stale `/dev/shm/cospec_*` and `/tmp/cospec_*`. Called automatically in `CospecManager.__init__()`. `SharedMemory.cleanup()` for explicit teardown.
 
 ### TODO — Organized by Priority
@@ -167,7 +166,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 9. **UltraDict cleanup at exit**: `FileNotFoundError: '/cospec_shared_3'` during interpreter shutdown. Non-fatal but noisy. Need to unlink shared memory before `cleanup_cospec_resources()` deletes it.
 
 ### RECENTLY FIXED
-7. **`sm_controller.py`**: Fixed segfault when `set_stream_mask` was called with the default CUDA stream (handle=0). Now falls back to `set_global_mask` for default stream. Added graceful `PermissionError` handling when MPS is not available (logs warning once, then silently skips).
+7. **`sm_controller.py`**: Fixed segfault when `set_stream_mask` was called with the default CUDA stream (handle=0). Now falls back to `set_global_mask` for default stream. Added graceful `PermissionError` handling when MPS is not available (logs warning once, then silently skips). **Fixed ctypes restype bug**: `libsmctrl_set_global_mask` is a void function, but ctypes defaults to `c_int` return type. In thread pool workers (like AsyncLLMEngine uses), this caused garbage values to be interpreted as error code 1 (EPERM). Fixed by setting `restype = None` and `argtypes` for all libsmctrl functions.
 8. **`spec_decode_worker.py`**: Added `__del__` cleanup to shut down the orchestrator and draft thread on garbage collection.
 9. **`test_cost_model.py`**: Updated `test_ar_mode_has_zero_gamma` → `test_hardcoded_colocated_mode` to match the hardcoded always-colocated behavior.
 10. **`test_sm_controller.py`**: Added `PermissionError` handling for tests that need MPS privileges. Added `test_set_partition_explicit_stream` for non-default stream testing.
@@ -182,6 +181,9 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 19. **Fixed SamplerOutput attribute error**: `SamplerOutput` is a `msgspec.Struct` that doesn't allow arbitrary attributes. Moved `_cospec_seq_ids` to `orchestrator.last_output_seq_ids` and `_cospec_skip` to `SpecDecodeWorker._cospec_skip`. Engine reads skip via `_get_cospec_skip()` method.
 20. **Fixed stale IPC handles on startup**: `CospecManager.__init__()` now calls `cleanup_cospec_resources()` to remove stale handles before model loading begins.
 21. **Correctness verified**: 8/8 prompts match baseline output exactly (greedy decoding, `JackFram/llama-68m`, batch_size=8, max_tokens=32). Two-queue pipeline produces identical results to non-CoSpec baseline.
+22. **Removed legacy code from model_runner.py**: Removed unused `cospec_manager` and `is_target` parameters from `execute_model()`. SM partitioning is now managed entirely by the orchestrator in CoSpec v2, not by model_runner.
+23. **Restored V1/V0 engine branching in api_server.py**: Fixed accidental removal of V1 AsyncLLM and V0 in-process paths. Non-CoSpec users now get proper V1/V0 engine selection. CoSpec still uses in-process AsyncLLMEngine for MPS compatibility.
+24. **Restored `VLLM_USE_V1` default to `1`**: Fixed accidental change that set V1 default to `0` for ALL users. Now V1 is default, users must set `VLLM_USE_V1=0` explicitly for speculative decoding.
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `sm_ratio=0.7`, `gamma=5`
@@ -202,9 +204,9 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 | File | What It Tests |
 |------|---------------|
 | `tests/spec_decode/e2e/test_cospec.py` | E2E tests using `JackFram/llama-68m` as both target and draft |
-| `tests/cospec/test_cost_model.py` | Unit tests for cost model decision logic |
+| `tests/cospec/test_cost_model.py` | Mode enum values |
 | `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller |
-| `tests/cospec/test_shared_kv_cache.py` | Tests for shared KV cache allocation/cleanup |
+| `tests/cospec/test_shared_kv_cache.py` | Tests for SharedKVCache allocation/cleanup |
 | `tests/cospec/test_worker_rpc.py` | Tests for RPC pipe communication |
 
 ## Build & Run

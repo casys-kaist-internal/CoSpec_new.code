@@ -147,12 +147,9 @@ class DraftWorkerRPC:
         """Gracefully shut down the draft worker."""
         try:
             self._conn.send((DraftCommand.SHUTDOWN, {}))
+            self._conn.close()
         except Exception:
             pass
-
-    def close(self) -> None:
-        """Close the connection."""
-        self._conn.close()
 
 
 class DraftWorkerServer:

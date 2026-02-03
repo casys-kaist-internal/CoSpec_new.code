@@ -1,20 +1,14 @@
 """CoSpec v2 Orchestrator.
 
-Lives in the target process. Coordinates per-step execution across three
-modes (AR, Vanilla SD, Colocated SD) using the cost model, SM controller,
-and draft worker RPC.
-
-Replaces the dual-engine approach of v1 (SpecDecodeWorker +
-serving_completion_cospec) with a single target process that owns the
-scheduler and communicates with the draft process via RPC.
+Lives in the target process. Coordinates per-step execution using SM
+partitioning for concurrent draft + target execution on the same GPU.
 """
 
-import time
+import enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
-from vllm.cospec.cost_model import CostModel, Mode, ModeDecision
 from vllm.cospec.sm_controller import SMController
 from vllm.cospec.worker_rpc import DraftWorkerRPC
 from vllm.logger import init_logger
@@ -25,59 +19,56 @@ from vllm.spec_decode.util import split_batch_by_proposal_len
 logger = init_logger(__name__)
 
 
+class Mode(enum.Enum):
+    """Execution modes for CoSpec."""
+    AR = "ar"
+    VANILLA_SD = "vanilla_sd"
+    COLOCATED_SD = "colocated_sd"
+
+
 class CoSpecOrchestrator:
     """Central orchestrator for CoSpec v2.
 
-    Per-step flow:
-        1. schedule() → get batch from scheduler
-        2. cost_model.decide(B, α, S) → mode, γ, r
-        3. dispatch to _step_ar / _step_vanilla_sd / _step_colocated_sd
-
-    Two-queue colocated SD model:
-        Sequences alternate between draft_queue (need proposals) and
-        verify_queue (have proposals, need verification). Each step runs
-        drafting and verification concurrently on different SM partitions.
+    Two-queue colocated SD: sequences alternate between draft_queue (need
+    proposals) and verify_queue (have proposals). Each step runs drafting
+    and verification concurrently on partitioned SMs.
 
     Args:
-        target_worker: The target model worker (ModelRunner or Worker).
-        draft_rpc: RPC client to the draft worker process.
-        cost_model: Analytical cost model for mode selection.
-        sm_controller: SM partition controller for the target process.
-        max_spec_tokens: Maximum speculative tokens.
+        target_worker: The target model worker.
+        draft_rpc: RPC client to draft worker process.
+        sm_controller: SM partition controller.
+        max_spec_tokens: Maximum speculative tokens (γ).
+        sm_ratio: Fraction of SMs for target (rest for draft).
     """
 
     def __init__(
         self,
         target_worker: Any,
         draft_rpc: DraftWorkerRPC,
-        cost_model: CostModel,
         sm_controller: SMController,
         spec_decode_worker: Any = None,
         max_spec_tokens: int = 7,
+        sm_ratio: float = 0.7,
         shared_logit_buffer: Any = None,
     ):
         self.target_worker = target_worker
         self.draft_rpc = draft_rpc
-        self.cost_model = cost_model
         self.sm_controller = sm_controller
         self.spec_decode_worker = spec_decode_worker
         self.max_spec_tokens = max_spec_tokens
+        self.sm_ratio = sm_ratio
         self.shared_logit_buffer = shared_logit_buffer
 
-        # Two-queue state for colocated SD pipelining
-        # draft_queue: seq_id → SequenceGroupMetadata (need proposals)
+        # Two-queue state for pipelining
         self._draft_queue: Dict[int, SequenceGroupMetadata] = {}
-        # verify_queue: seq_id → (SequenceGroupMetadata, proposals_dict)
         self._verify_queue: Dict[int, Tuple[SequenceGroupMetadata,
                                              Dict[str, Any]]] = {}
-        # pending_pool: seq_id → SequenceGroupMetadata (wait 1 step for
-        # load balancing before entering draft_queue)
         self._pending_pool: Dict[int, SequenceGroupMetadata] = {}
 
         # Stats
         self._step_count = 0
-        self._mode_counts = {Mode.AR: 0, Mode.VANILLA_SD: 0,
-                             Mode.COLOCATED_SD: 0}
+        self._accepted = 0
+        self._total_spec = 0
 
         # Set after each step: seq_ids present in the output
         self.last_output_seq_ids: Optional[List[int]] = None
@@ -87,97 +78,15 @@ class CoSpecOrchestrator:
         seq_group_metadata_list: List[SequenceGroupMetadata],
         num_lookahead_slots: int,
     ) -> List[Any]:
-        """Execute one orchestrated step.
-
-        Args:
-            seq_group_metadata_list: Scheduled sequences for this step.
-            num_lookahead_slots: Number of speculative token slots.
-
-        Returns:
-            List of SamplerOutput from the step.
-        """
-        batch_size = len(seq_group_metadata_list)
-        if batch_size == 0:
+        """Execute one orchestrated step (always colocated SD mode)."""
+        if not seq_group_metadata_list:
             return []
 
-        # Get mode decision from cost model
-        decision = self.cost_model.decide(
-            batch_size=batch_size,
-            num_spec_tokens=num_lookahead_slots or self.max_spec_tokens,
-        )
-
         self._step_count += 1
-        self._mode_counts[decision.mode] += 1
+        gamma = num_lookahead_slots or self.max_spec_tokens
 
-        if decision.mode == Mode.AR:
-            return self._step_ar(seq_group_metadata_list)
-        elif decision.mode == Mode.VANILLA_SD:
-            return self._step_vanilla_sd(
-                seq_group_metadata_list, decision.gamma)
-        elif decision.mode == Mode.COLOCATED_SD:
-            return self._step_colocated_sd(
-                seq_group_metadata_list, decision.gamma, decision.sm_ratio)
-        else:
-            raise ValueError(f"Unknown mode: {decision.mode}")
-
-    def _step_ar(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-    ) -> List[Any]:
-        """AR mode: target model forward only, 100% SMs.
-
-        Simple autoregressive decoding — no speculation.
-        """
-        stream = torch.cuda.current_stream()
-        self.sm_controller.set_full_gpu(stream)
-
-        # Run target model forward pass
-        execute_model_req = ExecuteModelRequest(
-            seq_group_metadata_list=seq_group_metadata_list,
-            num_lookahead_slots=0,
-        )
-        output = self.target_worker.execute_model(execute_model_req)
-
-        return output
-
-    def _step_vanilla_sd(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        gamma: int,
-    ) -> List[Any]:
-        """Vanilla SD mode: sequential draft → target, 100% SMs each.
-
-        1. Draft proposes γ tokens (full GPU)
-        2. Target verifies all proposals (full GPU)
-        """
-        stream = torch.cuda.current_stream()
-
-        # Phase 1: Draft proposes (full GPU for draft)
-        self.sm_controller.set_full_gpu(stream)
-        self.draft_rpc.set_full_gpu()
-
-        proposals = self.draft_rpc.propose(
-            seq_group_metadata_list=seq_group_metadata_list,
-            num_spec_tokens=gamma,
-        )
-
-        # Phase 2: Target scores (full GPU for target, draft idle)
-        self.sm_controller.set_full_gpu(stream)
-        target_scores = self._score_proposals(
-            seq_group_metadata_list, proposals, gamma)
-
-        # Phase 2.5: Sync draft KV cache for prefill sequences
-        self._sync_draft_prefills(seq_group_metadata_list, proposals)
-
-        # Phase 3: Verify
-        accepted, logprobs = self._verify(
-            seq_group_metadata_list, target_scores, proposals, gamma)
-
-        # Update acceptance rate in cost model
-        self._update_acceptance_stats(accepted)
-
-        return self._create_output(
-            seq_group_metadata_list, accepted, logprobs, gamma, proposals)
+        return self._step_colocated_sd(
+            seq_group_metadata_list, gamma, self.sm_ratio)
 
     def _step_colocated_sd(
         self,
@@ -349,7 +258,7 @@ class CoSpecOrchestrator:
         """Extract the single sequence ID from a SequenceGroupMetadata."""
         if not sgm.seq_data:
             raise ValueError("SequenceGroupMetadata has no sequences")
-        return self._get_seq_id(sgm)
+        return next(iter(sgm.seq_data.keys()))
 
     def _dict_to_proposals(self, proposals_dict: Dict[str, Any],
                            device: torch.device) -> SpeculativeProposals:
@@ -590,23 +499,21 @@ class CoSpecOrchestrator:
 
     def _update_acceptance_stats(self, accepted_token_ids: torch.Tensor
                                   ) -> None:
-        """Update cost model with acceptance statistics."""
-        # Count accepted tokens (non -1 entries, excluding the bonus token)
+        """Update acceptance statistics."""
         if accepted_token_ids is not None and accepted_token_ids.numel() > 0:
-            # accepted_token_ids shape: [batch, k+1]
             spec_tokens = accepted_token_ids[:, 1:]  # exclude first token
-            total = (spec_tokens != -1).sum().item() + spec_tokens.shape[0]
-            accepted = (spec_tokens != -1).sum().item()
-            self.cost_model.update_acceptance_rate(accepted, total)
+            self._total_spec += spec_tokens.numel()
+            self._accepted += (spec_tokens != -1).sum().item()
 
     def get_stats(self) -> Dict[str, Any]:
         """Get orchestrator statistics."""
+        acceptance_rate = (self._accepted / self._total_spec
+                          if self._total_spec > 0 else 0.0)
         return {
             "step_count": self._step_count,
-            "mode_counts": {m.value: c for m, c
-                            in self._mode_counts.items()},
-            "acceptance_rate_ema": self.cost_model.acceptance_rate,
-            "batch_size_ema": self.cost_model.batch_size_ema,
+            "acceptance_rate": acceptance_rate,
+            "accepted_tokens": self._accepted,
+            "total_spec_tokens": self._total_spec,
         }
 
     def shutdown(self) -> None:

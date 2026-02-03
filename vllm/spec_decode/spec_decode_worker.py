@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from vllm.config import ParallelConfig, SpeculativeConfig, VllmConfig, envs
-from vllm.cospec.cospec_manager import CospecManager
+from vllm.cospec.sm_controller import CospecManager
 from vllm.distributed.communication_op import (broadcast_tensor_dict,
                                                get_tp_group,
                                                tensor_model_parallel_gather)
@@ -427,9 +427,8 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         """
         import multiprocessing as mp
 
-        from vllm.cospec.cost_model import CostModel
         from vllm.cospec.orchestrator import CoSpecOrchestrator
-        from vllm.cospec.shared_logit_buffer import SharedLogitBuffer
+        from vllm.cospec.shared_memory import SharedLogitBuffer
         from vllm.cospec.worker_rpc import DraftWorkerRPC, create_draft_worker_pipe
 
         parent_conn, child_conn = create_draft_worker_pipe()
@@ -487,24 +486,18 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         logger.info("CoSpec: draft worker process connected")
 
-        # Create cost model (hardcoded always-colocated)
-        cost_model = CostModel(
-            max_spec_tokens=num_spec_tokens,
-            default_sm_ratio=0.7,
-        )
-
         # Create orchestrator
         self.orchestrator = CoSpecOrchestrator(
             target_worker=self.scorer_worker,
             draft_rpc=draft_rpc,
-            cost_model=cost_model,
             sm_controller=self.cospec_manager.sm_controller,
             spec_decode_worker=self,
             max_spec_tokens=num_spec_tokens,
+            sm_ratio=0.7,
             shared_logit_buffer=shared_logit_buffer,
         )
 
-        logger.info("CoSpec: orchestrator created with always-colocated mode")
+        logger.info("CoSpec: orchestrator created")
 
     @cached_property
     def max_spec_tokens(self) -> int:
@@ -1488,7 +1481,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             self._draft_process = None
         # Clean up stale IPC handles
         try:
-            from vllm.cospec.cospec_manager import cleanup_cospec_resources
+            from vllm.cospec import cleanup_cospec_resources
             cleanup_cospec_resources()
         except Exception:
             pass
@@ -1597,7 +1590,7 @@ def _draft_process_entry(
         # Open shared logit buffer (client side)
         shared_logit_buffer = None
         if logit_buffer_config is not None:
-            from vllm.cospec.shared_logit_buffer import SharedLogitBuffer
+            from vllm.cospec.shared_memory import SharedLogitBuffer
             shared_logit_buffer = SharedLogitBuffer(
                 mode="client", **logit_buffer_config)
 

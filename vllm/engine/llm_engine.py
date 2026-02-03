@@ -1052,7 +1052,13 @@ class LLMEngine:
 
         # CoSpec two-queue: outputs may be partial (only verify_seqs +
         # prefills). Add skip indices for draft-phase sequences.
-        if outputs and envs.COSPEC:
+        # When outputs is empty (bootstrap phase), skip output processing
+        # entirely - the sequences will be scheduled again next step.
+        if envs.COSPEC:
+            if not outputs:
+                # CoSpec bootstrap phase: no-op step. Skip output processing.
+                # The scheduler will re-schedule these sequences next step.
+                return
             cospec_skip = self._get_cospec_skip()
             if cospec_skip:
                 for idx in cospec_skip:

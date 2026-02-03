@@ -23,7 +23,6 @@ from vllm.attention.backends.abstract import AttentionState
 from vllm.attention.backends.utils import CommonAttentionState
 from vllm.config import CompilationLevel, VllmConfig
 from vllm.core.scheduler import SchedulerOutputs
-from vllm.cospec.cospec_manager import CospecManager
 from vllm.distributed import get_pp_group
 from vllm.distributed.kv_transfer import get_kv_transfer_group
 from vllm.distributed.parallel_state import (get_tensor_model_parallel_rank,
@@ -1698,8 +1697,6 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
         kv_caches: List[torch.Tensor],
         intermediate_tensors: Optional[IntermediateTensors] = None,
         num_steps: int = 1,
-        cospec_manager: Optional[CospecManager] = None,
-        is_target: bool = True,
         **kwargs,
     ) -> Optional[Union[List[SamplerOutput], IntermediateTensors]]:
         if num_steps > 1:
@@ -1778,15 +1775,6 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
             model_forward_end = torch.cuda.Event(enable_timing=True)
             model_forward_start.record()
 
-        if cospec_manager is not None:
-            stream = torch.cuda.current_stream()
-            if is_target:
-                cospec_manager.sm_controller.set_partition(
-                    stream, cospec_manager.target_sm_ratio)
-            else:
-                cospec_manager.sm_controller.set_partition(
-                    stream, 1.0 - cospec_manager.target_sm_ratio)
-
         if not bypass_model_exec:
             with set_forward_context(model_input.attn_metadata,
                                      self.vllm_config, virtual_engine):
@@ -1838,9 +1826,9 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
 
         logits = self.model.compute_logits(hidden_or_intermediate_states,
                                            model_input.sampling_metadata)
-        if cospec_manager is not None:
-            stream = torch.cuda.current_stream()
-            cospec_manager.sm_controller.set_full_gpu(stream)
+        # Note: SM partitioning is managed by the orchestrator in CoSpec v2,
+        # not by model_runner. The orchestrator calls set_partition/set_full_gpu
+        # at the appropriate points in the speculative decoding pipeline.
 
         if not self.is_driver_worker:
             return []

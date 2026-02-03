@@ -84,11 +84,11 @@ class CacheEngine:
 
         # Use shared KV cache for GPU allocations when shared_mode is set
         if self.shared_mode is not None and device not in ("cpu",):
-            from vllm.cospec.shared_kv_cache import SharedKVCacheAllocator
-            allocator = SharedKVCacheAllocator(
+            from vllm.cospec.shared_memory import SharedKVCache
+            allocator = SharedKVCache(
                 mode=self.shared_mode, instance_id="default")
             self._shared_kv_allocator = allocator
-            return allocator.allocate_shared(
+            return allocator.allocate(
                 kv_cache_shape=kv_cache_shape,
                 dtype=self.dtype,
                 num_layers=self.num_attention_layers,

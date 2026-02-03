@@ -30,7 +30,7 @@ def _check_mps_available():
 def init_cospec():
     # Cleanup previous CoSpec IPC handles
     try:
-        from vllm.cospec.cospec_manager import cleanup_cospec_resources
+        from vllm.cospec import cleanup_cospec_resources
         cleanup_cospec_resources()
     except Exception as e:
         print("CoSpec IPC cleanup failed: %s" % str(e))

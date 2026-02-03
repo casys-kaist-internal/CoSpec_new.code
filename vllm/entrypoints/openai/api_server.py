@@ -169,131 +169,58 @@ async def build_async_engine_client_from_engine_args(
     global prometheus_multiproc_dir
 
     if envs.COSPEC:
-        logger.info("Using CoSpec.")
-        if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
-            # Make TemporaryDirectory for prometheus multiprocessing
-            # Note: global TemporaryDirectory will be automatically
-            #   cleaned up upon exit.
-            prometheus_multiproc_dir = tempfile.TemporaryDirectory()
-            os.environ[
-                "PROMETHEUS_MULTIPROC_DIR"] = prometheus_multiproc_dir.name
-        else:
-            logger.warning(
-                "Found PROMETHEUS_MULTIPROC_DIR was set by user. "
-                "This directory must be wiped between vLLM runs or "
-                "you will find inaccurate metrics. Unset the variable "
-                "and vLLM will properly handle cleanup.")
-
-        # Select random path for IPC.
-        ipc_path = get_open_zmq_ipc_path()
-        logger.debug("Multiprocessing frontend to use %s for IPC Path.",
-                     ipc_path)
-
-        # Start RPCServer in separate process (holds the LLMEngine).
-        # the current process might have CUDA context,
-        # so we need to spawn a new process
-        context = multiprocessing.get_context("spawn")
-
-        # Ensure we can serialize transformer config before spawning
-        maybe_register_config_serialize_by_value()
-
-        # The Process can raise an exception during startup, which may
-        # not actually result in an exitcode being reported. As a result
-        # we use a shared variable to communicate the information.
-        engine_alive = multiprocessing.Value('b', True, lock=False)
-        engine_process = context.Process(
-            target=run_mp_engine,
-            args=(vllm_config, UsageContext.OPENAI_API_SERVER, ipc_path,
-                  engine_args.disable_log_stats,
-                  engine_args.disable_log_requests, engine_alive))
-        engine_process.start()
-        engine_pid = engine_process.pid
-        assert engine_pid is not None, "Engine process failed to start."
-        logger.info("Started engine process with PID %d", engine_pid)
-
-        def _cleanup_ipc_path():
-            socket_path = ipc_path.replace("ipc://", "")
-            if os.path.exists(socket_path):
-                os.remove(socket_path)
-
-        # Ensure we clean up the local IPC socket file on exit.
-        atexit.register(_cleanup_ipc_path)
-
-        # Build RPCClient, which conforms to EngineClient Protocol.
-        build_client = partial(MQLLMEngineClient, ipc_path, vllm_config,
-                               engine_pid)
-        mq_engine_client = await asyncio.get_running_loop().run_in_executor(
-            None, build_client)
+        # CoSpec requires in-process engine (no multiprocessing) because
+        # MPS/libsmctrl SM partitioning doesn't work across process boundaries.
+        logger.info("Using CoSpec (in-process AsyncLLMEngine for MPS compatibility).")
+        engine_client: Optional[EngineClient] = None
         try:
-            while True:
-                try:
-                    await mq_engine_client.setup()
-                    break
-                except TimeoutError:
-                    if (not engine_process.is_alive()
-                            or not engine_alive.value):
-                        raise RuntimeError(
-                            "Engine process failed to start. See stack "
-                            "trace for the root cause.") from None
-
-            yield mq_engine_client  # type: ignore[misc]
+            engine_client = AsyncLLMEngine.from_vllm_config(
+                vllm_config=vllm_config,
+                usage_context=usage_context,
+                disable_log_requests=engine_args.disable_log_requests,
+                disable_log_stats=engine_args.disable_log_stats)
+            yield engine_client
         finally:
-            # Ensure rpc server process was terminated
-            engine_process.terminate()
+            if engine_client and hasattr(engine_client, "shutdown"):
+                engine_client.shutdown()
 
-            # Close all open connections to the backend
-            mq_engine_client.close()
+    # V1 AsyncLLM.
+    elif envs.VLLM_USE_V1:
+        if disable_frontend_multiprocessing:
+            logger.warning(
+                "V1 is enabled, but got --disable-frontend-multiprocessing. "
+                "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
 
-            # Wait for engine process to join
-            engine_process.join(4)
-            if engine_process.exitcode is None:
-                # Kill if taking longer than 5 seconds to stop
-                engine_process.kill()
+        from vllm.v1.engine.async_llm import AsyncLLM
+        async_llm: Optional[AsyncLLM] = None
+        try:
+            async_llm = AsyncLLM.from_vllm_config(
+                vllm_config=vllm_config,
+                usage_context=usage_context,
+                disable_log_requests=engine_args.disable_log_requests,
+                disable_log_stats=engine_args.disable_log_stats)
+            yield async_llm
+        finally:
+            if async_llm:
+                async_llm.shutdown()
 
-            # Lazy import for prometheus multiprocessing.
-            # We need to set PROMETHEUS_MULTIPROC_DIR environment variable
-            # before prometheus_client is imported.
-            # See https://prometheus.github.io/client_python/multiprocess/
-            from prometheus_client import multiprocess
-            multiprocess.mark_process_dead(engine_process.pid)
+    # V0 AsyncLLM (in-process).
+    elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
+          or disable_frontend_multiprocessing):
 
-    # # V1 AsyncLLM.
-    # elif envs.VLLM_USE_V1:
-    #     if disable_frontend_multiprocessing:
-    #         logger.warning(
-    #             "V1 is enabled, but got --disable-frontend-multiprocessing. "
-    #             "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
+        engine_client: Optional[EngineClient] = None
+        try:
+            engine_client = AsyncLLMEngine.from_vllm_config(
+                vllm_config=vllm_config,
+                usage_context=usage_context,
+                disable_log_requests=engine_args.disable_log_requests,
+                disable_log_stats=engine_args.disable_log_stats)
+            yield engine_client
+        finally:
+            if engine_client and hasattr(engine_client, "shutdown"):
+                engine_client.shutdown()
 
-    #     from vllm.v1.engine.async_llm import AsyncLLM
-    #     async_llm: Optional[AsyncLLM] = None
-    #     try:
-    #         async_llm = AsyncLLM.from_vllm_config(
-    #             vllm_config=vllm_config,
-    #             usage_context=usage_context,
-    #             disable_log_requests=engine_args.disable_log_requests,
-    #             disable_log_stats=engine_args.disable_log_stats)
-    #         yield async_llm
-    #     finally:
-    #         if async_llm:
-    #             async_llm.shutdown()
-
-    # # V0 AsyncLLM.
-    # elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
-    #       or disable_frontend_multiprocessing):
-
-    #     engine_client: Optional[EngineClient] = None
-    #     try:
-    #         engine_client = AsyncLLMEngine.from_vllm_config(
-    #             vllm_config=vllm_config,
-    #             usage_context=usage_context,
-    #             disable_log_requests=engine_args.disable_log_requests,
-    #             disable_log_stats=engine_args.disable_log_stats)
-    #         yield engine_client
-    #     finally:
-    #         if engine_client and hasattr(engine_client, "shutdown"):
-    #             engine_client.shutdown()
-
-    # V0MQLLMEngine.
+    # V0 MQLLMEngine (multiprocessing).
     else:
         # AR 
         if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
@@ -1242,7 +1169,7 @@ if __name__ == "__main__":
 
     # Cleanup previous CoSpec IPC handles on server start
     try:
-        from vllm.cospec.cospec_manager import cleanup_cospec_resources
+        from vllm.cospec import cleanup_cospec_resources
         cleanup_cospec_resources()
     except Exception as e:
         logger.error("CoSpec IPC cleanup failed: %s", str(e))

@@ -1,4 +1,4 @@
-"""Unit tests for CoSpec v2 SharedKVCacheAllocator."""
+"""Unit tests for CoSpec SharedKVCache."""
 
 import os
 import shutil
@@ -16,12 +16,11 @@ class TestSharedKVCache:
         if not torch.cuda.is_available():
             pytest.skip("CUDA not available")
 
-        from vllm.cospec.shared_kv_cache import SharedKVCacheAllocator
+        from vllm.cospec.shared_memory import SharedKVCache
 
-        allocator = SharedKVCacheAllocator(mode="owner",
-                                            instance_id="test_unit")
+        allocator = SharedKVCache(mode="owner", instance_id="test_unit")
         try:
-            kv_cache = allocator.allocate_shared(
+            kv_cache = allocator.allocate(
                 kv_cache_shape=(4, 16, 8, 64),
                 dtype=torch.float16,
                 num_layers=2,
@@ -35,17 +34,16 @@ class TestSharedKVCache:
             allocator.cleanup()
 
     def test_client_without_owner_raises(self):
-        from vllm.cospec.shared_kv_cache import SharedKVCacheAllocator
+        from vllm.cospec.shared_memory import SharedKVCache
 
         # Clean up any stale files
         shm_dir = "/dev/shm/cospec_kv_cache_test_noowner"
         if os.path.exists(shm_dir):
             shutil.rmtree(shm_dir)
 
-        allocator = SharedKVCacheAllocator(mode="client",
-                                            instance_id="test_noowner")
+        allocator = SharedKVCache(mode="client", instance_id="test_noowner")
         with pytest.raises(FileNotFoundError):
-            allocator.allocate_shared(
+            allocator.allocate(
                 kv_cache_shape=(4, 16, 8, 64),
                 dtype=None,  # unused by client
                 num_layers=1,

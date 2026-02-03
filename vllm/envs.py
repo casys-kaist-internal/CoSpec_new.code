@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     VLLM_ALLOW_RUNTIME_LORA_UPDATING: bool = False
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
-    VLLM_USE_V1: bool = False  # CoSpec: V1 doesn't support spec decode
+    VLLM_USE_V1: bool = True
     VLLM_ROCM_USE_AITER: bool = False
     VLLM_ROCM_USE_AITER_PAGED_ATTN: bool = False
     VLLM_ROCM_USE_AITER_LINEAR: bool = True
@@ -529,9 +529,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
         "VLLM_DISABLED_KERNELS"].split(","),
 
     # If set, use the V1 code path.
-    # CoSpec: V1 engine doesn't support speculative decoding, default to V0.
     "VLLM_USE_V1":
-    lambda: bool(int(os.getenv("VLLM_USE_V1", "0"))),
+    lambda: bool(int(os.getenv("VLLM_USE_V1", "1"))),
 
     # Disable aiter ops unless specifically enabled.
     # Acts as a parent switch to enable the rest of the other operations.
