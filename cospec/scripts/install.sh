@@ -6,6 +6,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+echo "=== Installing system dependencies ==="
+apt-get update && apt-get install -y kmod
+
 echo "=== Installing Python dependencies ==="
 pip3 install Cython pytest
 
