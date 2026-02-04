@@ -14,12 +14,16 @@ pip3 install Cython pytest
 
 echo "=== Installing vLLM (editable) ==="
 cd "$PROJECT_ROOT"
+# Clean stale CMake cache from previous builds (path mismatch causes FetchContent failures)
+find .deps -name 'CMakeCache.txt' -delete 2>/dev/null || true
 pip3 install -e . --no-build-isolation
 
 echo "=== Building libsmctrl ==="
 # Adopted from BulletServe (https://github.com/NUS-HPC-AI-Lab/BulletServe)
 CSRC_DIR="$PROJECT_ROOT/cospec/csrc"
 cd "$CSRC_DIR"
+# Clean stale CMake cache (path mismatch when running in Docker vs host)
+rm -f build/CMakeCache.txt 2>/dev/null || true
 CUDA_ARCH=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits | head -n1 | sed 's/\.//')
 cmake -B build \
     -DCMAKE_CUDA_ARCHITECTURES="$CUDA_ARCH" \

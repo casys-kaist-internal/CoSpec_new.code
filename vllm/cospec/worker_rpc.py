@@ -57,19 +57,16 @@ def _strip_sgm_for_draft(sgm_list: List[Any]) -> List[Any]:
         new_sgm.computed_block_nums = None
         new_sgm.token_type_ids = None
 
-        # Strip seq_data to minimal info (only last token needed for decode)
+        # For decode sequences, keep full token list to preserve correct positions.
+        # The token list is small (~8KB for 1024 tokens) so RPC overhead is minimal.
+        # We need the full list so model_runner computes correct attention positions.
         if sgm.seq_data and not sgm.is_prompt:
             new_seq_data = {}
             for seq_id, seq_data in sgm.seq_data.items():
-                # Get all token IDs
+                # Copy the full token sequence to preserve positions
                 all_tokens = seq_data.get_token_ids()
-                # Keep only last token for decode (KV cache has the rest)
-                last_token = all_tokens[-1] if all_tokens else 0
-
-                # Create minimal SequenceData with just the last token
-                # prompt_token_ids is required, put the last token there
                 new_sd = SequenceData(
-                    _prompt_token_ids=array(_TOKEN_ARRAY_TYPE, [last_token]),
+                    _prompt_token_ids=array(_TOKEN_ARRAY_TYPE, all_tokens),
                 )
                 # Copy essential state
                 new_sd._num_computed_tokens = seq_data.get_num_computed_tokens()

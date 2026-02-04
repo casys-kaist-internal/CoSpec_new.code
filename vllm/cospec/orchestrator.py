@@ -150,10 +150,10 @@ class CoSpecOrchestrator:
                 self._draft_queue.pop(sid)
                 draft_seqs.append(sgm)
             else:
-                # New decode sequence — load-balanced entry
-                draft_size = len(self._draft_queue) + len(draft_seqs)
-                verify_size = len(self._verify_queue) + len(verify_seqs)
-                if draft_size <= verify_size:
+                # New decode sequence — load-balanced entry for 50/50 pipelining
+                # Balance draft_seqs vs (pending_pool + verify_seqs) to ensure
+                # equal splits during bootstrap and steady state
+                if len(draft_seqs) <= len(self._pending_pool) + len(verify_seqs):
                     draft_seqs.append(sgm)
                 else:
                     self._pending_pool[sid] = sgm

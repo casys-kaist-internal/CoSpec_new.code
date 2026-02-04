@@ -25,8 +25,7 @@ export COSPEC=1
 export VLLM_USE_V1=0
 export COSPEC_PROFILE=1
 
-python -m vllm.entrypoints.openai.api_server \
-    --model "$MODEL" \
+vllm serve "$MODEL" \
     --speculative-model "$DRAFT_MODEL" \
     --num-speculative-tokens 5 \
     --port "$PORT" \
