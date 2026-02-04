@@ -33,7 +33,8 @@
       "Bash(wc:*)",
       "WebFetch(domain:www.usenix.org)",
       "WebFetch(domain:sites.google.com)",
-      "WebFetch(domain:blog.vllm.ai)"
+      "WebFetch(domain:blog.vllm.ai)",
+      "Bash(sleep 2 docker exec -w /workspace -e VLLM_USE_V1=0 -e COSPEC=1 cospec-vllm timeout 120 python3 -c ' import os print\\(\"\"Testing CoSpec...\"\"\\) from vllm import LLM, SamplingParams from vllm.cospec import cleanup_cospec_resources cleanup_cospec_resources\\(\\) llm = LLM\\( model=\"\"JackFram/llama-68m\"\", enforce_eager=True, speculative_config={\"\"model\"\": \"\"JackFram/llama-68m\"\", \"\"num_speculative_tokens\"\": 5}, \\) print\\(\"\"LLM created, generating...\"\"\\) outputs = llm.generate\\([\"\"Hello\"\"], SamplingParams\\(temperature=0, max_tokens=10\\)\\) print\\(\"\"OUTPUT:\"\", outputs[0].outputs[0].text\\) ')"
     ]
   }
 }

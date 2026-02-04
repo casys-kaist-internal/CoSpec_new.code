@@ -206,9 +206,3 @@ shellcheck*/
 
 # Ingore moe/marlin_moe gen code
 csrc/moe/marlin_moe_wna16/kernel_*
-
-# ShareGPT dataset
-**/ShareGPT_V3_unfiltered_cleaned_split.json
-
-# CoSpec backup (old benchmarks/notes kept locally)
-cospec/backup/

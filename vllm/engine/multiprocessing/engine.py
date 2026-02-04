@@ -25,10 +25,7 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
                                          RPCStartupResponse,
-                                         RPCUProfileRequest,
-                                         RPCWakeUpRequest, RPCSetNumSpeculativeTokensRequest,
-                                         RPCSetMaxNumSeqsRequest,
-                                         RPCLazyInitializeKVCacheRequest)
+                                         RPCUProfileRequest, RPCWakeUpRequest)
 # yapf: enable
 from vllm.logger import init_logger
 from vllm.outputs import RequestOutput
@@ -270,12 +267,6 @@ class MQLLMEngine:
                         self.start_profile()
                     else:
                         self.stop_profile()
-                elif isinstance(request, RPCSetNumSpeculativeTokensRequest):
-                    self.set_num_speculative_tokens(request.num_speculative_tokens)
-                elif isinstance(request, RPCLazyInitializeKVCacheRequest):
-                    self.lazy_initialize_kv_cache()
-                elif isinstance(request, RPCSetMaxNumSeqsRequest):
-                    self.set_max_num_seqs(request.max_num_seqs)
                 elif isinstance(request, RPCLoadAdapterRequest):
                     self._handle_load_adapter_request(request)
                 elif isinstance(request, RPCResetPrefixCacheRequest):
@@ -417,15 +408,6 @@ class MQLLMEngine:
 
     def stop_profile(self) -> None:
         self.engine.stop_profile()
-
-    def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
-        self.engine.set_num_speculative_tokens(num_speculative_tokens)
-
-    def lazy_initialize_kv_cache(self) -> None:
-        self.engine.lazy_initialize_kv_cache()
-
-    def set_max_num_seqs(self, max_num_seqs: int) -> None:
-        self.engine.set_max_num_seqs(max_num_seqs)
 
     def reset_prefix_cache(self) -> bool:
         return self.engine.reset_prefix_cache()

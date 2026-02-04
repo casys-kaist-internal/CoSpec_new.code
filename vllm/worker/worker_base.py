@@ -76,8 +76,7 @@ class WorkerBase:
 
     def execute_model(
         self,
-        execute_model_req: Optional[ExecuteModelRequest] = None,
-        is_target: Optional[bool] = True,
+        execute_model_req: Optional[ExecuteModelRequest] = None
     ) -> Optional[List[SamplerOutput]]:
         raise NotImplementedError
 
@@ -167,10 +166,9 @@ class DelegateWorkerBase(WorkerBase):
 
     def execute_model(
         self,
-        execute_model_req: Optional[ExecuteModelRequest] = None,
-        is_target: Optional[bool] = True,
+        execute_model_req: Optional[ExecuteModelRequest] = None
     ) -> Optional[List[SamplerOutput]]:
-        return self.worker.execute_model(execute_model_req, is_target)
+        return self.worker.execute_model(execute_model_req)
 
     def get_cache_block_size_bytes(self) -> int:
         return self.worker.get_cache_block_size_bytes()
@@ -331,7 +329,6 @@ class LocalOrDistributedWorkerBase(WorkerBase):
 
         return model_input, worker_input, kwargs
 
-    # important
     def _get_driver_input_and_broadcast(
         self, execute_model_req: ExecuteModelRequest
     ) -> Tuple[BroadcastableModelInput, WorkerInput, Dict[str, torch.Tensor]]:
@@ -389,7 +386,6 @@ class LocalOrDistributedWorkerBase(WorkerBase):
     def execute_model(
         self,
         execute_model_req: Optional[ExecuteModelRequest] = None,
-        is_target: Optional[bool] = True,
     ) -> Optional[List[SamplerOutput]]:
         """Executes at least one model step on the given sequences, unless no
         sequences are provided."""

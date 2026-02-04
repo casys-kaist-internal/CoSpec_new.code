@@ -603,8 +603,7 @@ def get_requirements() -> list[str]:
     if _no_device():
         requirements = _read_requirements("common.txt")
     elif _is_cuda():
-        requirements = _read_requirements("cospec.txt")
-        # requirements = _read_requirements("cuda.txt")
+        requirements = _read_requirements("cuda.txt")
         cuda_major, cuda_minor = torch.version.cuda.split(".")
         modified_requirements = []
         for req in requirements:

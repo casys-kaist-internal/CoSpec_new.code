@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List, Optional
-import torch 
 
 from vllm.sequence import SequenceGroupMetadata
 from vllm.worker.model_runner_base import (ModelRunnerBase,

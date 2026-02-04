@@ -122,13 +122,6 @@ class RPCUProfileRequest(Enum):
     START_PROFILE = 1
     STOP_PROFILE = 2
 
-@dataclass
-class RPCSetNumSpeculativeTokensRequest:
-    num_speculative_tokens: int
-
-@dataclass
-class RPCSetMaxNumSeqsRequest:
-    max_num_seqs: int
 
 @dataclass
 class RPCResetPrefixCacheRequest:
@@ -168,9 +161,6 @@ class RPCLoadAdapterRequest:
 class RPCAdapterLoadedResponse:
     request_id: str
 
-@dataclass
-class RPCLazyInitializeKVCacheRequest:
-    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 RPC_REQUEST_T = Union[RPCProcessRequest, RPCAbortRequest, RPCStartupRequest,
                       RPCUProfileRequest, RPCLoadAdapterRequest,

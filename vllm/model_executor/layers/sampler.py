@@ -127,9 +127,6 @@ class SamplerOutput(
     # block/sync across workers, cpu-gpu sync time and sampling time.
     model_execute_time: Optional[float] = None
 
-    # Pre-temperature probs before applying temperature scaling
-    unscaled_temp_probs: Optional[torch.Tensor] = None
-
     def __getitem__(self, idx: int) -> CompletionSequenceGroupOutput:
         return self.outputs[idx]
 
@@ -271,7 +268,6 @@ class Sampler(nn.Module):
         # Use float32 to apply temperature scaling.
         # Use in-place division to avoid creating a new tensor.
         logits = logits.to(torch.float)
-        # unscaled_temp_probs = torch.softmax(logits, dim=-1, dtype=torch.float)
         logits.div_(sampling_tensors.temperatures.unsqueeze(dim=1))
 
         if do_top_p_top_k and flashinfer_top_k_top_p_sampling is None:
@@ -325,7 +321,6 @@ class Sampler(nn.Module):
             sample_logprobs,
             on_device_tensors=on_device_tensors,
             skip_sampler_cpu_output=sampling_metadata.skip_sampler_cpu_output)
-            # unscaled_temp_probs=unscaled_temp_probs)
 
     @property
     def _should_modify_greedy_probs_inplace(self) -> bool:
@@ -1135,7 +1130,6 @@ def _build_sampler_output(
     on_device_tensors: Optional[Tuple[torch.Tensor, torch.Tensor,
                                       torch.Tensor]],
     skip_sampler_cpu_output: bool = False,
-    # unscaled_temp_probs: Optional[torch.Tensor] = None,
 ) -> SamplerOutput:
     """Construct Python objects with the output of sampling.
 
@@ -1144,7 +1138,6 @@ def _build_sampler_output(
             probabilities used in sampling and the sampled token ids. This
             allows post-processing without copies to CPU/serialization, e.g. in
             speculative decoding rejection sampling.
-        unscaled_temp_probs: The probs before temperature scaling is applied.
     """
     sampler_output: List[CompletionSequenceGroupOutput] = []
 
@@ -1185,32 +1178,13 @@ def _build_sampler_output(
     else:
         sampled_token_probs, logprobs_tensor, sampled_token_ids = (None, None,
                                                                    None)
-        
-    # if unscaled_temp_probs is not None and sampled_token_ids is not None:
-    #     unscaled_temp_probs = torch.gather(
-    #         unscaled_temp_probs,
-    #         dim=-1,
-    #         index=sampled_token_ids
-    #     ).squeeze(-1)
-    # else:
-    #     unscaled_temp_probs = None
-
-    if logprobs_tensor is not None and sampled_token_ids is not None:
-        unscaled_temp_probs = torch.gather(
-            logprobs_tensor,
-            dim=-1,
-            index=sampled_token_ids
-        ).squeeze(-1)
-    else:
-        unscaled_temp_probs = None
 
     return SamplerOutput(
         outputs=sampler_output,
         sampled_token_probs=sampled_token_probs,
         sampled_token_ids=sampled_token_ids,
         logprobs=logprobs_tensor,
-        deferred_sample_results_args=deferred_sample_results_args,
-        unscaled_temp_probs=unscaled_temp_probs)
+        deferred_sample_results_args=deferred_sample_results_args)
 
 
 def _get_next_prompt_tokens(

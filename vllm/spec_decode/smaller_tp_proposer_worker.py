@@ -128,7 +128,6 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
         seq_ids_with_bonus_token_in_last_step: Set[int],
     ) -> Tuple[List[SamplerOutput], bool]:
         # Do not check _is_dummy, as it's always called by get_spec_proposals
-        logger.info(f"draft sampler_output")
         return self._worker.sampler_output(
             execute_model_req, sample_len,
             seq_ids_with_bonus_token_in_last_step)
@@ -137,7 +136,6 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        is_target: Optional[bool] = False,
     ) -> SpeculativeProposals:
         """Produce speculations given an input batch of sequences. The number of
         speculative tokens per sequence is determined by max_proposal_len.
@@ -147,7 +145,7 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
 
         with self._patch_tensor_parallel_group():
             return self._worker.get_spec_proposals(
-                execute_model_req, seq_ids_with_bonus_token_in_last_step, is_target)
+                execute_model_req, seq_ids_with_bonus_token_in_last_step)
 
     def get_model(self) -> nn.Module:
         if self._is_dummy:
@@ -158,14 +156,13 @@ class SmallerTpProposerWorker(ProposerWorkerBase):
 
     def execute_model(
         self,
-        execute_model_req: Optional[ExecuteModelRequest] = None,
-        is_target: Optional[bool] = False,
+        execute_model_req: Optional[ExecuteModelRequest] = None
     ) -> List[SamplerOutput]:
         if self._is_dummy:
             return []
 
         with self._patch_tensor_parallel_group():
-            return self._worker.execute_model(execute_model_req, is_target)
+            return self._worker.execute_model(execute_model_req)
 
     def get_cache_block_size_bytes(self) -> int:
         if self._is_dummy:

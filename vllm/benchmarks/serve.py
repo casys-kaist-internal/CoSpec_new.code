@@ -31,6 +31,7 @@ import numpy as np
 from tqdm.asyncio import tqdm
 from transformers import PreTrainedTokenizerBase
 
+from vllm.benchmarks.datasets import ShareGPTDataset
 from vllm.benchmarks.endpoint_request_func import (ASYNC_REQUEST_FUNCS,
                                                    RequestFuncInput,
                                                    RequestFuncOutput)
@@ -596,7 +597,14 @@ def add_cli_args(parser: argparse.ArgumentParser):
         "--dataset-name",
         type=str,
         default="random",
+        choices=["random", "sharegpt"],
         help="Name of the dataset to benchmark on.",
+    )
+    parser.add_argument(
+        "--dataset-path",
+        type=str,
+        default=None,
+        help="Path to the dataset file (required for sharegpt).",
     )
     parser.add_argument(
         "--max-concurrency",
@@ -777,6 +785,15 @@ def add_cli_args(parser: argparse.ArgumentParser):
         " request is [random-prefix-len, "
         " random-prefix-len + random-prefix-len * random-range-ratio).")
 
+    sharegpt_group = parser.add_argument_group("sharegpt dataset options")
+    sharegpt_group.add_argument(
+        "--sharegpt-output-len",
+        type=int,
+        default=None,
+        help="Output length for each request. Overrides the output length "
+        "from the ShareGPT dataset.",
+    )
+
     parser.add_argument(
         '--tokenizer-mode',
         type=str,
@@ -825,8 +842,6 @@ def main(args: argparse.Namespace):
     tokenizer = get_tokenizer(tokenizer_id,
                               tokenizer_mode=tokenizer_mode,
                               trust_remote_code=args.trust_remote_code)
-    # TODO: This should be refactored to use the benchmark_dataset.py
-    # in later PRs.
     if args.dataset_name is None:
         raise ValueError(
             "Please specify '--dataset-name' and the corresponding "
@@ -840,20 +855,18 @@ def main(args: argparse.Namespace):
             range_ratio=args.random_range_ratio,
             tokenizer=tokenizer,
         )
-
     elif args.dataset_name == "sharegpt":
-        from vllm.benchmarks.datasets import ShareGPTDataset
-        dataset = ShareGPTDataset(
-            dataset_path=args.dataset_path,
-            random_seed=args.seed,
-        )
+        if args.dataset_path is None:
+            raise ValueError("--dataset-path is required for sharegpt dataset")
+        dataset = ShareGPTDataset(dataset_path=args.dataset_path)
         samples = dataset.sample(
             tokenizer=tokenizer,
             num_requests=args.num_prompts,
-            output_len=getattr(args, 'sharegpt_output_len', None),
+            output_len=args.sharegpt_output_len,
         )
+        # Convert SampleRequest to tuple format (prompt, prompt_len, output_len, mm_content)
         input_requests = [
-            (s.prompt, s.prompt_len, s.expected_output_len)
+            (s.prompt, s.prompt_len, s.expected_output_len, s.multi_modal_data)
             for s in samples
         ]
     else:

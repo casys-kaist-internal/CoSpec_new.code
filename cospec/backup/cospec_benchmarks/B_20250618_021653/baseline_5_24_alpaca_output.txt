@@ -1,0 +1,47 @@
+INFO 06-18 08:09:17 [__init__.py:239] Automatically detected platform cuda.
+Namespace(backend='vllm', base_url=None, host='127.0.0.1', port=8100, endpoint='/v1/completions', dataset_name='alpaca', dataset_path=None, max_concurrency=None, model='huggyllama/llama-13b', tokenizer=None, use_beam_search=False, num_prompts=14400, logprobs=None, request_rate=24.0, burstiness=1.0, seed=0, trust_remote_code=False, disable_tqdm=False, profile=False, save_result=False, save_detailed=False, append_result=False, metadata=None, result_dir=None, result_filename=None, ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el,token_latency', metric_percentiles='99', goodput=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, random_input_len=1024, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, hf_subset=None, hf_split=None, hf_output_len=None, top_p=None, top_k=None, min_p=None, temperature=None, tokenizer_mode='auto', served_model_name=None, lora_modules=None)
+Loaded 52002 samples from cache from vicgalle/cache/alpaca_huggyllama/llama-13b.json
+Split dataset into 5200 test samples and 46802 training samples
+Running test split to train selective validator...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+result {'is_trained': True}
+Don't need to train selective validator
+Running full benchmark...
+Checking server health at http://127.0.0.1:8100/health
+Server is ready!
+Starting initial single prompt test run...
+Initial test run completed. Starting main benchmark run...
+Traffic request rate: 24.0
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: None
+Benchmark will process 14400 prompts
+============ Serving Benchmark Result ============
+Successful requests:                     14400     
+Benchmark duration (s):                  1455.96   
+Total input tokens:                      887323    
+Total generated tokens:                  2363135   
+Request throughput (req/s):              9.89      
+Output token throughput (tok/s):         1623.07   
+Total Token throughput (tok/s):          2232.51   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          402188.51 
+Median TTFT (ms):                        404120.12 
+P99 TTFT (ms):                           810238.64 
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          181.39    
+Median TPOT (ms):                        156.80    
+P99 TPOT (ms):                           498.42    
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           611.09    
+Median ITL (ms):                         583.16    
+P99 ITL (ms):                            984.15    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          427023.79 
+Median E2EL (ms):                        428007.53 
+P99 E2EL (ms):                           838901.21 
+-----Token Latency (e2e_latency / output_len)-----
+Mean Token Latency (ms):                 9849.61   
+Median Token Latency (ms):               3080.80   
+P99 Token Latency (ms):                  77159.90  
+==================================================

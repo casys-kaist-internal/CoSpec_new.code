@@ -4,7 +4,6 @@ from typing import List, Optional, Set, Tuple
 
 import torch
 
-from vllm.logger import init_logger
 from vllm.model_executor.layers.sampler import SamplerOutput
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import (SpeculativeProposals,
@@ -12,7 +11,6 @@ from vllm.spec_decode.interfaces import (SpeculativeProposals,
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
 from vllm.spec_decode.util import sampler_output_to_torch
 
-logger = init_logger(__name__)
 
 class Top1Proposer(SpeculativeProposer):
     """Helper class which separates out sequences which would exceed the max
@@ -47,7 +45,6 @@ class Top1Proposer(SpeculativeProposer):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Get speculative proposals given the input batch.
 
@@ -84,7 +81,6 @@ class Top1Proposer(SpeculativeProposer):
                 sample_len=proposal_len,
                 seq_ids_with_bonus_token_in_last_step=\
                     seq_ids_with_bonus_token_in_last_step,
-                is_target=is_target
             )
             (
                 proposal_lens,
@@ -98,10 +94,10 @@ class Top1Proposer(SpeculativeProposer):
             # If no sequences can be speculated, set sampler output to None.
             maybe_sampler_output = None
             transposed = False
-    
+
         # Combine speculative- and non-speculative sequences into the same
         # representation.
-        proposal_tokens, proposal_probs, proposal_lens, unscaled_temp_probs = self._merge_outputs(
+        proposal_tokens, proposal_probs, proposal_lens = self._merge_outputs(
             batch_size=len(seq_group_metadata_list),
             proposal_len=proposal_len,
             maybe_sampler_output=maybe_sampler_output,
@@ -109,14 +105,12 @@ class Top1Proposer(SpeculativeProposer):
             nonzero_proposal_len_indices=nonzero_proposal_len_indices,
             sampler_transposed=transposed,
         )
-        proposals = SpeculativeProposals(
-            proposal_token_ids=proposal_tokens,
-            proposal_probs=proposal_probs,
-            proposal_lens=proposal_lens,
-            unscaled_temp_probs=unscaled_temp_probs,
-            no_proposals=maybe_sampler_output is None
-        )
-        
+
+        proposals = SpeculativeProposals(proposal_token_ids=proposal_tokens,
+                                         proposal_probs=proposal_probs,
+                                         proposal_lens=proposal_lens,
+                                         no_proposals=maybe_sampler_output
+                                         is None)
         return proposals
 
     def _split_by_proposal_len(
@@ -162,7 +156,7 @@ class Top1Proposer(SpeculativeProposer):
             nonzero_proposal_len_seqs,
             nonzero_proposal_len_indices,
         )
-    
+
     @staticmethod
     def _remove_no_proposal_seqs(proposal_lens, maybe_sampler_output,
                                  nonzero_proposal_len_indices, transposed):
@@ -227,11 +221,13 @@ class Top1Proposer(SpeculativeProposer):
         proposal_lens: List[int],
         nonzero_proposal_len_indices: List[int],
         sampler_transposed: bool,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """After speculations are produced, merge the speculation results with
         the skipped sequences.
         """
         if maybe_sampler_output is None:
+            # If no speculative tokens, the sampler output will be None.
+            # In this case we return empty proposals.
             proposal_tokens = torch.tensor(-1,
                                            dtype=torch.long,
                                            device=self._device).expand(
@@ -245,11 +241,10 @@ class Top1Proposer(SpeculativeProposer):
                                                 dtype=torch.long,
                                                 device=self._device).expand(
                                                     len(proposal_lens))
-            
-            return proposal_tokens, proposal_probs, proposal_lens_tensor, None
+            return proposal_tokens, proposal_probs, proposal_lens_tensor
 
         sampler_output = maybe_sampler_output
-        proposal_tokens, proposal_probs, unscaled_temp_probs, *_ = sampler_output_to_torch(
+        proposal_tokens, proposal_probs, *_ = sampler_output_to_torch(
             sampler_output, sampler_transposed)
 
         # Now, reformat the output GPU tensors such that each sequence has
@@ -266,16 +261,9 @@ class Top1Proposer(SpeculativeProposer):
         )
         entire_proposal_probs[nonzero_proposal_len_indices] = proposal_probs
 
-        entire_unscaled_temp_probs = unscaled_temp_probs.new_full(
-            size=(batch_size, *unscaled_temp_probs.shape[1:]),
-            fill_value=-1,
-        )
-        entire_unscaled_temp_probs[nonzero_proposal_len_indices] = unscaled_temp_probs
-
-        proposal_tokens, proposal_probs, unscaled_temp_probs = (
+        proposal_tokens, proposal_probs = (
             entire_proposal_tokens,
             entire_proposal_probs,
-            entire_unscaled_temp_probs,
         )
 
         proposal_lens_tensor = torch.zeros(batch_size,
@@ -283,4 +271,4 @@ class Top1Proposer(SpeculativeProposer):
                                            device=self._device)
         proposal_lens_tensor[nonzero_proposal_len_indices] = proposal_len
 
-        return proposal_tokens, proposal_probs, proposal_lens_tensor, unscaled_temp_probs
+        return proposal_tokens, proposal_probs, proposal_lens_tensor

@@ -184,7 +184,7 @@ class MultiprocessingDistributedExecutor(DistributedExecutorBase):
 
         driver_worker_output = run_method(self.driver_worker, sent_method,
                                           args, kwargs)
-        
+
         # Get the results of the workers.
         return [driver_worker_output
                 ] + [output.get() for output in worker_outputs]

@@ -555,4 +555,3 @@ class OpenAIServingCompletion(OpenAIServing):
             tokens=out_tokens,
             top_logprobs=out_top_logprobs,
         )
-

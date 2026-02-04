@@ -183,7 +183,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 21. **Correctness verified**: 8/8 prompts match baseline output exactly (greedy decoding, `JackFram/llama-68m`, batch_size=8, max_tokens=32). Two-queue pipeline produces identical results to non-CoSpec baseline.
 22. **Removed legacy code from model_runner.py**: Removed unused `cospec_manager` and `is_target` parameters from `execute_model()`. SM partitioning is now managed entirely by the orchestrator in CoSpec v2, not by model_runner.
 23. **Restored V1/V0 engine branching in api_server.py**: Fixed accidental removal of V1 AsyncLLM and V0 in-process paths. Non-CoSpec users now get proper V1/V0 engine selection. CoSpec still uses in-process AsyncLLMEngine for MPS compatibility.
-24. **Restored `VLLM_USE_V1` default to `1`**: Fixed accidental change that set V1 default to `0` for ALL users. Now V1 is default, users must set `VLLM_USE_V1=0` explicitly for speculative decoding.
+24. **`VLLM_USE_V1` default is `0`**: This CoSpec fork defaults to V0 engine since V1 doesn't support speculative decoding yet.
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`, `gamma=5`

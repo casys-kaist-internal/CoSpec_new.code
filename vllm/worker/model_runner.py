@@ -749,7 +749,7 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
 
         if self.runner.model_config.is_encoder_decoder:
             encoder_seq_len = seq_group_metadata.encoder_seq_data.get_len()
-        
+
         inter_data = self.init_cached_inter_data(
             request_id=seq_group_metadata.request_id,
             seq_ids=seq_ids,
@@ -759,7 +759,7 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
             reinit=True,
             reinit_use_defaults=True,
             encoder_seq_len=encoder_seq_len)
-        
+
         self.inter_data_list.append(inter_data)
 
         for seq_idx in range(n_seqs):
@@ -1205,11 +1205,10 @@ class GPUModelRunnerBase(ModelRunnerBase[TModelInputForGPU]):
         block_size = self.block_size
         return (self.max_seq_len_to_capture + block_size - 1) // block_size
 
-    # important
     def _prepare_model_input_tensors(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
-        finished_requests_ids: Optional[List[str]] = None,
+        finished_requests_ids: Optional[List[str]] = None
     ) -> TModelInputForGPU:
         """Helper method to prepare the model input based on a given sequence
         group. Prepares metadata needed for the base model forward pass but not
@@ -1826,9 +1825,6 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
 
         logits = self.model.compute_logits(hidden_or_intermediate_states,
                                            model_input.sampling_metadata)
-        # Note: SM partitioning is managed by the orchestrator in CoSpec v2,
-        # not by model_runner. The orchestrator calls set_partition/set_full_gpu
-        # at the appropriate points in the speculative decoding pipeline.
 
         if not self.is_driver_worker:
             return []

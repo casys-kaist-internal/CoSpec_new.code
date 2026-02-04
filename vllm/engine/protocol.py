@@ -276,21 +276,6 @@ class EngineClient(ABC):
         ...
 
     @abstractmethod
-    async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
-        """Set the number of speculative tokens"""
-        ...
-
-    @abstractmethod
-    async def lazy_initialize_kv_cache(self) -> None:
-        """Lazy initialize the KV cache"""
-        ...
-
-    @abstractmethod
-    async def set_max_num_seqs(self, max_num_seqs: int) -> None:
-        """Set the maximum number of sequences"""
-        ...
-
-    @abstractmethod
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:
         """Reset the prefix cache"""
@@ -314,9 +299,4 @@ class EngineClient(ABC):
     @abstractmethod
     async def add_lora(self, lora_request: LoRARequest) -> None:
         """Load a new LoRA adapter into the engine for future requests."""
-        ...
-
-    @abstractmethod
-    def get_num_requests(self) -> int:
-        """Get the number of requests in the engine"""
         ...

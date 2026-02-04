@@ -2,7 +2,7 @@
 
 import copy
 import weakref
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 import torch
 
@@ -20,9 +20,7 @@ from vllm.spec_decode.interfaces import (SpeculativeProposals,
 from vllm.spec_decode.proposer_worker_base import ProposerWorkerBase
 from vllm.spec_decode.top1_proposer import Top1Proposer
 from vllm.worker.worker_base import DelegateWorkerBase
-from vllm.logger import init_logger
 
-logger = init_logger(__name__)
 
 class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
     """The MultiStepWorker is equivalent to a Worker except that it allows
@@ -63,7 +61,6 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         execute_model_req: ExecuteModelRequest,
         sample_len: int,
         seq_ids_with_bonus_token_in_last_step: Set[int],
-        is_target: Optional[bool] = False
     ) -> Tuple[List[SamplerOutput], bool]:
         """Run the model forward pass sample_len times. Returns the list of
         sampler output, one per model forward pass, along with indicator of
@@ -100,10 +97,9 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
             # supports_gpu_multi_step(..)
             if expanded_request.previous_hidden_states is not None:
                 self.worker.model_runner.return_hidden_states = True
-
-            for i in range(sample_len):
+            for _ in range(sample_len):
                 model_output: List[SamplerOutput] = self.worker.execute_model(
-                    execute_model_req=expanded_request, is_target=is_target)
+                    execute_model_req=expanded_request)
                 assert (len(model_output) == 1
                         ), "composing multistep workers not supported"
                 model_output = model_output[0]
@@ -114,7 +110,6 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                     model_output, expanded_request.seq_group_metadata_list,
                     indices_of_seq_with_bonus_tokens)
                 model_outputs.append(model_output)
-
 
         # move indices to device to avoid stream sync
         indices_of_seq_with_bonus_tokens = torch.tensor(
@@ -235,11 +230,7 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
                 sampled_token_ids=(expanded_batch_output.
                                    sampled_token_ids[output_indices_to_retain]
                                    if expanded_batch_output.sampled_token_ids
-                                   is not None else None),
-                unscaled_temp_probs=(expanded_batch_output.
-                                       unscaled_temp_probs[output_indices_to_retain]
-                                       if expanded_batch_output.unscaled_temp_probs
-                                       is not None else None))
+                                   is not None else None))
             for expanded_batch_output in expanded_batch_outputs
         ]
 
@@ -247,13 +238,12 @@ class MultiStepWorker(ProposerWorkerBase, DelegateWorkerBase):
         self,
         execute_model_req: ExecuteModelRequest,
         seq_ids_with_bonus_token_in_last_step: set,
-        is_target: Optional[bool] = False
     ) -> SpeculativeProposals:
         """Produce speculations given an input batch of sequences. The number of
         speculative tokens per sequence is determined by max_proposal_len.
         """
         return self._proposer.get_spec_proposals(
-            execute_model_req, seq_ids_with_bonus_token_in_last_step, is_target=is_target)
+            execute_model_req, seq_ids_with_bonus_token_in_last_step)
 
     @staticmethod
     def _append_new_tokens(

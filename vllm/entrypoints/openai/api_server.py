@@ -18,8 +18,6 @@ from contextlib import asynccontextmanager
 from functools import partial
 from http import HTTPStatus
 from typing import Annotated, Optional, Union
-import subprocess
-import time
 
 import uvloop
 from fastapi import APIRouter, Depends, FastAPI, Form, HTTPException, Request
@@ -139,14 +137,14 @@ async def lifespan(app: FastAPI):
 
 @asynccontextmanager
 async def build_async_engine_client(
-        args: Namespace, is_primary: Optional[bool] = None) -> AsyncIterator[EngineClient]:
+        args: Namespace) -> AsyncIterator[EngineClient]:
 
     # Context manager to handle engine_client lifecycle
     # Ensures everything is shutdown and cleaned up on error/exit
     engine_args = AsyncEngineArgs.from_cli_args(args)
 
     async with build_async_engine_client_from_engine_args(
-            engine_args, args.disable_frontend_multiprocessing, is_primary) as engine:
+            engine_args, args.disable_frontend_multiprocessing) as engine:
         yield engine
 
 
@@ -154,7 +152,6 @@ async def build_async_engine_client(
 async def build_async_engine_client_from_engine_args(
     engine_args: AsyncEngineArgs,
     disable_frontend_multiprocessing: bool = False,
-    is_primary: Optional[bool] = None,
 ) -> AsyncIterator[EngineClient]:
     """
     Create EngineClient, either:
@@ -163,29 +160,13 @@ async def build_async_engine_client_from_engine_args(
 
     Returns the Client or None if the creation failed.
     """
+
     # Create the EngineConfig (determines if we can use V1).
     usage_context = UsageContext.OPENAI_API_SERVER
-    vllm_config = engine_args.create_engine_config(usage_context=usage_context, is_primary=is_primary)
-    global prometheus_multiproc_dir
-
-    if envs.COSPEC:
-        # CoSpec requires in-process engine (no multiprocessing) because
-        # MPS/libsmctrl SM partitioning doesn't work across process boundaries.
-        logger.info("Using CoSpec (in-process AsyncLLMEngine for MPS compatibility).")
-        engine_client: Optional[EngineClient] = None
-        try:
-            engine_client = AsyncLLMEngine.from_vllm_config(
-                vllm_config=vllm_config,
-                usage_context=usage_context,
-                disable_log_requests=engine_args.disable_log_requests,
-                disable_log_stats=engine_args.disable_log_stats)
-            yield engine_client
-        finally:
-            if engine_client and hasattr(engine_client, "shutdown"):
-                engine_client.shutdown()
+    vllm_config = engine_args.create_engine_config(usage_context=usage_context)
 
     # V1 AsyncLLM.
-    elif envs.VLLM_USE_V1:
+    if envs.VLLM_USE_V1:
         if disable_frontend_multiprocessing:
             logger.warning(
                 "V1 is enabled, but got --disable-frontend-multiprocessing. "
@@ -204,7 +185,7 @@ async def build_async_engine_client_from_engine_args(
             if async_llm:
                 async_llm.shutdown()
 
-    # V0 AsyncLLM (in-process).
+    # V0 AsyncLLM.
     elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
           or disable_frontend_multiprocessing):
 
@@ -220,13 +201,13 @@ async def build_async_engine_client_from_engine_args(
             if engine_client and hasattr(engine_client, "shutdown"):
                 engine_client.shutdown()
 
-    # V0 MQLLMEngine (multiprocessing).
+    # V0MQLLMEngine.
     else:
-        # AR 
         if "PROMETHEUS_MULTIPROC_DIR" not in os.environ:
             # Make TemporaryDirectory for prometheus multiprocessing
             # Note: global TemporaryDirectory will be automatically
             #   cleaned up upon exit.
+            global prometheus_multiproc_dir
             prometheus_multiproc_dir = tempfile.TemporaryDirectory()
             os.environ[
                 "PROMETHEUS_MULTIPROC_DIR"] = prometheus_multiproc_dir.name
@@ -431,6 +412,7 @@ async def get_server_load_metrics(request: Request):
     return JSONResponse(
         content={'server_load': request.app.state.server_load_metrics})
 
+
 @router.api_route("/ping", methods=["GET", "POST"])
 async def ping(raw_request: Request) -> Response:
     """Ping check. Endpoint required for SageMaker"""
@@ -521,6 +503,7 @@ async def create_completion(request: CompletionRequest, raw_request: Request):
         return JSONResponse(content=generator.model_dump())
 
     return StreamingResponse(content=generator, media_type="text/event-stream")
+
 
 @router.post("/v1/embeddings", dependencies=[Depends(validate_json_request)])
 @with_cancellation
@@ -796,6 +779,7 @@ if envs.VLLM_TORCH_PROFILER_DIR:
         logger.info("Profiler stopped.")
         return Response(status_code=200)
 
+
 if envs.VLLM_ALLOW_RUNTIME_LORA_UPDATING:
     logger.warning(
         "LoRA dynamic loading & unloading is enabled in the API server. "
@@ -1055,38 +1039,9 @@ def create_server_socket(addr: tuple[str, int]) -> socket.socket:
     return sock
 
 
-def _start_mps_daemon() -> None:
-    """Start NVIDIA MPS daemon for CoSpec concurrent execution."""
-    # Skip if MPS is already running
-    result = subprocess.run(["pgrep", "-f", "nvidia-cuda-mps-control"],
-                            capture_output=True)
-    if result.returncode == 0:
-        logger.info("NVIDIA MPS daemon already running, skipping startup")
-        return
-    os.environ.setdefault("CUDA_MPS_PIPE_DIRECTORY", "/tmp/nvidia-mps")
-    os.environ.setdefault("CUDA_MPS_LOG_DIRECTORY", "/tmp/nvidia-log")
-    subprocess.run(["nvidia-cuda-mps-control", "-d"], check=True)
-    logger.info("NVIDIA MPS daemon started")
-
-
-def _stop_mps_daemon() -> None:
-    """Stop NVIDIA MPS daemon."""
-    try:
-        subprocess.run(["bash", "-c", "echo quit | nvidia-cuda-mps-control"],
-                       check=True)
-        logger.info("NVIDIA MPS daemon stopped")
-    except Exception as e:
-        logger.error("Failed to stop NVIDIA MPS daemon: %s", str(e))
-
-
 async def run_server(args, **uvicorn_kwargs) -> None:
-    cospec_mode = envs.COSPEC
-    logger.info("vLLM API server version %s%s", VLLM_VERSION,
-                " (CoSpec)" if cospec_mode else "")
+    logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
-
-    if cospec_mode:
-        _start_mps_daemon()
 
     if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
         ToolParserManager.import_tool_parser(args.tool_parser_plugin)
@@ -1109,16 +1064,20 @@ async def run_server(args, **uvicorn_kwargs) -> None:
     # see https://github.com/vllm-project/vllm/issues/8204
     sock_addr = (args.host or "", args.port)
     sock = create_server_socket(sock_addr)
+
+    # workaround to avoid footguns where uvicorn drops requests with too
+    # many concurrent requests active
     set_ulimit()
 
     def signal_handler(*_) -> None:
+        # Interrupt server on sigterm while initializing
         raise KeyboardInterrupt("terminated")
 
     signal.signal(signal.SIGTERM, signal_handler)
 
-    is_primary = True if cospec_mode else None
-    async with build_async_engine_client(args, is_primary=is_primary) as engine_client:
+    async with build_async_engine_client(args) as engine_client:
         app = build_app(args)
+
         vllm_config = await engine_client.get_vllm_config()
         await init_app_state(engine_client, vllm_config, app.state, args)
 
@@ -1139,6 +1098,8 @@ async def run_server(args, **uvicorn_kwargs) -> None:
             host=args.host,
             port=args.port,
             log_level=args.uvicorn_log_level,
+            # NOTE: When the 'disable_uvicorn_access_log' value is True,
+            # no access log will be output.
             access_log=not args.disable_uvicorn_access_log,
             timeout_keep_alive=TIMEOUT_KEEP_ALIVE,
             ssl_keyfile=args.ssl_keyfile,
@@ -1148,12 +1109,11 @@ async def run_server(args, **uvicorn_kwargs) -> None:
             **uvicorn_kwargs,
         )
 
+    # NB: Await server shutdown only after the backend context is exited
     try:
         await shutdown_task
     finally:
         sock.close()
-        if cospec_mode:
-            _stop_mps_daemon()
 
 
 if __name__ == "__main__":
@@ -1166,12 +1126,5 @@ if __name__ == "__main__":
     parser = make_arg_parser(parser)
     args = parser.parse_args()
     validate_parsed_serve_args(args)
-
-    # Cleanup previous CoSpec IPC handles on server start
-    try:
-        from vllm.cospec import cleanup_cospec_resources
-        cleanup_cospec_resources()
-    except Exception as e:
-        logger.error("CoSpec IPC cleanup failed: %s", str(e))
 
     uvloop.run(run_server(args))

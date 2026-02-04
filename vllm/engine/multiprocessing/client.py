@@ -33,10 +33,8 @@ from vllm.engine.multiprocessing import (ENGINE_DEAD_ERROR, IPC_DATA_EXT,
                                          RPCProcessRequest,
                                          RPCResetPrefixCacheRequest,
                                          RPCSleepRequest, RPCStartupRequest,
-                                         RPCStartupResponse, RPCSetNumSpeculativeTokensRequest,
-                                         RPCSetMaxNumSeqsRequest,
-                                         RPCUProfileRequest, RPCWakeUpRequest,
-                                         RPCLazyInitializeKVCacheRequest)
+                                         RPCStartupResponse,
+                                         RPCUProfileRequest, RPCWakeUpRequest)
 from vllm.engine.protocol import EngineClient
 # yapf: enable
 from vllm.envs import VLLM_RPC_TIMEOUT
@@ -402,10 +400,7 @@ class MQLLMEngineClient(EngineClient):
 
     async def abort(self, request_id: str):
         """Send an ABORT_REQUEST signal to the RPC Server"""
-        try:
-            self.output_queues.pop(request_id)
-        except KeyError:
-            pass
+
         with suppress(MQClientClosedError):
             await self._send_one_way_rpc_request(
                 request=RPCAbortRequest(request_id), socket=self.input_socket)
@@ -678,10 +673,7 @@ class MQLLMEngineClient(EngineClient):
                 if not finished and not self.errored:
                     await self.abort(request_id)
         finally:
-            try:
-                self.output_queues.pop(request_id)
-            except KeyError:
-                pass
+            self.output_queues.pop(request_id)
 
     async def start_profile(self) -> None:
         """Start profiling the engine"""
@@ -694,25 +686,6 @@ class MQLLMEngineClient(EngineClient):
 
         await self._send_one_way_rpc_request(
             request=RPCUProfileRequest.STOP_PROFILE, socket=self.input_socket)
-        
-    async def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
-        """Set the number of speculative tokens"""
-
-        await self._send_one_way_rpc_request(
-            request=RPCSetNumSpeculativeTokensRequest(num_speculative_tokens), 
-            socket=self.input_socket)
-
-    async def lazy_initialize_kv_cache(self) -> None:
-        """Lazy initialize the KV cache"""
-        await self._send_one_way_rpc_request(
-            request=RPCLazyInitializeKVCacheRequest(),
-            socket=self.input_socket)
-
-    async def set_max_num_seqs(self, max_num_seqs: int) -> None:
-        """Set the maximum number of sequences"""
-        await self._send_one_way_rpc_request(
-            request=RPCSetMaxNumSeqsRequest(max_num_seqs),
-            socket=self.input_socket)
 
     async def reset_prefix_cache(self,
                                  device: Optional[Device] = None) -> None:
@@ -770,7 +743,3 @@ class MQLLMEngineClient(EngineClient):
         # Raise on error, otherwise happily return None
         if isinstance(request_output, BaseException):
             raise request_output
-
-
-    def get_num_requests(self) -> int:
-        return len(self.output_queues)

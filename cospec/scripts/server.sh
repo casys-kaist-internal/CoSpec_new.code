@@ -26,7 +26,6 @@ export VLLM_USE_V1=0
 export COSPEC_PROFILE=1
 
 vllm serve "$MODEL" \
-    --speculative-model "$DRAFT_MODEL" \
-    --num-speculative-tokens 5 \
+    --speculative-config "{\"model\": \"$DRAFT_MODEL\", \"num_speculative_tokens\": 5}" \
     --port "$PORT" \
     2>&1 | tee "$LOG_FILE"
