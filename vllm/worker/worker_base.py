@@ -54,7 +54,6 @@ class WorkerBase:
         self.compilation_config = vllm_config.compilation_config
         from vllm.platforms import current_platform
         self.current_platform = current_platform
-        self.cospec_manager = None
 
     def init_device(self) -> None:
         """Initialize device state, such as loading the model or other on-device
@@ -428,8 +427,6 @@ class LocalOrDistributedWorkerBase(WorkerBase):
             if self.kv_cache is not None else None,
             intermediate_tensors=intermediate_tensors,
             num_steps=num_steps,
-            cospec_manager=self.cospec_manager,
-            is_target=is_target, 
             **kwargs,
         )
 

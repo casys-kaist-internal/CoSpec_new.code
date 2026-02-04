@@ -333,8 +333,6 @@ class Worker(LocalOrDistributedWorkerBase):
         # "owner" = target process (allocate + export IPC handles)
         # "client" = draft process (import from IPC handles)
         shared_mode = getattr(self, 'cospec_shared_mode', None)
-        if shared_mode is None and getattr(self, 'cospec_manager', None) is not None:
-            shared_mode = "owner"
         self.cache_engine = [
             CacheEngine(self.cache_config, self.model_config,
                         self.parallel_config, self.device_config,

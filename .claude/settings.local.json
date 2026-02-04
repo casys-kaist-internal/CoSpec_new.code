@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(python -c:*)",
+      "Bash(du:*)",
+      "Bash(pip show:*)",
+      "Bash(VLLM_USE_V1=0 pytest:*)",
+      "Bash(tee:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(TMPDIR=/mnt/sdb/tmp pip install:*)",
+      "Bash(docker run:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker inspect:*)",
+      "WebSearch",
+      "Bash(make:*)",
+      "Bash(git log:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(grep:*)",
+      "Bash(git -C /mnt/sdb/sjchoi/CoSpec_new.code diff --stat HEAD -- vllm/ tests/)",
+      "Bash(docker start:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(docker cp:*)",
+      "Bash(wc:*)",
+      "WebFetch(domain:www.usenix.org)",
+      "WebFetch(domain:sites.google.com)",
+      "WebFetch(domain:blog.vllm.ai)"
+    ]
+  }
+}

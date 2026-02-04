@@ -5,9 +5,11 @@ partitioning for concurrent draft + target execution on the same GPU.
 """
 
 import enum
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
+import torch.cuda.nvtx as nvtx
 
 from vllm.cospec.sm_controller import SMController
 from vllm.cospec.worker_rpc import DraftWorkerRPC
@@ -15,6 +17,7 @@ from vllm.logger import init_logger
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
 from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
 from vllm.spec_decode.util import split_batch_by_proposal_len
+import vllm.envs as envs
 
 logger = init_logger(__name__)
 
@@ -73,6 +76,22 @@ class CoSpecOrchestrator:
         # Set after each step: seq_ids present in the output
         self.last_output_seq_ids: Optional[List[int]] = None
 
+        # CUDA event for targeted synchronization (cheaper than global sync)
+        self._sync_event = torch.cuda.Event()
+
+        # Timing stats (only when COSPEC_PROFILE=1)
+        self._profiling_enabled = envs.COSPEC_PROFILE
+        if self._profiling_enabled:
+            self._times = {
+                "propose_async": 0.0,
+                "score": 0.0,
+                "propose_collect": 0.0,
+                "sync": 0.0,
+                "verify": 0.0,
+                "total": 0.0,
+            }
+            self._time_count = 0
+
     def step(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
@@ -102,6 +121,10 @@ class CoSpecOrchestrator:
         - Both run concurrently on partitioned SMs
         - Results are tagged with seq_ids for correct matching
         """
+        nvtx.range_push("cospec_step")
+        if self._profiling_enabled:
+            t_start = time.perf_counter()
+
         stream = torch.cuda.current_stream()
 
         # Step 0: Move pending sequences into draft_queue (waited 1 step)
@@ -142,7 +165,9 @@ class CoSpecOrchestrator:
                 self.sm_controller.set_full_gpu(stream)
                 self.draft_rpc.set_full_gpu()
 
+                nvtx.range_push("bootstrap_propose")
                 proposals = self.draft_rpc.propose(draft_seqs, gamma)
+                nvtx.range_pop()
                 self._materialize_probs(proposals)
                 # Move drafted sequences to verify_queue
                 for i, sgm in enumerate(draft_seqs):
@@ -152,18 +177,26 @@ class CoSpecOrchestrator:
                                                   len(draft_seqs)))
 
             self.last_output_seq_ids = None
+            nvtx.range_pop()  # cospec_step
             # Process prefills with full GPU (no verify happening)
             if prefill_seqs:
                 return self._run_prefills_only(prefill_seqs)
             return []  # no-op step
 
         # === Concurrent phase ===
+        nvtx.range_push("concurrent_phase")
         self.sm_controller.set_partition(stream, target_sm_ratio)
         self.draft_rpc.set_partition(1.0 - target_sm_ratio)
 
         # Draft proposes draft_seqs concurrently
+        nvtx.range_push("propose_async")
+        if self._profiling_enabled:
+            t_propose_start = time.perf_counter()
         if draft_seqs:
             self.draft_rpc.propose_async(draft_seqs, gamma)
+        if self._profiling_enabled:
+            t_propose_async_end = time.perf_counter()
+        nvtx.range_pop()
 
         # Target: score verify_seqs proposals
         merged_proposals = self._merge_proposals(verify_proposals)
@@ -173,23 +206,54 @@ class CoSpecOrchestrator:
         if prefill_seqs:
             target_batch = prefill_seqs + verify_seqs
 
+        nvtx.range_push("score_proposals")
+        if self._profiling_enabled:
+            t_score_start = time.perf_counter()
         target_scores = self._score_proposals(
             target_batch, merged_proposals, gamma)
+        # Record event after scoring for targeted sync
+        self._sync_event.record()
+        if self._profiling_enabled:
+            t_score_end = time.perf_counter()
+        nvtx.range_pop()
 
         # Collect draft results
+        nvtx.range_push("propose_collect")
+        if self._profiling_enabled:
+            t_collect_start = time.perf_counter()
         new_proposals = None
         if draft_seqs:
             new_proposals = self.draft_rpc.propose_collect()
+        if self._profiling_enabled:
+            t_collect_end = time.perf_counter()
+        nvtx.range_pop()
 
-        # Barrier
-        torch.cuda.synchronize()
+        # Wait for target scoring to complete (draft already synced via RPC)
+        nvtx.range_push("cuda_sync")
+        if self._profiling_enabled:
+            t_sync_start = time.perf_counter()
+        self._sync_event.synchronize()
+        if self._profiling_enabled:
+            t_sync_end = time.perf_counter()
+        nvtx.range_pop()
+
+        nvtx.range_pop()  # concurrent_phase
 
         # Sync draft KV cache for prefill sequences
+        nvtx.range_push("sync_draft_prefills")
         self._sync_draft_prefills(target_batch, merged_proposals)
+        nvtx.range_pop()
 
         # Verify
+        nvtx.range_push("verify")
+        if self._profiling_enabled:
+            t_verify_start = time.perf_counter()
         accepted, logprobs = self._verify(
             target_batch, target_scores, merged_proposals, gamma)
+        if self._profiling_enabled:
+            t_verify_end = time.perf_counter()
+        nvtx.range_pop()
+
         self._update_acceptance_stats(accepted)
 
         # Build output — tagged with seq_ids from target_batch
@@ -216,6 +280,19 @@ class CoSpecOrchestrator:
                 self._verify_queue[sid] = (
                     sgm, self._slice_proposal(new_proposals, i,
                                               len(draft_seqs)))
+
+        nvtx.range_pop()  # cospec_step
+
+        # Update timing stats
+        if self._profiling_enabled:
+            t_end = time.perf_counter()
+            self._times["propose_async"] += t_propose_async_end - t_propose_start
+            self._times["score"] += t_score_end - t_score_start
+            self._times["propose_collect"] += t_collect_end - t_collect_start
+            self._times["sync"] += t_sync_end - t_sync_start
+            self._times["verify"] += t_verify_end - t_verify_start
+            self._times["total"] += t_end - t_start
+            self._time_count += 1
 
         return output
 
@@ -516,10 +593,31 @@ class CoSpecOrchestrator:
             "total_spec_tokens": self._total_spec,
         }
 
+    def get_timing_stats(self) -> Dict[str, Any]:
+        """Return average timing breakdown in ms.
+
+        Only available when COSPEC_PROFILE=1.
+        """
+        if not self._profiling_enabled or self._time_count == 0:
+            return {}
+        n = self._time_count
+        return {
+            "avg_propose_async_ms": self._times["propose_async"] / n * 1000,
+            "avg_score_ms": self._times["score"] / n * 1000,
+            "avg_propose_collect_ms": self._times["propose_collect"] / n * 1000,
+            "avg_sync_ms": self._times["sync"] / n * 1000,
+            "avg_verify_ms": self._times["verify"] / n * 1000,
+            "avg_total_ms": self._times["total"] / n * 1000,
+            "step_count": n,
+        }
+
     def shutdown(self) -> None:
         """Gracefully shut down the draft worker."""
         logger.info("CoSpecOrchestrator shutting down. Stats: %s",
                      self.get_stats())
+        if self._profiling_enabled:
+            timing_stats = self.get_timing_stats()
+            logger.info("CoSpec timing: %s", timing_stats)
         try:
             remaining = self.flush()
             if remaining:

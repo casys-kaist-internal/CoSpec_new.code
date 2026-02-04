@@ -10,17 +10,75 @@ Protocol:
 - Draft worker executes and sends back (status, result) tuples.
 """
 
+import copy
 import enum
 import multiprocessing
 import multiprocessing.connection
 import traceback
-from typing import Any, Dict, Optional, Tuple
+from array import array
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
 from vllm.logger import init_logger
 
 logger = init_logger(__name__)
+
+# Token array type (must match vllm.sequence.VLLM_TOKEN_ID_ARRAY_TYPE)
+_TOKEN_ARRAY_TYPE = "l"
+
+
+def _strip_sgm_for_draft(sgm_list: List[Any]) -> List[Any]:
+    """Create lightweight copies of SequenceGroupMetadata for RPC.
+
+    Strips heavy fields that the draft model doesn't need:
+    - Truncates token IDs to last token only (KV cache has the rest)
+    - Removes multi_modal_data, encoder_seq_data, etc.
+
+    Args:
+        sgm_list: List of SequenceGroupMetadata objects.
+
+    Returns:
+        List of stripped SequenceGroupMetadata copies.
+    """
+    from vllm.sequence import SequenceData, SequenceGroupMetadata
+
+    stripped = []
+    for sgm in sgm_list:
+        # Shallow copy the metadata
+        new_sgm = copy.copy(sgm)
+
+        # Strip heavy optional fields
+        new_sgm.multi_modal_data = None
+        new_sgm.multi_modal_placeholders = None
+        new_sgm.mm_processor_kwargs = None
+        new_sgm.encoder_seq_data = None
+        new_sgm.cross_block_table = None
+        new_sgm.computed_block_nums = None
+        new_sgm.token_type_ids = None
+
+        # Strip seq_data to minimal info (only last token needed for decode)
+        if sgm.seq_data and not sgm.is_prompt:
+            new_seq_data = {}
+            for seq_id, seq_data in sgm.seq_data.items():
+                # Get all token IDs
+                all_tokens = seq_data.get_token_ids()
+                # Keep only last token for decode (KV cache has the rest)
+                last_token = all_tokens[-1] if all_tokens else 0
+
+                # Create minimal SequenceData with just the last token
+                # prompt_token_ids is required, put the last token there
+                new_sd = SequenceData(
+                    _prompt_token_ids=array(_TOKEN_ARRAY_TYPE, [last_token]),
+                )
+                # Copy essential state
+                new_sd._num_computed_tokens = seq_data.get_num_computed_tokens()
+                new_sd._stage = seq_data.stage
+                new_seq_data[seq_id] = new_sd
+            new_sgm.seq_data = new_seq_data
+
+        stripped.append(new_sgm)
+    return stripped
 
 
 class DraftCommand(enum.Enum):
@@ -76,8 +134,10 @@ class DraftWorkerRPC:
             Dict with proposal metadata. Actual logits are in the shared
             logit buffer (no data transfer over pipe).
         """
+        # Strip heavy fields to reduce serialization overhead
+        stripped = _strip_sgm_for_draft(seq_group_metadata_list)
         return self._send_recv(DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": seq_group_metadata_list,
+            "seq_group_metadata_list": stripped,
             "num_spec_tokens": num_spec_tokens,
         })
 
@@ -88,8 +148,10 @@ class DraftWorkerRPC:
         Used for colocated SD mode where draft proposes concurrently
         with target scoring.
         """
+        # Strip heavy fields to reduce serialization overhead
+        stripped = _strip_sgm_for_draft(seq_group_metadata_list)
         self._conn.send((DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": seq_group_metadata_list,
+            "seq_group_metadata_list": stripped,
             "num_spec_tokens": num_spec_tokens,
         }))
 
@@ -284,6 +346,8 @@ class DraftWorkerServer:
             num_tokens = proposals.proposal_probs.shape[1]
             self._shared_logit_buffer.write_logits(
                 proposals.proposal_probs, batch_size, num_tokens)
+            # Sync to ensure logits are visible to target process via IPC
+            torch.cuda.current_stream().synchronize()
 
         result = {
             "proposal_token_ids": proposals.proposal_token_ids.cpu(),

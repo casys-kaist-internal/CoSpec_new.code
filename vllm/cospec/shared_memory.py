@@ -18,7 +18,6 @@ logger = init_logger(__name__)
 
 _KV_CACHE_SHM_PREFIX = "/dev/shm/cospec_kv_cache"
 _LOGIT_BUFFER_SHM_PATH = "/dev/shm/cospec_logit_buffer_{instance_id}.pkl"
-_LOGIT_META_SHM_PATH = "/dev/shm/cospec_logit_meta_{instance_id}.pkl"
 
 
 class SharedKVCache:
@@ -132,6 +131,8 @@ class SharedLogitBuffer:
 
     Pre-allocated buffer [max_batch, max_spec_tokens, vocab_size] shared
     between processes. Draft writes logits; target reads for verification.
+    Metadata (batch_size, num_tokens) is stored in a separate shared tensor
+    to avoid file I/O on the hot path.
 
     Args:
         max_batch: Maximum batch size.
@@ -155,29 +156,37 @@ class SharedLogitBuffer:
         self.mode = mode
         self.instance_id = instance_id
         self._handle_path = _LOGIT_BUFFER_SHM_PATH.format(instance_id=instance_id)
-        self._meta_path = _LOGIT_META_SHM_PATH.format(instance_id=instance_id)
         self.max_batch = max_batch
         self.max_spec_tokens = max_spec_tokens
         self.vocab_size = vocab_size
         self.dtype = dtype
 
         if mode == "owner":
-            self._buffer = self._allocate_and_export()
+            self._buffer, self._meta_buffer = self._allocate_and_export()
         else:
-            self._buffer = self._import()
+            self._buffer, self._meta_buffer = self._import()
 
-    def _allocate_and_export(self) -> torch.Tensor:
-        """Owner: allocate buffer and export IPC handle."""
+    def _allocate_and_export(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Owner: allocate buffers and export IPC handles."""
+        # Main logits buffer
         shape = (self.max_batch, self.max_spec_tokens, self.vocab_size)
         buffer = torch.zeros(shape, dtype=self.dtype, device="cuda")
 
         storage = buffer.untyped_storage()
         cuda_ipc_handle = storage._share_cuda_()
+
+        # Metadata buffer [batch_size, num_tokens] - 2 int64 values
+        meta_buffer = torch.zeros(2, dtype=torch.int64, device="cuda")
+        meta_storage = meta_buffer.untyped_storage()
+        meta_ipc_handle = meta_storage._share_cuda_()
+
         handle_info = {
             "shape": shape,
             "dtype": self.dtype,
             "cuda_ipc_handle": cuda_ipc_handle,
             "storage_offset": buffer.storage_offset(),
+            "meta_ipc_handle": meta_ipc_handle,
+            "meta_storage_offset": meta_buffer.storage_offset(),
         }
 
         with open(self._handle_path, "wb") as f:
@@ -185,10 +194,10 @@ class SharedLogitBuffer:
 
         logger.info("SharedLogitBuffer: allocated %s, exported to %s",
                     shape, self._handle_path)
-        return buffer
+        return buffer, meta_buffer
 
-    def _import(self) -> torch.Tensor:
-        """Client: import buffer from IPC handle."""
+    def _import(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Client: import buffers from IPC handles."""
         if not os.path.exists(self._handle_path):
             raise FileNotFoundError(
                 f"Logit buffer IPC handle not found: {self._handle_path}. "
@@ -197,6 +206,7 @@ class SharedLogitBuffer:
         with open(self._handle_path, "rb") as f:
             handle_info = pickle.load(f)
 
+        # Import main buffer
         storage = torch.UntypedStorage._new_shared_cuda(
             *handle_info["cuda_ipc_handle"])
         buffer = torch.empty(
@@ -204,9 +214,15 @@ class SharedLogitBuffer:
         buffer.set_(storage, handle_info["storage_offset"],
                     handle_info["shape"])
 
+        # Import metadata buffer
+        meta_storage = torch.UntypedStorage._new_shared_cuda(
+            *handle_info["meta_ipc_handle"])
+        meta_buffer = torch.empty(2, dtype=torch.int64, device="cuda")
+        meta_buffer.set_(meta_storage, handle_info["meta_storage_offset"], (2,))
+
         logger.info("SharedLogitBuffer: imported %s from %s",
                     handle_info["shape"], self._handle_path)
-        return buffer
+        return buffer, meta_buffer
 
     @property
     def buffer(self) -> torch.Tensor:
@@ -216,22 +232,21 @@ class SharedLogitBuffer:
                      num_tokens: int) -> None:
         """Write draft logits to the shared buffer."""
         self._buffer[:batch_size, :num_tokens, :] = logits
-        with open(self._meta_path, "wb") as f:
-            pickle.dump((batch_size, num_tokens), f)
+        self._meta_buffer[0] = batch_size
+        self._meta_buffer[1] = num_tokens
 
     def read_logits(self) -> tuple[torch.Tensor, int, int]:
         """Read draft logits from the shared buffer."""
-        with open(self._meta_path, "rb") as f:
-            batch_size, num_tokens = pickle.load(f)
+        batch_size = self._meta_buffer[0].item()
+        num_tokens = self._meta_buffer[1].item()
         return self._buffer[:batch_size, :num_tokens, :], batch_size, num_tokens
 
     def cleanup(self) -> None:
         """Remove IPC handle files (owner only)."""
         if self.mode != "owner":
             return
-        for path in (self._handle_path, self._meta_path):
-            if os.path.exists(path):
-                os.remove(path)
+        if os.path.exists(self._handle_path):
+            os.remove(self._handle_path)
         logger.info("SharedLogitBuffer: cleaned up handle files")
 
     def __del__(self):

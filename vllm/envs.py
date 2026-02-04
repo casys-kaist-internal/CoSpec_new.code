@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     VLLM_ALLOW_RUNTIME_LORA_UPDATING: bool = False
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
-    VLLM_USE_V1: bool = True
+    VLLM_USE_V1: bool = False
     VLLM_ROCM_USE_AITER: bool = False
     VLLM_ROCM_USE_AITER_PAGED_ATTN: bool = False
     VLLM_ROCM_USE_AITER_LINEAR: bool = True
@@ -114,6 +114,7 @@ if TYPE_CHECKING:
     # CoSpec specific env vars
     COSPEC: bool = False
     COSPEC_TARGET_SM_RATIO: float = 0.7
+    COSPEC_PROFILE: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -531,7 +532,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
 
     # If set, use the V1 code path.
     "VLLM_USE_V1":
-    lambda: bool(int(os.getenv("VLLM_USE_V1", "1"))),
+    lambda: bool(int(os.getenv("VLLM_USE_V1", "0"))),
 
     # Disable aiter ops unless specifically enabled.
     # Acts as a parent switch to enable the rest of the other operations.
@@ -738,6 +739,10 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Draft model gets 1.0 - COSPEC_TARGET_SM_RATIO
     "COSPEC_TARGET_SM_RATIO":
     lambda: float(os.getenv("COSPEC_TARGET_SM_RATIO", "0.7")),
+
+    # Enable CoSpec profiling (timing stats logged on shutdown)
+    "COSPEC_PROFILE":
+    lambda: bool(int(os.getenv("COSPEC_PROFILE", "0"))),
 
 }
 

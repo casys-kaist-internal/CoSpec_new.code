@@ -194,26 +194,3 @@ class SMController:
             ) from e
         logger.debug("SMController full GPU for %s",
                      "target" if self.is_target else "draft")
-
-
-class CospecManager:
-    """Central coordinator for CoSpec v2.
-
-    Creates and holds the SMController for SM partitioning between
-    target and draft processes running concurrently via MPS.
-    """
-
-    def __init__(self, vllm_config):
-        from vllm.cospec import cleanup_cospec_resources
-        cleanup_cospec_resources()
-
-        self.rank = vllm_config.parallel_config.rank
-        self.is_primary = vllm_config.speculative_config.is_primary
-        self.is_driver = self.rank == 0
-
-        is_target = self.is_primary
-        self.sm_controller = SMController(is_target=is_target)
-        self.target_sm_ratio: float = 1.0  # default: full GPU
-
-        logger.info("CospecManager initialized: is_target=%s, rank=%d",
-                    is_target, self.rank)

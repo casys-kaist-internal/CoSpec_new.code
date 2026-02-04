@@ -9,7 +9,8 @@ import torch
 import torch.nn as nn
 
 from vllm.config import ParallelConfig, SpeculativeConfig, VllmConfig, envs
-from vllm.cospec.sm_controller import CospecManager
+from vllm.cospec import cleanup_cospec_resources
+from vllm.cospec.sm_controller import SMController
 from vllm.distributed.communication_op import (broadcast_tensor_dict,
                                                get_tp_group,
                                                tensor_model_parallel_gather)
@@ -354,20 +355,16 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
 
         # CoSpec: SM partitioning via orchestrator
-        self.cospec_manager = None
+        self.sm_controller = None
         self.orchestrator = None
         self._draft_process = None
         self._cospec_skip = None  # Set per-step by orchestrator
         if envs.COSPEC:
             _assert_mps_running()
-            self.cospec_manager = CospecManager(self.scorer_worker.vllm_config)
-            self.scorer_worker.cospec_manager = self.cospec_manager
-
-            if isinstance(self.proposer_worker, SmallerTpProposerWorker):
-                self.proposer_worker._worker.worker.cospec_manager = self.cospec_manager
-            elif isinstance(self.proposer_worker, MultiStepWorker):
-                self.proposer_worker.worker.cospec_manager = self.cospec_manager
-
+            cleanup_cospec_resources()
+            self.sm_controller = SMController(is_target=True)
+            # Mark scorer worker to use shared KV cache as "owner"
+            self.scorer_worker.cospec_shared_mode = "owner"
             logger.info("CoSpec enabled (SM partitioning)")
 
         logger.info("SpecDecodeWorker initialized")
@@ -492,7 +489,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self.orchestrator = CoSpecOrchestrator(
             target_worker=self.scorer_worker,
             draft_rpc=draft_rpc,
-            sm_controller=self.cospec_manager.sm_controller,
+            sm_controller=self.sm_controller,
             spec_decode_worker=self,
             max_spec_tokens=num_spec_tokens,
             target_sm_ratio=target_sm_ratio,
@@ -565,7 +562,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         self.scorer_worker.initialize_cache(num_gpu_blocks=num_gpu_blocks,
                                             num_cpu_blocks=num_cpu_blocks)
 
-        if envs.COSPEC and self.cospec_manager is not None:
+        if envs.COSPEC and self.sm_controller is not None:
             # Draft process handles its own cache initialization
             self._num_gpu_blocks = num_gpu_blocks
             self._num_cpu_blocks = num_cpu_blocks
