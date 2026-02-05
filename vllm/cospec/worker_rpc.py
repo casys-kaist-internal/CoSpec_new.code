@@ -206,9 +206,16 @@ class DraftWorkerRPC:
         """Gracefully shut down the draft worker."""
         try:
             self._conn.send((DraftCommand.SHUTDOWN, {}))
-            self._conn.close()
+            # Wait for acknowledgment before closing (with short timeout)
+            if self._conn.poll(timeout=2.0):
+                self._conn.recv()  # Discard response
         except Exception:
             pass
+        finally:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
 
 
 class DraftWorkerServer:
@@ -331,7 +338,6 @@ class DraftWorkerServer:
         proposals = self._worker.get_spec_proposals(
             execute_model_req,
             seq_ids_with_bonus_token_in_last_step=set(),
-            is_target=False,
         )
 
         # When shared logit buffer is available, write probs there

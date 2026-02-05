@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
+import atexit
 import copy
+import weakref
 from collections import defaultdict
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
@@ -53,6 +55,18 @@ from vllm.worker.worker_base import LoRANotSupportedWorkerBase, WorkerBase
 
 
 logger = init_logger(__name__)
+
+# Module-level registry for CoSpec cleanup at exit
+_cospec_instances: List[weakref.ref] = []
+_atexit_registered = False
+
+
+def _cospec_atexit_cleanup():
+    """Clean up all CoSpec instances at interpreter exit."""
+    for ref in _cospec_instances:
+        worker = ref()
+        if worker is not None:
+            worker._cleanup_cospec()
 
 
 def create_spec_worker(*args, **kwargs) -> "SpecDecodeWorker":
@@ -498,12 +512,29 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
 
         logger.info("CoSpec: orchestrator created")
 
+        # Register for cleanup at interpreter exit (more reliable than __del__)
+        global _atexit_registered, _cospec_instances
+        _cospec_instances.append(weakref.ref(self))
+        if not _atexit_registered:
+            atexit.register(_cospec_atexit_cleanup)
+            _atexit_registered = True
+
     @cached_property
     def max_spec_tokens(self) -> int:
-        """Get the maximum number of speculative tokens."""
-        if hasattr(self.proposer_worker, 'max_proposal_len'):
-            return self.proposer_worker.max_proposal_len
-        return 5  # default
+        """Get the maximum number of speculative tokens (γ).
+
+        This must come from speculative_config.num_speculative_tokens.
+        Note: proposer_worker.max_proposal_len is the max SEQUENCE length,
+        not the number of speculative tokens - do not confuse them.
+        """
+        if hasattr(self.scorer_worker, 'vllm_config'):
+            spec_config = self.scorer_worker.vllm_config.speculative_config
+            if spec_config and spec_config.num_speculative_tokens:
+                return spec_config.num_speculative_tokens
+        raise ValueError(
+            "num_speculative_tokens not found in speculative_config. "
+            "This is required for CoSpec to allocate the shared logit buffer."
+        )
 
     def load_model(self, *args, **kwargs):
         pass
@@ -823,8 +854,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         not called, meaning that the kv-cache in proposer for requests is not
         updated, so they cannot enable spec decode in the rest decoding.
         """
-        sampler_output = self.scorer_worker.execute_model(execute_model_req, 
-                                                          is_target=True)
+        sampler_output = self.scorer_worker.execute_model(execute_model_req)
         assert len(sampler_output) == 1
         sampler_output = sampler_output[0]
 
@@ -859,8 +889,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
                     sampler_output.prefill_hidden_states)
             for i in range(self._num_spec_prefill_steps):
                 execute_model_req.spec_step_idx = i
-                self.proposer_worker.execute_model(execute_model_req, 
-                                                   is_target=False)
+                self.proposer_worker.execute_model(execute_model_req)
 
         sampler_output_to_return = (self._serialize_sampler_output_no_logprobs(
             execute_model_req=execute_model_req, sampler_output=sampler_output)
@@ -891,7 +920,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         # In case of prefill, scorer_worker has to be run before proposer so
         # that the hidden states can be propagated to proposer when needed.
         if data["no_spec"]:
-            self.scorer_worker.execute_model(is_target=True)
+            self.scorer_worker.execute_model()
 
         if not data["disable_all_speculation"]:
             # Even if num_lookahead_slots is zero, we want to run the
@@ -900,12 +929,12 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # We run the proposer once per lookahead slot. In the future we
             # should delegate how many times it runs to the proposer.
             for _ in range(max(num_lookahead_slots, 1)):
-                self.proposer_worker.execute_model(is_target=False)
+                self.proposer_worker.execute_model()
 
         if not data["no_spec"]:
-            self.scorer_worker.execute_model(is_target=True)
+            self.scorer_worker.execute_model()
             if data["run_spec_proposer_for_prefill"]:
-                self.proposer_worker.execute_model(is_target=False)
+                self.proposer_worker.execute_model()
 
         return True
 
@@ -938,7 +967,6 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         with Timer() as proposal_timer:
             proposals = self.proposer_worker.get_spec_proposals(
                 execute_model_req, self._seq_with_bonus_token_in_last_step,
-                is_target=False
             )
 
         if not self._allow_zero_draft_token_step and proposals.no_proposals:
@@ -974,7 +1002,7 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
             # Sync proposer KV cache for prefills.
             prefill_req = execute_model_req.clone(non_spec_seqs)
             # TODO avoid sampling here?
-            self.proposer_worker.execute_model(prefill_req, is_target=False)
+            self.proposer_worker.execute_model(prefill_req)
 
         with Timer() as verification_timer:
             accepted_token_ids, target_logprobs = self._verify_tokens(
@@ -1461,29 +1489,46 @@ class SpecDecodeWorker(LoRANotSupportedWorkerBase):
         if isinstance(self.scorer_worker, WorkerBase):
             self.scorer_worker.stop_profile()
 
-    def __del__(self):
-        """Clean up CoSpec draft process on shutdown."""
+    def _cleanup_cospec(self):
+        """Clean up CoSpec draft process. Called by __del__ and atexit."""
+        # Only cleanup once
+        if getattr(self, '_cospec_cleaned_up', False):
+            return
+        self._cospec_cleaned_up = True
+
+        # Shutdown orchestrator (sends SHUTDOWN to draft RPC)
         if getattr(self, 'orchestrator', None) is not None:
             try:
                 self.orchestrator.shutdown()
             except Exception:
                 pass
             self.orchestrator = None
+
+        # Terminate draft process
         if getattr(self, '_draft_process', None) is not None:
             try:
-                self._draft_process.terminate()
-                self._draft_process.join(timeout=5.0)
+                # Give the draft process a moment to exit gracefully after
+                # receiving SHUTDOWN command
+                self._draft_process.join(timeout=2.0)
+                if self._draft_process.is_alive():
+                    self._draft_process.terminate()
+                    self._draft_process.join(timeout=2.0)
                 if self._draft_process.is_alive():
                     self._draft_process.kill()
+                    self._draft_process.join(timeout=1.0)
             except Exception:
                 pass
             self._draft_process = None
+
         # Clean up stale IPC handles
         try:
-            from vllm.cospec import cleanup_cospec_resources
             cleanup_cospec_resources()
         except Exception:
             pass
+
+    def __del__(self):
+        """Clean up CoSpec draft process on shutdown."""
+        self._cleanup_cospec()
 
 def _assert_mps_running() -> None:
     """Assert that NVIDIA MPS daemon is running.

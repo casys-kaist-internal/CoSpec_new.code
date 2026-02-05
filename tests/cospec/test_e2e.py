@@ -82,6 +82,19 @@ def _run_in_subprocess(script: str, env: dict = None) -> str:
     return result.stdout
 
 
+def _extract_json_output(stdout: str) -> list:
+    """Extract JSON output from subprocess stdout.
+
+    vLLM logs to stdout, so we need to find the JSON line which starts with '[['.
+    """
+    for line in stdout.strip().split('\n'):
+        line = line.strip()
+        if line.startswith('[[') and line.endswith(']]'):
+            return json.loads(line)
+    # Fallback to last line
+    return json.loads(stdout.strip().split('\n')[-1])
+
+
 def run_ar_baseline(model: str, prompts: list, max_tokens: int, seed: int) -> list:
     """Run autoregressive baseline in subprocess."""
     script = f'''
@@ -106,7 +119,7 @@ print(json.dumps(results))
     # Run without COSPEC
     env = {"COSPEC": "0", "VLLM_USE_V1": "0"}
     stdout = _run_in_subprocess(script, env)
-    return json.loads(stdout.strip().split('\n')[-1])
+    return _extract_json_output(stdout)
 
 
 def run_cospec(model: str, draft_model: str, prompts: list, max_tokens: int,
@@ -146,7 +159,7 @@ print(json.dumps(results))
 '''
     env = {"COSPEC": "1", "VLLM_USE_V1": "0"}
     stdout = _run_in_subprocess(script, env)
-    return json.loads(stdout.strip().split('\n')[-1])
+    return _extract_json_output(stdout)
 
 
 def compare_outputs(ar_outputs, cospec_outputs, prompts):

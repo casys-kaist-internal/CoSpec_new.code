@@ -75,7 +75,7 @@ Both processes on same GPU via MPS.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COSPEC` | `0` | Master switch. Enables CoSpec with SM partitioning and MPS. |
-| `VLLM_USE_V1` | `1` | Use V1 engine. Set to `0` for speculative decoding (V1 doesn't support it). |
+| `VLLM_USE_V1` | `0` | Use V1 engine. This CoSpec fork defaults to V0 since V1 doesn't support speculative decoding. |
 
 **Important notes**:
 - Do NOT set `VLLM_ATTENTION_BACKEND`. Let vLLM auto-select the optimal backend (FLASH_ATTN). Never force XFORMERS — it is slower.
@@ -121,7 +121,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 ## Implementation Progress (v2 wiring)
 
-### DONE — Code written and tested (22 tests pass, 8/8 correctness)
+### DONE — Code written and tested (26 tests pass: 14 unit + 12 E2E)
 1. **`shared_logit_buffer.py`**: Fixed double `_share_cuda_()` bug (line 68/72).
 2. **`cost_model.py`**: `decide()` hardcoded to always return `COLOCATED_SD` mode.
 3. **`worker_rpc.py`**: Added `propose_async()` / `propose_collect()` to `DraftWorkerRPC`. Wired `DraftWorkerServer._handle_propose()` to call `self._worker.get_spec_proposals()` and return CPU tensors over pipe.
@@ -159,7 +159,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 4. **CUDA graph support**: E2E tests use `enforce_eager=True`. Need to verify CoSpec works with CUDA graphs enabled for max performance.
 
 #### P2: Robustness — Edge cases and cleanup
-5. **Process cleanup on shutdown**: `SpecDecodeWorker.__del__` calls `orchestrator.shutdown()` but this can race with interpreter shutdown (logging error on closed file). Need a proper shutdown hook earlier in the lifecycle (e.g., in engine shutdown).
+5. ~~**Process cleanup on shutdown**~~: FIXED — Added `atexit` handler for reliable cleanup. `DraftWorkerRPC.shutdown()` now waits for acknowledgment.
 6. **`SharedMemoryModelLoader._inprocess_state_dicts` cleanup**: Class-level dict caches state_dicts forever. Should be cleaned up when the engine is destroyed to free GPU memory for the shared weight references.
 7. **Shared memory instance_id collision**: `shared_kv_cache.py` and `shared_logit_buffer.py` use `instance_id="default"`. Multiple CoSpec instances on same machine will collide. Should use PID or UUID.
 8. **E2E test coverage**: Two E2E tests with identical models (`JackFram/llama-68m` for both target and draft): one without chunked prefill, one with. Need tests with: (a) different target/draft models, (b) larger batch sizes, (c) greedy vs sampling. Note: running both E2E tests in the same pytest process fails due to GPU memory not being freed between tests (pre-existing issue); run them in separate processes.
@@ -172,7 +172,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 10. **`test_sm_controller.py`**: Added `PermissionError` handling for tests that need MPS privileges. Added `test_set_partition_explicit_stream` for non-default stream testing.
 11. **`loader.py` (SharedMemoryModelLoader)**: Fixed `CUDA error: invalid resource handle` when target and draft models are in the same process. Added in-process state_dict caching (`_inprocess_state_dicts` class variable) to avoid CUDA IPC for intra-process sharing. Draft model now loads from cached state_dict in ~6ms instead of failing.
 12. **`orchestrator.py`**: Replaced `_prev_batch`/`_prev_proposals` pipeline with two-queue model (`_draft_queue`, `_verify_queue`, `_pending_pool`). Load-balanced entry for new decode sequences. `flush()` drains pipeline on shutdown. `remove_sequence()` for cleanup.
-13. **All tests passing**: 22 tests pass (20 unit + 2 E2E). Run E2E tests in separate processes to avoid GPU memory leak. **Important**: Set `VLLM_USE_V1=0` for spec decode tests (V1 engine doesn't support spec decoding): `docker exec -w /workspace/vllm cospec-vllm python3 -m pytest tests/cospec/ -v && docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/spec_decode/e2e/test_cospec.py::test_spec_decode_cospec -v && docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/spec_decode/e2e/test_cospec.py::test_spec_decode_cospec_chunked_prefill -v`
+13. **All tests passing**: 26 tests pass (14 unit + 12 E2E). Run all tests: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
 14. **Chunked prefill support in orchestrator** (was P0): `_create_output()` now uses real `proposal_lens` from draft proposals instead of hardcoding gamma. Added `_sync_draft_prefills()` to sync draft KV cache for prefill sequences after target scoring (mirrors `spec_decode_worker.py:921-936`). Added `EXECUTE_PREFILL` RPC command in `worker_rpc.py`. Added E2E test with `enable_chunked_prefill=True`.
 15. **IPC cleanup**: `cleanup_cospec_resources()` in `cospec_manager.py` removes stale `/dev/shm/cospec_*` and `/tmp/cospec_*`. Called from `api_server.py` on startup, `spec_decode_worker.__del__`, and test `init_cospec()`.
 16. **Removed forced XFORMERS backend**: All CoSpec scripts and tests now use the default attention backend (FLASH_ATTN) for max performance.
@@ -184,9 +184,13 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 22. **Removed legacy code from model_runner.py**: Removed unused `cospec_manager` and `is_target` parameters from `execute_model()`. SM partitioning is now managed entirely by the orchestrator in CoSpec v2, not by model_runner.
 23. **Restored V1/V0 engine branching in api_server.py**: Fixed accidental removal of V1 AsyncLLM and V0 in-process paths. Non-CoSpec users now get proper V1/V0 engine selection. CoSpec still uses in-process AsyncLLMEngine for MPS compatibility.
 24. **`VLLM_USE_V1` default is `0`**: This CoSpec fork defaults to V0 engine since V1 doesn't support speculative decoding yet.
+25. **Process cleanup with atexit handler**: Added `atexit` handler in `spec_decode_worker.py` for reliable cleanup at interpreter exit (more reliable than `__del__`). Refactored cleanup into shared `_cleanup_cospec()` method.
+26. **RPC shutdown acknowledgment**: `DraftWorkerRPC.shutdown()` now waits for draft process to acknowledge SHUTDOWN command before closing connection, preventing race conditions.
+27. **`max_spec_tokens` fix**: Removed hardcoded fallback of 5. Now reads from `speculative_config.num_speculative_tokens` and raises `ValueError` if not found. Note: `proposer_worker.max_proposal_len` is max SEQUENCE length, not speculative tokens - do not confuse them.
+28. **E2E test JSON parsing**: Fixed `test_e2e.py` to extract JSON output from among vLLM log lines (vLLM logs to stdout, not stderr).
 
 ### Known Hardcoded Values
-- `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`, `gamma=5`
+- `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`
 - `cost_model.py`: EMA coefficients `alpha=0.8`, `ema_weight=0.3`, `batch_ema_weight=0.5` (untuned)
 - `cost_model.py`: Latency formula coefficients are placeholders (never profiled)
 - `shared_kv_cache.py` / `shared_logit_buffer.py`: `instance_id="default"` (collision risk)
@@ -203,7 +207,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 | File | What It Tests |
 |------|---------------|
-| `tests/spec_decode/e2e/test_cospec.py` | E2E tests using `JackFram/llama-68m` as both target and draft |
+| `tests/cospec/test_e2e.py` | E2E correctness tests (12 tests): greedy decoding, chunked prefill, different gamma values, batch sizes |
 | `tests/cospec/test_cost_model.py` | Mode enum values |
 | `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller |
 | `tests/cospec/test_shared_kv_cache.py` | Tests for SharedKVCache allocation/cleanup |
@@ -215,8 +219,8 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 - Build libsmctrl: `cd cospec/csrc && mkdir -p build && cd build && cmake .. && make`
 - **Start MPS before running**: `bash cospec/scripts/start_mps.sh`
 - CoSpec server: set `COSPEC=1` and run the normal `vllm.entrypoints.openai.api_server`.
-- Tests: `pytest tests/cospec/` (unit tests) or `pytest tests/spec_decode/e2e/test_cospec.py` (requires GPU).
-- Run in Docker: `docker exec -w /workspace/vllm cospec-vllm python3 -m pytest tests/cospec/`
+- Tests: `pytest tests/cospec/` (14 unit + 12 E2E tests, requires GPU for E2E).
+- Run in Docker: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
 - **Do NOT set `VLLM_ATTENTION_BACKEND`** — let vLLM auto-select FLASH_ATTN for best performance.
 - **MPS must be running** — CoSpec fails immediately without MPS. Tests skip automatically if MPS is not detected.
 
