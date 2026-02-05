@@ -188,6 +188,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 26. **RPC shutdown acknowledgment**: `DraftWorkerRPC.shutdown()` now waits for draft process to acknowledge SHUTDOWN command before closing connection, preventing race conditions.
 27. **`max_spec_tokens` fix**: Removed hardcoded fallback of 5. Now reads from `speculative_config.num_speculative_tokens` and raises `ValueError` if not found. Note: `proposer_worker.max_proposal_len` is max SEQUENCE length, not speculative tokens - do not confuse them.
 28. **E2E test JSON parsing**: Fixed `test_e2e.py` to extract JSON output from among vLLM log lines (vLLM logs to stdout, not stderr).
+29. **Output remapping for CoSpec partial outputs**: Fixed `llm_engine.py` output remapping bug. The outputs are in `prefills + decodes` order but the remapping assumed original scheduler order. Now uses separate `prefill_idx` and `decode_idx` counters to correctly map outputs to sequence groups when prefills and decodes are interleaved in the scheduler batch. This fixes `AssertionError` in `multi_step.py:121` where `parent_seq_id` didn't match `seq_id`.
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`

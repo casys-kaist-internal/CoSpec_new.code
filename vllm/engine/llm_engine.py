@@ -1101,18 +1101,25 @@ class LLMEngine:
                                              ] + outputs_by_sequence_group
 
                 # Remap: insert empty placeholders for skipped sequences
-                # so indices align with seq_group_metadata_list
+                # so indices align with seq_group_metadata_list.
+                # Note: outputs_by_sequence_group is ordered as [prefills,
+                # decodes], so we need separate counters for each type.
                 if cospec_skip_set:
                     full_outputs: List = [None] * len(
                         seq_group_metadata_list)
-                    out_idx = 0
+                    prefill_idx = 0
+                    decode_idx = num_prefills  # decodes start after prefills
                     for i in range(len(seq_group_metadata_list)):
                         if i in cospec_skip_set:
                             full_outputs[i] = []  # placeholder
+                        elif seq_group_metadata_list[i].is_prompt:
+                            full_outputs[i] = outputs_by_sequence_group[
+                                prefill_idx]
+                            prefill_idx += 1
                         else:
                             full_outputs[i] = outputs_by_sequence_group[
-                                out_idx]
-                            out_idx += 1
+                                decode_idx]
+                            decode_idx += 1
                     outputs_by_sequence_group = full_outputs
             # We have outputs for multiple steps submitted in a single burst,
             # so invalidate is_first_step_output.
