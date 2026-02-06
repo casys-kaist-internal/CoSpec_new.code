@@ -10,6 +10,7 @@ Protocol:
 - Draft worker executes and sends back (status, result) tuples.
 """
 
+import copy
 import enum
 import multiprocessing
 import multiprocessing.connection
@@ -17,11 +18,48 @@ import traceback
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
+from torch.profiler import record_function
 
 from vllm.logger import init_logger
 from vllm.sequence import ExecuteModelRequest
 
 logger = init_logger(__name__)
+
+
+def _strip_sgm_for_pipe(seq_group_metadata_list: list) -> list:
+    """Create lightweight copies of SequenceGroupMetadata for pipe send.
+
+    Strips redundant token caches from SequenceData to reduce pickle size.
+    The draft worker needs _prompt_token_ids, _output_token_ids, and
+    _cached_all_token_ids (used by get_token_ids() in model runner).
+    We can safely clear _prompt_token_ids_tuple and _new_appended_tokens.
+
+    Uses shallow copy of SGM + shallow copy of SequenceData to avoid
+    modifying the originals (which are still used by the target scorer).
+    """
+    stripped = []
+    for sgm in seq_group_metadata_list:
+        sgm_copy = copy.copy(sgm)
+        new_seq_data = {}
+        for sid, sd in sgm.seq_data.items():
+            sd_copy = copy.copy(sd)
+            # _prompt_token_ids_tuple is a redundant copy of
+            # _prompt_token_ids, only used by the prompt_token_ids
+            # property (not called during model forward pass).
+            sd_copy._prompt_token_ids_tuple = ()
+            # _new_appended_tokens is for delta tracking, not needed
+            # for draft model forward pass.
+            sd_copy._new_appended_tokens = []
+            new_seq_data[sid] = sd_copy
+        sgm_copy.seq_data = new_seq_data
+        # Clear fields not needed by draft worker
+        sgm_copy.multi_modal_data = None
+        sgm_copy.multi_modal_placeholders = None
+        sgm_copy.mm_processor_kwargs = None
+        sgm_copy.encoder_seq_data = None
+        sgm_copy.cross_block_table = None
+        stripped.append(sgm_copy)
+    return stripped
 
 
 class DraftCommand(enum.Enum):
@@ -58,16 +96,17 @@ class DraftWorkerRPC:
                    kwargs: Optional[Dict[str, Any]] = None
                    ) -> Any:
         """Send a command and wait for response."""
-        kwargs = kwargs or {}
-        self._conn.send((cmd, kwargs))
-        if not self._conn.poll(timeout=self._RPC_TIMEOUT_S):
-            raise RuntimeError(
-                f"Draft worker did not respond to {cmd.value} "
-                f"within {self._RPC_TIMEOUT_S}s (may have crashed)")
-        status, result = self._conn.recv()
-        if status == DraftResponse.ERROR:
-            raise RuntimeError(f"Draft worker error: {result}")
-        return result
+        with record_function("cospec::rpc_send_recv"):
+            kwargs = kwargs or {}
+            self._conn.send((cmd, kwargs))
+            if not self._conn.poll(timeout=self._RPC_TIMEOUT_S):
+                raise RuntimeError(
+                    f"Draft worker did not respond to {cmd.value} "
+                    f"within {self._RPC_TIMEOUT_S}s (may have crashed)")
+            status, result = self._conn.recv()
+            if status == DraftResponse.ERROR:
+                raise RuntimeError(f"Draft worker error: {result}")
+            return result
 
     def propose(self, seq_group_metadata_list: list,
                 num_spec_tokens: int,
@@ -87,7 +126,8 @@ class DraftWorkerRPC:
             logit buffer (no data transfer over pipe).
         """
         return self._send_recv(DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": seq_group_metadata_list,
+            "seq_group_metadata_list": _strip_sgm_for_pipe(
+                seq_group_metadata_list),
             "num_spec_tokens": num_spec_tokens,
             "seq_ids_with_bonus_token": seq_ids_with_bonus_token or set(),
         })
@@ -102,7 +142,8 @@ class DraftWorkerRPC:
         with target scoring.
         """
         self._conn.send((DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": seq_group_metadata_list,
+            "seq_group_metadata_list": _strip_sgm_for_pipe(
+                seq_group_metadata_list),
             "num_spec_tokens": num_spec_tokens,
             "seq_ids_with_bonus_token": seq_ids_with_bonus_token or set(),
         }))
@@ -126,22 +167,53 @@ class DraftWorkerRPC:
         return result
 
     def set_partition(self, ratio: float) -> None:
-        """Set SM partition ratio for the draft worker."""
+        """Set SM partition ratio for the draft worker (blocking)."""
         self._send_recv(DraftCommand.SET_PARTITION, {"ratio": ratio})
 
+    def set_partition_async(self, ratio: float) -> None:
+        """Set SM partition ratio for the draft worker (fire-and-forget).
+
+        Pipe is FIFO — draft processes set_partition before the next
+        propose command, so no response is needed.
+        """
+        self._conn.send((DraftCommand.SET_PARTITION, {
+            "ratio": ratio,
+            "_no_response": True,
+        }))
+
     def set_full_gpu(self) -> None:
-        """Give draft worker full GPU access."""
+        """Give draft worker full GPU access (blocking)."""
         self._send_recv(DraftCommand.SET_FULL_GPU)
 
+    def set_full_gpu_async(self) -> None:
+        """Give draft worker full GPU access (fire-and-forget)."""
+        self._conn.send((DraftCommand.SET_FULL_GPU, {
+            "_no_response": True,
+        }))
+
     def execute_prefill(self, seq_group_metadata_list: list) -> None:
-        """Run draft model on prefill sequences to sync KV cache.
+        """Run draft model on prefill sequences to sync KV cache (blocking).
 
         Args:
             seq_group_metadata_list: Prefill sequences to run through draft.
         """
         self._send_recv(DraftCommand.EXECUTE_PREFILL, {
-            "seq_group_metadata_list": seq_group_metadata_list,
+            "seq_group_metadata_list": _strip_sgm_for_pipe(
+                seq_group_metadata_list),
         })
+
+    def execute_prefill_async(self, seq_group_metadata_list: list) -> None:
+        """Run draft model on prefill sequences (fire-and-forget).
+
+        Pipe FIFO guarantees ordering: the next step's set_partition and
+        propose arrive after this execute_prefill, so draft KV cache
+        is synced before the next propose starts.
+        """
+        self._conn.send((DraftCommand.EXECUTE_PREFILL, {
+            "seq_group_metadata_list": _strip_sgm_for_pipe(
+                seq_group_metadata_list),
+            "_no_response": True,
+        }))
 
     def shutdown(self) -> None:
         """Gracefully shut down the draft worker."""
@@ -243,17 +315,21 @@ class DraftWorkerServer:
         if self._sm_controller is not None:
             stream = torch.cuda.current_stream()
             self._sm_controller.set_partition(stream, kwargs["ratio"])
-        self._conn.send((DraftResponse.OK, None))
+        if not kwargs.get("_no_response"):
+            self._conn.send((DraftResponse.OK, None))
 
     def _dispatch_set_full_gpu(self, kwargs: Dict[str, Any]) -> None:
         if self._sm_controller is not None:
             stream = torch.cuda.current_stream()
             self._sm_controller.set_full_gpu(stream)
-        self._conn.send((DraftResponse.OK, None))
+        if not kwargs.get("_no_response"):
+            self._conn.send((DraftResponse.OK, None))
 
     def _dispatch_execute_prefill(self, kwargs: Dict[str, Any]) -> None:
+        no_response = kwargs.pop("_no_response", False)
         result = self._handle_execute_prefill(**kwargs)
-        self._conn.send((DraftResponse.OK, result))
+        if not no_response:
+            self._conn.send((DraftResponse.OK, result))
 
     def _dispatch_shutdown(self, kwargs: Dict[str, Any]) -> None:
         self._running = False
@@ -322,14 +398,24 @@ class DraftWorkerServer:
             # synchronize the current stream, which guarantees the shared
             # buffer write is committed before we send the pipe response.
 
+        # Use non_blocking=True for GPU→CPU transfers to avoid implicit
+        # sync per tensor. Single explicit sync before pipe send.
+        token_ids_cpu = proposals.proposal_token_ids.to(
+            "cpu", non_blocking=True)
+        probs_cpu = None
+        if not use_shared_buffer and proposals.proposal_probs is not None:
+            probs_cpu = proposals.proposal_probs.to(
+                "cpu", non_blocking=True)
+        lens_cpu = (proposals.proposal_lens.to("cpu", non_blocking=True)
+                    if isinstance(proposals.proposal_lens, torch.Tensor)
+                    else proposals.proposal_lens)
+        # Single sync ensures all non-blocking transfers complete
+        torch.cuda.synchronize()
+
         result = {
-            "proposal_token_ids": proposals.proposal_token_ids.cpu(),
-            "proposal_probs": None if use_shared_buffer else (
-                proposals.proposal_probs.cpu()
-                if proposals.proposal_probs is not None else None),
-            "proposal_lens": proposals.proposal_lens.cpu()
-                if isinstance(proposals.proposal_lens, torch.Tensor)
-                else proposals.proposal_lens,
+            "proposal_token_ids": token_ids_cpu,
+            "proposal_probs": probs_cpu,
+            "proposal_lens": lens_cpu,
             "no_proposals": proposals.no_proposals,
             "probs_in_shared_buffer": use_shared_buffer,
         }

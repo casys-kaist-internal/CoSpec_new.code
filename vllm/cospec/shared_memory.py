@@ -10,6 +10,7 @@ import pickle
 from typing import Optional
 
 import torch
+from torch.profiler import record_function
 
 from vllm.logger import init_logger
 
@@ -123,20 +124,34 @@ class SharedLogitBuffer:
     def write_logits(self, logits: torch.Tensor, batch_size: int,
                      num_tokens: int) -> None:
         """Write draft logits to the shared buffer."""
-        assert batch_size <= self.max_batch, (
-            f"batch_size {batch_size} exceeds max_batch {self.max_batch}")
-        assert num_tokens <= self.max_spec_tokens, (
-            f"num_tokens {num_tokens} exceeds max_spec_tokens "
-            f"{self.max_spec_tokens}")
-        self._buffer[:batch_size, :num_tokens, :] = logits
-        self._meta_buffer[0] = batch_size
-        self._meta_buffer[1] = num_tokens
+        with record_function("cospec::shared_logit_write"):
+            assert batch_size <= self.max_batch, (
+                f"batch_size {batch_size} exceeds max_batch {self.max_batch}")
+            assert num_tokens <= self.max_spec_tokens, (
+                f"num_tokens {num_tokens} exceeds max_spec_tokens "
+                f"{self.max_spec_tokens}")
+            self._buffer[:batch_size, :num_tokens, :] = logits
+            self._meta_buffer[0] = batch_size
+            self._meta_buffer[1] = num_tokens
 
     def read_logits(self) -> tuple[torch.Tensor, int, int]:
-        """Read draft logits from the shared buffer."""
-        batch_size = self._meta_buffer[0].item()
-        num_tokens = self._meta_buffer[1].item()
-        return self._buffer[:batch_size, :num_tokens, :], batch_size, num_tokens
+        """Read draft logits from the shared buffer (reads metadata from GPU)."""
+        with record_function("cospec::shared_logit_read"):
+            batch_size = self._meta_buffer[0].item()
+            num_tokens = self._meta_buffer[1].item()
+            return (self._buffer[:batch_size, :num_tokens, :],
+                    batch_size, num_tokens)
+
+    def read_logits_direct(
+        self, batch_size: int, num_tokens: int,
+    ) -> torch.Tensor:
+        """Read draft logits with known dimensions (no GPU→CPU sync).
+
+        Avoids the .item() calls in read_logits() that cause implicit
+        GPU→CPU synchronization. The caller must know batch_size and
+        num_tokens from the RPC response metadata.
+        """
+        return self._buffer[:batch_size, :num_tokens, :]
 
     def cleanup(self) -> None:
         """Remove IPC handle files (owner only)."""

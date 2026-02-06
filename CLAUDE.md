@@ -78,6 +78,10 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 |----------|---------|-------------|
 | `COSPEC` | `0` | Master switch. Enables CoSpec with SM partitioning and MPS. |
 | `COSPEC_LOG` | `0` | Per-step orchestrator logging (mode, batch composition, acceptance rate, timing). Set `COSPEC_LOG=1` to enable. |
+| `COSPEC_PROFILE` | `0` | Enable PyTorch profiler. Exports Chrome trace to `COSPEC_PROFILE_OUTPUT`. SM partitioning is disabled during profiling (CUPTI/libsmctrl conflict). |
+| `COSPEC_PROFILE_SKIP` | `20` | Number of warmup steps to skip before profiling. |
+| `COSPEC_PROFILE_STEPS` | `100` | Number of steps to profile after warmup. |
+| `COSPEC_PROFILE_OUTPUT` | `/workspace/cospec_trace.json` | Output path for Chrome trace JSON. Open in `chrome://tracing` or Perfetto UI. |
 | `VLLM_USE_V1` | `0` | Use V1 engine. This CoSpec fork defaults to V0 since V1 doesn't support speculative decoding. |
 
 **Important notes**:
@@ -212,6 +216,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 42. **Acceptance rate tests**: Added `TestCoSpecAcceptanceRate` with two tests: (a) `test_acceptance_rate_same_model` — same model for target/draft, verifies 100% acceptance and exact output match; (b) `test_acceptance_rate_different_models` — Qwen3-8B target + Qwen3-0.6B draft, verifies acceptance rates within 5% tolerance. Note: with different models, outputs may diverge slightly between regular SD and CoSpec due to floating-point non-determinism in batched GPU operations (this affects regular SD vs AR too, not CoSpec-specific).
 43. **Draft process refactored to `draft_process.py`**: Extracted draft process management from `spec_decode_worker.py` into `vllm/cospec/draft_process.py`. Functions: `init_draft_process()`, `cleanup_cospec()`, `assert_mps_running()`, `_draft_process_entry()`. Cleaner separation of concerns.
 44. **GPU memory utilization**: Lowered `server.sh` default from 0.85 to 0.80 to avoid draft worker OOM with large batches (40+ seqs). Added `PYTHONUNBUFFERED=1` for immediate log output.
+45. **PyTorch profiler integration**: Added `COSPEC_PROFILE=1` env var to enable `torch.profiler` with CPU+CUDA activities. Profiler starts in `orchestrator.__init__()` (before first `set_global_mask` call) so CUPTI registers its callback subscriber first. Uses `torch.profiler.schedule()` with configurable warmup/active steps. Exports Chrome trace JSON via `on_trace_ready` callback. Modified `libsmctrl_core.c` to gracefully handle CUPTI conflict: `setup_sm_control_callback()` now warns and returns instead of aborting when `cuSubscribeLaunchCallback` fails (error 999). `set_global_mask`/`set_next_mask` become no-ops when callback setup failed (checked via `sm_control_setup_ok` flag). SM partitioning is disabled during profiling, but two-queue pipeline is fully captured.
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`
@@ -261,6 +266,37 @@ docker exec -it -w /workspace cospec-vllm bash cospec/scripts/client.sh
 ```bash
 docker exec -w /workspace -e VLLM_USE_V1=0 -e CUDA_VISIBLE_DEVICES=0 cospec-vllm python3 -m pytest tests/cospec/ -v --timeout=300
 ```
+
+## Profiling
+
+### PyTorch Profiler (Recommended)
+
+Set `COSPEC_PROFILE=1` to enable. The profiler captures CPU ops and CUDA kernels from the **target process only** (draft process runs in a separate MPS context, invisible to this profiler).
+
+```bash
+docker exec -it -w /workspace -e COSPEC_PROFILE=1 -e COSPEC_PROFILE_SKIP=10 -e COSPEC_PROFILE_STEPS=50 cospec-vllm bash cospec/scripts/server.sh
+# In another terminal: bash cospec/scripts/client.sh
+# Trace auto-saved to /workspace/cospec_trace.json
+```
+
+Open the trace in `chrome://tracing` or [Perfetto UI](https://ui.perfetto.dev/).
+
+**How it works**: The profiler starts in `orchestrator.__init__()` (before the first `set_global_mask` call) so CUPTI registers its callback subscriber first. When libsmctrl later tries to register its own callback, it gets error 999 and gracefully degrades — SM partitioning becomes a no-op during profiling. The two-queue pipeline structure is still fully profiled.
+
+**CUPTI / libsmctrl conflict**: Both CUPTI (used by torch.profiler and nsys) and libsmctrl use `cuSubscribeLaunchCallback` — only one subscriber is allowed. Whichever registers first wins. The C code in `libsmctrl_core.c` has graceful degradation: if callback subscription fails, `set_global_mask` becomes a no-op instead of aborting.
+
+**Limitations**:
+- Only the target process is profiled (draft process has its own MPS CUDA context)
+- SM partitioning is disabled during profiling (acceptable tradeoff)
+- nsys profiling also conflicts with libsmctrl for the same reason
+
+### Profiling Results (Qwen3-8B + Qwen3-0.6B, RTX A6000)
+
+- **GEMM dominates**: 90.8% of GPU time is matrix multiplications (decode-phase, weight-bound)
+- **Attention is cheap**: 0.35% of GPU time (short context decode, flash attention split-KV)
+- **Target GPU utilization**: 32.9% overall, 55-75% during verify steps
+- **Two-queue pattern visible**: odd steps have ~1,046 kernels (verify), even steps have 0 kernels (target idles while draft proposes)
+- **Main bottlenecks**: `cudaStreamSynchronize` (78% of CUDA runtime = draft/target barrier), ~35ms idle per draft-only step, `aten::index_put_` spikes to 354ms (KV cache sync stalls)
 
 ## Code Review Notes
 

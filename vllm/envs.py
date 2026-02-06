@@ -115,6 +115,7 @@ if TYPE_CHECKING:
     COSPEC: bool = False
     COSPEC_TARGET_SM_RATIO: float = 0.7
     COSPEC_LOG: bool = False
+    COSPEC_PROFILE: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -744,6 +745,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Set COSPEC_LOG=0 to disable and avoid GPU->CPU sync overhead from sampler counters
     "COSPEC_LOG":
     lambda: bool(int(os.getenv("COSPEC_LOG", "1"))),
+
+    # CoSpec profiling via torch.profiler
+    # COSPEC_PROFILE=1 enables profiling. Skips COSPEC_PROFILE_SKIP warmup
+    # steps, then profiles COSPEC_PROFILE_STEPS steps.
+    # Output: /workspace/cospec_trace.json (Chrome trace, open in chrome://tracing)
+    "COSPEC_PROFILE":
+    lambda: bool(int(os.getenv("COSPEC_PROFILE", "0"))),
 
 }
 

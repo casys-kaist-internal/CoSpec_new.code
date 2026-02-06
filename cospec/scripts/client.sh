@@ -31,4 +31,5 @@ vllm bench serve \
     --num-prompts "$NUM_PROMPTS" \
     --ignore-eos \
     --request-rate "$REQUEST_RATE" \
+    --seed 42 \
     2>&1 | tee "$LOG_FILE"

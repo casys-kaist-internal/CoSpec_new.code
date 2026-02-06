@@ -4,10 +4,12 @@ Two-queue pipelining for concurrent draft + target execution.
 Reuses original spec_decode_worker methods for verification and output.
 """
 
+import os
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
+from torch.profiler import record_function
 
 import vllm.envs as envs
 from vllm.cospec.sm_controller import SMController
@@ -68,6 +70,62 @@ class CoSpecOrchestrator:
         self.last_output_seq_ids: Optional[List[int]] = None
         self.last_output_num_prefills: int = 0
 
+        # PyTorch profiler (COSPEC_PROFILE=1)
+        # Must start BEFORE first set_global_mask call so CUPTI subscribes
+        # first. libsmctrl gracefully degrades (SM partitioning becomes no-op).
+        self._profiler: Optional[torch.profiler.profile] = None
+        self._profile_active = False
+        if envs.COSPEC_PROFILE:
+            self._profile_skip = int(os.getenv("COSPEC_PROFILE_SKIP", "20"))
+            self._profile_steps = int(os.getenv("COSPEC_PROFILE_STEPS", "100"))
+            self._profile_output = os.getenv(
+                "COSPEC_PROFILE_OUTPUT", "/workspace/cospec_trace.json")
+
+            def _on_trace_ready(prof):
+                prof.export_chrome_trace(self._profile_output)
+                logger.info("CoSpec profiler: trace saved to %s",
+                            self._profile_output)
+
+            logger.info("CoSpec profiler enabled: skip=%d steps, "
+                        "profile=%d steps, output=%s",
+                        self._profile_skip, self._profile_steps,
+                        self._profile_output)
+            # Start profiler immediately so CUPTI registers before libsmctrl.
+            # Schedule: warmup steps are profiled but discarded (CUPTI warmup),
+            # then active steps are recorded and exported via on_trace_ready.
+            self._profiler = torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                ],
+                schedule=torch.profiler.schedule(
+                    wait=0,
+                    warmup=self._profile_skip,
+                    active=self._profile_steps,
+                    repeat=1,
+                ),
+                record_shapes=True,
+                with_stack=False,
+                on_trace_ready=_on_trace_ready,
+            )
+            self._profiler.__enter__()
+            self._profile_active = True
+            logger.info("CoSpec profiler: CUPTI registered "
+                        "(SM partitioning disabled during profiling)")
+
+    def _maybe_step_profiler(self) -> None:
+        """Advance profiler schedule each orchestrator step."""
+        if not self._profile_active:
+            return
+        self._profiler.step()
+        # After all active steps, schedule triggers on_trace_ready then
+        # enters 'wait' phase. Stop the profiler to release resources.
+        total = self._profile_skip + self._profile_steps
+        if self._step_count >= total:
+            self._profiler.__exit__(None, None, None)
+            self._profile_active = False
+            self._profiler = None
+
     def step(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
@@ -85,73 +143,91 @@ class CoSpecOrchestrator:
         gamma = num_lookahead_slots or self.sdw.max_spec_tokens
         stream = torch.cuda.current_stream()
 
-        # Promote pending_pool → draft_queue before splitting
-        self._draft_queue.update(self._pending_pool)
-        self._pending_pool.clear()
+        with record_function("cospec::step"):
+            # Promote pending_pool → draft_queue before splitting
+            self._draft_queue.update(self._pending_pool)
+            self._pending_pool.clear()
 
-        # Split batch into: prefill, verify (have proposals), draft (need proposals)
-        prefill_seqs, verify_seqs, verify_row_indices, draft_seqs = (
-            self._split_batch(seq_group_metadata_list))
+            # Split batch into: prefill, verify (have proposals), draft (need proposals)
+            with record_function("cospec::split_batch"):
+                prefill_seqs, verify_seqs, verify_row_indices, draft_seqs = (
+                    self._split_batch(seq_group_metadata_list))
 
-        # === Bootstrap: no verify_seqs yet ===
-        if not verify_seqs:
-            return self._bootstrap_step(prefill_seqs, draft_seqs, gamma, stream)
+            # === Bootstrap: no verify_seqs yet ===
+            if not verify_seqs:
+                result = self._bootstrap_step(
+                    prefill_seqs, draft_seqs, gamma, stream)
+                self._maybe_step_profiler()
+                return result
 
-        # === Concurrent phase: draft || verify ===
-        _do_timing = self._do_log
-        if _do_timing:
-            t_step_start = time.monotonic()
+            # === Concurrent phase: draft || verify ===
+            _do_timing = self._do_log
+            if _do_timing:
+                t_step_start = time.monotonic()
 
-        self.sm_controller.set_partition(stream, self.target_sm_ratio)
-        self.draft_rpc.set_partition(1.0 - self.target_sm_ratio)
+            with record_function("cospec::set_partition_target"):
+                self.sm_controller.set_partition(stream, self.target_sm_ratio)
+            with record_function("cospec::set_partition_draft_rpc"):
+                self.draft_rpc.set_partition_async(
+                    1.0 - self.target_sm_ratio)
 
-        # Save bonus token seq_ids from the PREVIOUS verification step.
-        # draft_seqs are sequences that were verified last step, so the
-        # current _seq_with_bonus_token_in_last_step has their bonus info.
-        # Must read before _run_verification() which overwrites the set.
-        bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
+            # Save bonus token seq_ids from the PREVIOUS verification step.
+            # draft_seqs are sequences that were verified last step, so the
+            # current _seq_with_bonus_token_in_last_step has their bonus info.
+            # Must read before _run_verification() which overwrites the set.
+            bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
 
-        # Start async draft proposals (with bonus token info)
-        if draft_seqs:
-            self.draft_rpc.propose_async(
-                draft_seqs, gamma,
-                seq_ids_with_bonus_token=bonus_ids)
+            # Start async draft proposals (with bonus token info)
+            if draft_seqs:
+                with record_function("cospec::propose_async_send"):
+                    self.draft_rpc.propose_async(
+                        draft_seqs, gamma,
+                        seq_ids_with_bonus_token=bonus_ids)
 
-        # Run target scoring + verification (reuse original methods)
-        # This updates _seq_with_bonus_token_in_last_step for the NEXT step.
-        if _do_timing:
-            t_target_start = time.monotonic()
-        output = self._run_verification(
-            prefill_seqs, verify_seqs, verify_row_indices, gamma)
-        if _do_timing:
-            t_target_end = time.monotonic()
+            # Run target scoring + verification (reuse original methods)
+            # This updates _seq_with_bonus_token_in_last_step for the NEXT step.
+            if _do_timing:
+                t_target_start = time.monotonic()
+            with record_function("cospec::run_verification"):
+                output = self._run_verification(
+                    prefill_seqs, verify_seqs, verify_row_indices, gamma)
+            if _do_timing:
+                t_target_end = time.monotonic()
 
-        # Collect draft results
-        new_proposals = None
-        if draft_seqs:
-            new_proposals = self._collect_proposals(
-                self.draft_rpc.propose_collect())
+            # Collect draft results
+            new_proposals = None
+            if draft_seqs:
+                with record_function("cospec::propose_collect_recv"):
+                    new_proposals = self._collect_proposals(
+                        self.draft_rpc.propose_collect(),
+                        batch_size=len(draft_seqs),
+                        num_spec_tokens=gamma)
 
-        # Sync draft KV cache for prefills
-        if prefill_seqs:
-            self.draft_rpc.execute_prefill(prefill_seqs)
+            # Sync draft KV cache for prefills (fire-and-forget: FIFO
+            # ordering ensures draft processes this before next propose)
+            if prefill_seqs:
+                with record_function("cospec::execute_prefill_rpc"):
+                    self.draft_rpc.execute_prefill_async(prefill_seqs)
 
-        # Rotate queues
-        self._rotate_queues(verify_seqs, draft_seqs, new_proposals)
+            # Rotate queues
+            with record_function("cospec::rotate_queues"):
+                self._rotate_queues(verify_seqs, draft_seqs, new_proposals)
 
-        if _do_timing:
-            t_step_end = time.monotonic()
-            self._log_step(
-                "CoSpec", len(prefill_seqs), len(draft_seqs), len(verify_seqs),
-                t_target_ms=(t_target_end - t_target_start) * 1000,
-                t_total_ms=(t_step_end - t_step_start) * 1000)
+            if _do_timing:
+                t_step_end = time.monotonic()
+                self._log_step(
+                    "CoSpec", len(prefill_seqs), len(draft_seqs),
+                    len(verify_seqs),
+                    t_target_ms=(t_target_end - t_target_start) * 1000,
+                    t_total_ms=(t_step_end - t_step_start) * 1000)
 
-        # Set output metadata
-        self.last_output_seq_ids = [
-            self._get_seq_id(s) for s in (prefill_seqs + verify_seqs)]
-        self.last_output_num_prefills = len(prefill_seqs)
+            # Set output metadata
+            self.last_output_seq_ids = [
+                self._get_seq_id(s) for s in (prefill_seqs + verify_seqs)]
+            self.last_output_num_prefills = len(prefill_seqs)
 
-        return output
+            self._maybe_step_profiler()
+            return output
 
     def _split_batch(
         self,
@@ -216,88 +292,153 @@ class CoSpecOrchestrator:
         gamma: int,
         stream: torch.cuda.Stream,
     ) -> List[Any]:
-        """Bootstrap: draft proposals, run prefills, no verification yet."""
-        _do_timing = self._do_log
-        if _do_timing:
-            t_step_start = time.monotonic()
+        """Bootstrap: draft proposals, run prefills, no verification yet.
 
-        self.sm_controller.set_full_gpu(stream)
-        self.draft_rpc.set_full_gpu()
-
-        t_draft_ms = 0.0
-        t_prefill_ms = 0.0
-
-        # Draft proposals for draft_seqs
-        if draft_seqs:
-            # Pass bonus token info from previous verification (if any).
-            # In bootstrap, previously-verified sequences still need bonus
-            # token handling for correct draft KV cache state.
+        When both draft_seqs and prefill_seqs exist, overlaps draft
+        propose (async) with target prefill for better GPU utilization.
+        """
+        with record_function("cospec::bootstrap_step"):
+            _do_timing = self._do_log
             if _do_timing:
-                t0 = time.monotonic()
-            bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
-            proposals_dict = self.draft_rpc.propose(
-                draft_seqs, gamma,
-                seq_ids_with_bonus_token=bonus_ids)
-            # Store as batch — no slicing needed
-            self._verify_proposals = self._collect_proposals(proposals_dict)
-            self._verify_indices = {
-                self._get_seq_id(sgm): i
-                for i, sgm in enumerate(draft_seqs)
-            }
-            if _do_timing:
-                t_draft_ms = (time.monotonic() - t0) * 1000
+                t_step_start = time.monotonic()
 
-        # Run prefills through target
-        if prefill_seqs:
-            if _do_timing:
-                t0 = time.monotonic()
-            execute_req = ExecuteModelRequest(
-                seq_group_metadata_list=prefill_seqs,
-                num_lookahead_slots=0,
-            )
-            output = self.sdw.scorer_worker.execute_model(execute_req)
-            # Sync draft KV cache
-            self.draft_rpc.execute_prefill(prefill_seqs)
-            if _do_timing:
-                t_prefill_ms = (time.monotonic() - t0) * 1000
+            self.sm_controller.set_full_gpu(stream)
+            self.draft_rpc.set_full_gpu_async()
 
-            # Restructure output: scorer_worker returns [SamplerOutput(outputs=[all_prefills])]
-            # but llm_engine expects [SamplerOutput(outputs=[p0]), SamplerOutput(outputs=[p1]), ...]
-            # (one SamplerOutput per prefill for seq_id-based remapping)
-            if output and len(output) == 1 and len(output[0].outputs) > 1:
-                from vllm.model_executor.layers.sampler import SamplerOutput
-                restructured = []
-                for seq_output in output[0].outputs:
-                    restructured.append(SamplerOutput(outputs=[seq_output]))
-                output = restructured
+            t_draft_ms = 0.0
+            t_prefill_ms = 0.0
 
-            self.last_output_seq_ids = [
-                self._get_seq_id(s) for s in prefill_seqs]
-            self.last_output_num_prefills = len(prefill_seqs)
+            # When both draft and prefill exist, overlap them:
+            # send async propose, run target prefill, collect propose
+            if draft_seqs and prefill_seqs:
+                if _do_timing:
+                    t0 = time.monotonic()
+                bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
 
-            if _do_timing:
-                t_total_ms = (time.monotonic() - t_step_start) * 1000
-                if not draft_seqs:
-                    self._log_step("AR", len(prefill_seqs), 0, 0,
-                                   t_prefill_ms=t_prefill_ms,
-                                   t_total_ms=t_total_ms)
-                else:
+                # Fire async propose to draft (runs on separate MPS ctx)
+                with record_function("cospec::bootstrap_propose_async"):
+                    self.draft_rpc.propose_async(
+                        draft_seqs, gamma,
+                        seq_ids_with_bonus_token=bonus_ids)
+
+                # Run target prefill concurrently
+                with record_function("cospec::bootstrap_prefill"):
+                    execute_req = ExecuteModelRequest(
+                        seq_group_metadata_list=prefill_seqs,
+                        num_lookahead_slots=0,
+                    )
+                    output = self.sdw.scorer_worker.execute_model(
+                        execute_req)
+                if _do_timing:
+                    t_prefill_ms = (time.monotonic() - t0) * 1000
+
+                # Collect draft proposals
+                with record_function("cospec::bootstrap_propose_collect"):
+                    proposals_dict = self.draft_rpc.propose_collect()
+                self._verify_proposals = self._collect_proposals(
+                    proposals_dict,
+                    batch_size=len(draft_seqs),
+                    num_spec_tokens=gamma)
+                self._verify_indices = {
+                    self._get_seq_id(sgm): i
+                    for i, sgm in enumerate(draft_seqs)
+                }
+                if _do_timing:
+                    t_draft_ms = (time.monotonic() - t0) * 1000
+
+                # Sync draft KV cache for prefills (fire-and-forget)
+                self.draft_rpc.execute_prefill_async(prefill_seqs)
+
+                # Restructure output for engine
+                if (output and len(output) == 1
+                        and len(output[0].outputs) > 1):
+                    from vllm.model_executor.layers.sampler import (
+                        SamplerOutput)
+                    restructured = []
+                    for seq_output in output[0].outputs:
+                        restructured.append(
+                            SamplerOutput(outputs=[seq_output]))
+                    output = restructured
+
+                self.last_output_seq_ids = [
+                    self._get_seq_id(s) for s in prefill_seqs]
+                self.last_output_num_prefills = len(prefill_seqs)
+
+                if _do_timing:
+                    t_total_ms = (time.monotonic() - t_step_start) * 1000
                     self._log_step("SD", len(prefill_seqs),
                                    len(draft_seqs), 0,
                                    t_draft_ms=t_draft_ms,
                                    t_prefill_ms=t_prefill_ms,
                                    t_total_ms=t_total_ms)
-            return output
+                return output
 
-        # Pure SD bootstrap - draft only, no output
-        if _do_timing:
-            t_total_ms = (time.monotonic() - t_step_start) * 1000
-            self._log_step("SD", 0, len(draft_seqs), 0,
-                           t_draft_ms=t_draft_ms, t_total_ms=t_total_ms)
+            # Draft-only: blocking propose
+            if draft_seqs:
+                if _do_timing:
+                    t0 = time.monotonic()
+                bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
+                with record_function("cospec::bootstrap_propose"):
+                    proposals_dict = self.draft_rpc.propose(
+                        draft_seqs, gamma,
+                        seq_ids_with_bonus_token=bonus_ids)
+                self._verify_proposals = self._collect_proposals(
+                    proposals_dict,
+                    batch_size=len(draft_seqs),
+                    num_spec_tokens=gamma)
+                self._verify_indices = {
+                    self._get_seq_id(sgm): i
+                    for i, sgm in enumerate(draft_seqs)
+                }
+                if _do_timing:
+                    t_draft_ms = (time.monotonic() - t0) * 1000
 
-        self.last_output_seq_ids = None
-        self.last_output_num_prefills = 0
-        return []
+            # Prefill-only: run through target
+            if prefill_seqs and not draft_seqs:
+                if _do_timing:
+                    t0 = time.monotonic()
+                with record_function("cospec::bootstrap_prefill"):
+                    execute_req = ExecuteModelRequest(
+                        seq_group_metadata_list=prefill_seqs,
+                        num_lookahead_slots=0,
+                    )
+                    output = self.sdw.scorer_worker.execute_model(
+                        execute_req)
+                    self.draft_rpc.execute_prefill_async(prefill_seqs)
+                if _do_timing:
+                    t_prefill_ms = (time.monotonic() - t0) * 1000
+
+                if (output and len(output) == 1
+                        and len(output[0].outputs) > 1):
+                    from vllm.model_executor.layers.sampler import (
+                        SamplerOutput)
+                    restructured = []
+                    for seq_output in output[0].outputs:
+                        restructured.append(
+                            SamplerOutput(outputs=[seq_output]))
+                    output = restructured
+
+                self.last_output_seq_ids = [
+                    self._get_seq_id(s) for s in prefill_seqs]
+                self.last_output_num_prefills = len(prefill_seqs)
+
+                if _do_timing:
+                    t_total_ms = (time.monotonic() - t_step_start) * 1000
+                    self._log_step("AR", len(prefill_seqs), 0, 0,
+                                   t_prefill_ms=t_prefill_ms,
+                                   t_total_ms=t_total_ms)
+                return output
+
+            # Pure draft bootstrap or empty
+            if _do_timing:
+                t_total_ms = (time.monotonic() - t_step_start) * 1000
+                self._log_step("SD", 0, len(draft_seqs), 0,
+                               t_draft_ms=t_draft_ms,
+                               t_total_ms=t_total_ms)
+
+            self.last_output_seq_ids = None
+            self.last_output_num_prefills = 0
+            return []
 
     def _run_verification(
         self,
@@ -311,8 +452,9 @@ class CoSpecOrchestrator:
         target_batch = prefill_seqs + verify_seqs
 
         # Build proposals: select rows from batched proposals, prepend prefill dummies
-        proposals = self._build_verify_proposals(
-            verify_row_indices, len(prefill_seqs), gamma)
+        with record_function("cospec::build_verify_proposals"):
+            proposals = self._build_verify_proposals(
+                verify_row_indices, len(prefill_seqs), gamma)
 
         # Build execute request
         execute_req = ExecuteModelRequest(
@@ -321,30 +463,34 @@ class CoSpecOrchestrator:
         )
 
         # Score proposals using original scorer
-        proposal_scores = self.sdw.scorer.score_proposals(
-            execute_req, proposals)
+        with record_function("cospec::score_proposals"):
+            proposal_scores = self.sdw.scorer.score_proposals(
+                execute_req, proposals)
 
         # Verify using original method
-        accepted_token_ids, target_logprobs = self.sdw._verify_tokens(
-            target_batch, proposal_scores, proposals, gamma)
+        with record_function("cospec::verify_tokens"):
+            accepted_token_ids, target_logprobs = self.sdw._verify_tokens(
+                target_batch, proposal_scores, proposals, gamma)
 
         # Create output using original method
-        proposal_lens = proposals.proposal_lens
-        if isinstance(proposal_lens, torch.Tensor):
-            proposal_lens_list = proposal_lens.tolist()
-        else:
-            proposal_lens_list = list(proposal_lens)
+        with record_function("cospec::create_output"):
+            proposal_lens = proposals.proposal_lens
+            if isinstance(proposal_lens, torch.Tensor):
+                proposal_lens_list = proposal_lens.tolist()
+            else:
+                proposal_lens_list = list(proposal_lens)
 
-        return self.sdw._create_output_sampler_list(
-            target_batch,
-            accepted_token_ids,
-            target_logprobs=target_logprobs,
-            prompt_logprobs=(proposal_scores.prompt_logprobs
-                            if not self.sdw._disable_logprobs else None),
-            k=gamma,
-            stage_times=(0.0, 0.0, 0.0),
-            proposal_lens_list=proposal_lens_list,
-        )
+            return self.sdw._create_output_sampler_list(
+                target_batch,
+                accepted_token_ids,
+                target_logprobs=target_logprobs,
+                prompt_logprobs=(proposal_scores.prompt_logprobs
+                                if not self.sdw._disable_logprobs
+                                else None),
+                k=gamma,
+                stage_times=(0.0, 0.0, 0.0),
+                proposal_lens_list=proposal_lens_list,
+            )
 
     def _build_verify_proposals(
         self,
@@ -402,25 +548,45 @@ class CoSpecOrchestrator:
 
     def _collect_proposals(
         self, proposals_dict: Dict[str, Any],
+        batch_size: int = 0,
+        num_spec_tokens: int = 0,
     ) -> SpeculativeProposals:
-        """Convert RPC response dict to SpeculativeProposals."""
+        """Convert RPC response dict to SpeculativeProposals.
+
+        Args:
+            proposals_dict: Response from draft worker RPC.
+            batch_size: Known batch size for direct buffer read (avoids
+                GPU→CPU sync from .item()). Falls back to metadata read
+                if 0.
+            num_spec_tokens: Known gamma for direct buffer read.
+        """
         device = self.sdw.device
 
         # Read probs from shared buffer if available
         if (proposals_dict.get("probs_in_shared_buffer")
                 and self.shared_logit_buffer):
-            proposal_probs, _, _ = self.shared_logit_buffer.read_logits()
+            with record_function("cospec::collect_read_shared_buffer"):
+                if batch_size > 0 and num_spec_tokens > 0:
+                    proposal_probs = (
+                        self.shared_logit_buffer.read_logits_direct(
+                            batch_size, num_spec_tokens))
+                else:
+                    proposal_probs, _, _ = (
+                        self.shared_logit_buffer.read_logits())
         else:
             proposal_probs = proposals_dict["proposal_probs"]
             if proposal_probs is not None:
                 proposal_probs = proposal_probs.to(device)
 
-        proposal_token_ids = proposals_dict["proposal_token_ids"].to(device)
-        proposal_lens = proposals_dict["proposal_lens"]
-        if isinstance(proposal_lens, torch.Tensor):
-            proposal_lens = proposal_lens.to(device)
-        else:
-            proposal_lens = torch.tensor(proposal_lens, device=device)
+        with record_function("cospec::collect_to_device"):
+            proposal_token_ids = proposals_dict[
+                "proposal_token_ids"].to(device)
+            proposal_lens = proposals_dict["proposal_lens"]
+            if isinstance(proposal_lens, torch.Tensor):
+                proposal_lens = proposal_lens.to(device)
+            else:
+                proposal_lens = torch.tensor(
+                    proposal_lens, device=device)
 
         return SpeculativeProposals(
             proposal_token_ids=proposal_token_ids,

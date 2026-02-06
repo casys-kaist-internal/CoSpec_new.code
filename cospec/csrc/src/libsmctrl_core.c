@@ -58,7 +58,7 @@ static uint64_t g_sm_mask = 0;
 static __thread uint64_t g_next_sm_mask = 0;
 // Flag value to indicate if setup has been completed
 static bool sm_control_setup_called = false;
-// Flag to indicate if callback setup succeeded (false when nsys conflicts)
+// Flag to indicate if callback setup succeeded (false when CUPTI/nsys conflicts)
 static bool sm_control_setup_ok = false;
 
 // v1 has been removed---it intercepted the TMD/QMD too early, making it
@@ -146,14 +146,14 @@ static void setup_sm_control_callback() {
 	int res = 0;
 	res = subscribe(&my_hndl, control_callback_v2, NULL);
 	if (res) {
-		fprintf(stderr, "libsmctrl: WARNING: Failed to subscribe launch callback "
+		fprintf(stderr, "libsmctrl: WARNING: callback subscribe failed "
 		        "(CUDA error %d). Global/next SM masking disabled. "
-		        "This is expected when running under nsys/CUPTI.\n", res);
+		        "This is expected under profilers (nsys/CUPTI/torch.profiler).\n", res);
 		return;
 	}
 	res = enable(1, my_hndl, QMD_DOMAIN, QMD_PRE_UPLOAD);
 	if (res) {
-		fprintf(stderr, "libsmctrl: WARNING: Failed to enable launch callback "
+		fprintf(stderr, "libsmctrl: WARNING: callback enable failed "
 		        "(CUDA error %d). Global/next SM masking disabled.\n", res);
 		return;
 	}
