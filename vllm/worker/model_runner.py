@@ -515,6 +515,21 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
         tokens = seq_data.get_token_ids()[context_len:seq_len]
         token_types = seq_group_metadata.token_type_ids
 
+        if context_len >= seq_len and not inter_data.is_prompt:
+            import logging
+            _logger = logging.getLogger(__name__)
+            _logger.warning(
+                "Empty query detected: req=%s seq_id=%s "
+                "context_len=%d seq_len=%d num_computed=%d "
+                "is_prompt=%s is_multi_step=%s token_chunk_size=%s",
+                seq_group_metadata.request_id,
+                inter_data.seq_ids[seq_idx],
+                context_len, seq_len,
+                seq_data.get_num_computed_tokens(),
+                inter_data.is_prompt,
+                self.runner.scheduler_config.is_multi_step,
+                token_chunk_size)
+
         inter_data.seq_lens[seq_idx] = seq_len
         inter_data.orig_seq_lens[seq_idx] = seq_len
         inter_data.context_lens[seq_idx] = context_len
@@ -678,6 +693,11 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
         # NOTE: mm_data only includes the subset of multi-modal items that
         # intersect with the current prefill positions.
         positions = inter_data.input_positions[0]
+        if not positions:
+            # No input positions (e.g., decode with all tokens computed).
+            # This can happen in multi-step speculative decoding when the
+            # draft worker's view of computed tokens differs from target.
+            return
         mm_data, placeholder_maps = MultiModalPlaceholderMap.from_seq_group(
             seq_group_metadata,
             range(positions[0], positions[0] + len(positions)))

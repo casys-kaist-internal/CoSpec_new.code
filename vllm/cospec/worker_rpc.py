@@ -10,13 +10,11 @@ Protocol:
 - Draft worker executes and sends back (status, result) tuples.
 """
 
-import copy
 import enum
 import multiprocessing
 import multiprocessing.connection
 import traceback
-from array import array
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
 
@@ -24,69 +22,14 @@ from vllm.logger import init_logger
 
 logger = init_logger(__name__)
 
-# Token array type (must match vllm.sequence.VLLM_TOKEN_ID_ARRAY_TYPE)
-_TOKEN_ARRAY_TYPE = "l"
-
-
-def _strip_sgm_for_draft(sgm_list: List[Any]) -> List[Any]:
-    """Create lightweight copies of SequenceGroupMetadata for RPC.
-
-    Strips heavy fields that the draft model doesn't need:
-    - Truncates token IDs to last token only (KV cache has the rest)
-    - Removes multi_modal_data, encoder_seq_data, etc.
-
-    Args:
-        sgm_list: List of SequenceGroupMetadata objects.
-
-    Returns:
-        List of stripped SequenceGroupMetadata copies.
-    """
-    from vllm.sequence import SequenceData, SequenceGroupMetadata
-
-    stripped = []
-    for sgm in sgm_list:
-        # Shallow copy the metadata
-        new_sgm = copy.copy(sgm)
-
-        # Strip heavy optional fields
-        new_sgm.multi_modal_data = None
-        new_sgm.multi_modal_placeholders = None
-        new_sgm.mm_processor_kwargs = None
-        new_sgm.encoder_seq_data = None
-        new_sgm.cross_block_table = None
-        new_sgm.computed_block_nums = None
-        new_sgm.token_type_ids = None
-
-        # For decode sequences, keep full token list to preserve correct positions.
-        # The token list is small (~8KB for 1024 tokens) so RPC overhead is minimal.
-        # We need the full list so model_runner computes correct attention positions.
-        if sgm.seq_data and not sgm.is_prompt:
-            new_seq_data = {}
-            for seq_id, seq_data in sgm.seq_data.items():
-                # Copy the full token sequence to preserve positions
-                all_tokens = seq_data.get_token_ids()
-                new_sd = SequenceData(
-                    _prompt_token_ids=array(_TOKEN_ARRAY_TYPE, all_tokens),
-                )
-                # Copy essential state
-                new_sd._num_computed_tokens = seq_data.get_num_computed_tokens()
-                new_sd._stage = seq_data.stage
-                new_seq_data[seq_id] = new_sd
-            new_sgm.seq_data = new_seq_data
-
-        stripped.append(new_sgm)
-    return stripped
-
 
 class DraftCommand(enum.Enum):
     """Commands sent from orchestrator to draft worker."""
     PROPOSE = "propose"
     SET_PARTITION = "set_partition"
     SET_FULL_GPU = "set_full_gpu"
-    SET_NUM_SPEC_TOKENS = "set_num_spec_tokens"
     EXECUTE_PREFILL = "execute_prefill"
     SHUTDOWN = "shutdown"
-    PING = "ping"
 
 
 class DraftResponse(enum.Enum):
@@ -105,6 +48,8 @@ class DraftWorkerRPC:
         conn: The parent-side of a multiprocessing.Pipe().
     """
 
+    _RPC_TIMEOUT_S = 60.0
+
     def __init__(self, conn: multiprocessing.connection.Connection):
         self._conn = conn
 
@@ -114,42 +59,51 @@ class DraftWorkerRPC:
         """Send a command and wait for response."""
         kwargs = kwargs or {}
         self._conn.send((cmd, kwargs))
+        if not self._conn.poll(timeout=self._RPC_TIMEOUT_S):
+            raise RuntimeError(
+                f"Draft worker did not respond to {cmd.value} "
+                f"within {self._RPC_TIMEOUT_S}s (may have crashed)")
         status, result = self._conn.recv()
         if status == DraftResponse.ERROR:
             raise RuntimeError(f"Draft worker error: {result}")
         return result
 
     def propose(self, seq_group_metadata_list: list,
-                num_spec_tokens: int) -> Dict[str, Any]:
+                num_spec_tokens: int,
+                seq_ids_with_bonus_token: Optional[Set[int]] = None,
+                ) -> Dict[str, Any]:
         """Request draft proposals (blocking).
 
         Args:
             seq_group_metadata_list: Sequence metadata for proposal generation.
-            num_spec_tokens: Number of speculative tokens to generate (γ).
+            num_spec_tokens: Number of speculative tokens to generate.
+            seq_ids_with_bonus_token: Seq IDs that received a bonus token
+                from the last verification step. Passed to the draft model's
+                multi-step worker for correct KV cache handling.
 
         Returns:
             Dict with proposal metadata. Actual logits are in the shared
             logit buffer (no data transfer over pipe).
         """
-        # Strip heavy fields to reduce serialization overhead
-        stripped = _strip_sgm_for_draft(seq_group_metadata_list)
         return self._send_recv(DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": stripped,
+            "seq_group_metadata_list": seq_group_metadata_list,
             "num_spec_tokens": num_spec_tokens,
+            "seq_ids_with_bonus_token": seq_ids_with_bonus_token or set(),
         })
 
     def propose_async(self, seq_group_metadata_list: list,
-                      num_spec_tokens: int) -> None:
+                      num_spec_tokens: int,
+                      seq_ids_with_bonus_token: Optional[Set[int]] = None,
+                      ) -> None:
         """Send propose command without waiting for response.
 
         Used for colocated SD mode where draft proposes concurrently
         with target scoring.
         """
-        # Strip heavy fields to reduce serialization overhead
-        stripped = _strip_sgm_for_draft(seq_group_metadata_list)
         self._conn.send((DraftCommand.PROPOSE, {
-            "seq_group_metadata_list": stripped,
+            "seq_group_metadata_list": seq_group_metadata_list,
             "num_spec_tokens": num_spec_tokens,
+            "seq_ids_with_bonus_token": seq_ids_with_bonus_token or set(),
         }))
 
     def propose_collect(self, timeout: float = 60.0) -> Dict[str, Any]:
@@ -177,20 +131,6 @@ class DraftWorkerRPC:
     def set_full_gpu(self) -> None:
         """Give draft worker full GPU access."""
         self._send_recv(DraftCommand.SET_FULL_GPU)
-
-    def set_num_spec_tokens(self, num_spec_tokens: int) -> None:
-        """Update the number of speculative tokens."""
-        self._send_recv(DraftCommand.SET_NUM_SPEC_TOKENS, {
-            "num_spec_tokens": num_spec_tokens,
-        })
-
-    def ping(self) -> bool:
-        """Check if the draft worker is alive."""
-        try:
-            result = self._send_recv(DraftCommand.PING)
-            return result == "pong"
-        except Exception:
-            return False
 
     def execute_prefill(self, seq_group_metadata_list: list) -> None:
         """Run draft model on prefill sequences to sync KV cache.
@@ -292,16 +232,6 @@ class DraftWorkerServer:
                 result = self._handle_execute_prefill(**kwargs)
                 self._conn.send((DraftResponse.OK, result))
 
-            elif cmd == DraftCommand.SET_NUM_SPEC_TOKENS:
-                # Forward to the underlying worker if it supports this
-                num = kwargs["num_spec_tokens"]
-                if hasattr(self._worker, 'set_num_spec_tokens'):
-                    self._worker.set_num_spec_tokens(num)
-                self._conn.send((DraftResponse.OK, None))
-
-            elif cmd == DraftCommand.PING:
-                self._conn.send((DraftResponse.OK, "pong"))
-
             elif cmd == DraftCommand.SHUTDOWN:
                 self._running = False
                 self._conn.send((DraftResponse.OK, None))
@@ -319,14 +249,41 @@ class DraftWorkerServer:
                 pass
 
     def _handle_propose(self, seq_group_metadata_list: list,
-                        num_spec_tokens: int) -> Dict[str, Any]:
+                        num_spec_tokens: int,
+                        seq_ids_with_bonus_token: Optional[Set[int]] = None,
+                        ) -> Dict[str, Any]:
         """Execute draft model proposals.
 
         Runs the draft model forward pass and writes logits to the
         shared logit buffer. Returns metadata (proposal_lens, token_ids)
         over the pipe — only small CPU tensors, not the full logits.
+
+        Args:
+            seq_group_metadata_list: Sequence metadata for proposals.
+            num_spec_tokens: Number of speculative tokens to generate.
+            seq_ids_with_bonus_token: Seq IDs that had bonus tokens from
+                the last verification. The multi-step worker uses this to
+                expand the batch and correctly handle the KV cache for the
+                bonus token position (same mechanism as regular SD).
         """
         from vllm.sequence import ExecuteModelRequest
+
+        bonus_set = seq_ids_with_bonus_token or set()
+
+        # Fix num_computed_tokens for decode sequences. The scheduler sets
+        # this based on the target model's view (all tokens computed), but
+        # the draft model_runner with is_multi_step=False uses it to compute
+        # context_len. If num_computed == seq_len, the model_runner gets 0
+        # tokens to process. Set it to seq_len - 1 so there's always 1 token
+        # to compute (matching what the is_multi_step=True path does).
+        for sgm in seq_group_metadata_list:
+            if not sgm.is_prompt:
+                for seq_id, seq_data in sgm.seq_data.items():
+                    seq_len = seq_data.get_len()
+                    num_computed = seq_data.get_num_computed_tokens()
+                    if num_computed >= seq_len:
+                        delta = num_computed - (seq_len - 1)
+                        seq_data.update_num_computed_tokens(-delta)
 
         # Build an ExecuteModelRequest for the draft worker
         execute_model_req = ExecuteModelRequest(
@@ -334,10 +291,12 @@ class DraftWorkerServer:
             num_lookahead_slots=num_spec_tokens,
         )
 
-        # Run the draft model's proposal generation
+        # Run the draft model's proposal generation.
+        # Pass bonus token seq_ids so the multi-step worker can expand
+        # the batch and correctly recompute KV for the bonus position.
         proposals = self._worker.get_spec_proposals(
             execute_model_req,
-            seq_ids_with_bonus_token_in_last_step=set(),
+            seq_ids_with_bonus_token_in_last_step=bonus_set,
         )
 
         # When shared logit buffer is available, write probs there
@@ -374,7 +333,7 @@ class DraftWorkerServer:
             seq_group_metadata_list=seq_group_metadata_list,
             num_lookahead_slots=0,
         )
-        self._worker.execute_model(execute_model_req, is_target=False)
+        self._worker.execute_model(execute_model_req)
         return None
 
 

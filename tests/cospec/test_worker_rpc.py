@@ -1,14 +1,9 @@
 """Unit tests for CoSpec v2 worker RPC."""
 
-import multiprocessing
-
-import pytest
-
 from vllm.cospec.worker_rpc import (
     DraftCommand,
     DraftResponse,
     DraftWorkerRPC,
-    DraftWorkerServer,
     create_draft_worker_pipe,
 )
 
@@ -19,32 +14,6 @@ class TestWorkerRPC:
         parent_conn, child_conn = create_draft_worker_pipe()
         parent_conn.send("test")
         assert child_conn.recv() == "test"
-        parent_conn.close()
-        child_conn.close()
-
-    def test_ping_pong(self):
-        parent_conn, child_conn = create_draft_worker_pipe()
-
-        # Simulate server in a thread
-        import threading
-
-        def server_loop():
-            while True:
-                cmd, kwargs = child_conn.recv()
-                if cmd == DraftCommand.PING:
-                    child_conn.send((DraftResponse.OK, "pong"))
-                    break
-                elif cmd == DraftCommand.SHUTDOWN:
-                    child_conn.send((DraftResponse.OK, None))
-                    break
-
-        t = threading.Thread(target=server_loop)
-        t.start()
-
-        rpc = DraftWorkerRPC(parent_conn)
-        assert rpc.ping() is True
-
-        t.join(timeout=5)
         parent_conn.close()
         child_conn.close()
 

@@ -1,14 +1,13 @@
 """Shared GPU Memory via CUDA IPC for CoSpec v2.
 
-Provides SharedKVCache and SharedLogitBuffer for sharing GPU tensors between
+Provides SharedLogitBuffer for sharing draft model logits between
 target and draft processes without copies. Target process allocates and exports
 CUDA IPC handles to /dev/shm; draft process imports them.
 """
 
 import os
 import pickle
-import shutil
-from typing import List, Optional
+from typing import Optional
 
 import torch
 
@@ -16,114 +15,7 @@ from vllm.logger import init_logger
 
 logger = init_logger(__name__)
 
-_KV_CACHE_SHM_PREFIX = "/dev/shm/cospec_kv_cache"
 _LOGIT_BUFFER_SHM_PATH = "/dev/shm/cospec_logit_buffer_{instance_id}.pkl"
-
-
-class SharedKVCache:
-    """Shared KV cache via CUDA IPC.
-
-    In 'owner' mode (target): allocates KV tensors, exports IPC handles.
-    In 'client' mode (draft): imports IPC handles to access same GPU memory.
-
-    Args:
-        mode: 'owner' for target process, 'client' for draft process.
-        instance_id: Unique identifier for shared memory namespace.
-    """
-
-    def __init__(self, mode: str, instance_id: str = "default"):
-        assert mode in ("owner", "client"), f"Invalid mode: {mode}"
-        self.mode = mode
-        self.instance_id = instance_id
-        self._shm_dir = f"{_KV_CACHE_SHM_PREFIX}_{instance_id}"
-
-        if mode == "owner":
-            os.makedirs(self._shm_dir, exist_ok=True)
-
-    def allocate(
-        self,
-        kv_cache_shape: tuple,
-        dtype: torch.dtype,
-        num_layers: int,
-        device: str = "cuda",
-    ) -> List[torch.Tensor]:
-        """Allocate KV cache and export/import IPC handles."""
-        if self.mode == "owner":
-            return self._allocate_and_export(kv_cache_shape, dtype, num_layers)
-        else:
-            return self._import(num_layers)
-
-    def _allocate_and_export(
-        self,
-        kv_cache_shape: tuple,
-        dtype: torch.dtype,
-        num_layers: int,
-    ) -> List[torch.Tensor]:
-        """Owner: allocate tensors and export IPC handles."""
-        kv_cache: List[torch.Tensor] = []
-
-        for layer_idx in range(num_layers):
-            tensor = torch.zeros(kv_cache_shape, dtype=dtype, device="cuda")
-            storage = tensor.untyped_storage()
-            cuda_ipc_handle = storage._share_cuda_()
-
-            handle_info = {
-                "shape": kv_cache_shape,
-                "dtype": dtype,
-                "storage_size": storage.size(),
-                "storage_offset": tensor.storage_offset(),
-                "cuda_ipc_handle": cuda_ipc_handle,
-            }
-
-            handle_path = os.path.join(self._shm_dir, f"layer_{layer_idx}.pkl")
-            with open(handle_path, "wb") as f:
-                pickle.dump(handle_info, f)
-
-            kv_cache.append(tensor)
-
-        logger.info("SharedKVCache: exported %d layers to %s",
-                    num_layers, self._shm_dir)
-        return kv_cache
-
-    def _import(self, num_layers: int) -> List[torch.Tensor]:
-        """Client: import tensors from IPC handles."""
-        kv_cache: List[torch.Tensor] = []
-
-        for layer_idx in range(num_layers):
-            handle_path = os.path.join(self._shm_dir, f"layer_{layer_idx}.pkl")
-            if not os.path.exists(handle_path):
-                raise FileNotFoundError(
-                    f"KV cache IPC handle not found: {handle_path}. "
-                    "Ensure target process started first.")
-
-            with open(handle_path, "rb") as f:
-                handle_info = pickle.load(f)
-
-            storage = torch.UntypedStorage._new_shared_cuda(
-                *handle_info["cuda_ipc_handle"])
-            tensor = torch.empty(
-                handle_info["shape"], dtype=handle_info["dtype"], device="cuda")
-            tensor.set_(storage, handle_info["storage_offset"],
-                        handle_info["shape"])
-            kv_cache.append(tensor)
-
-        logger.info("SharedKVCache: imported %d layers from %s",
-                    num_layers, self._shm_dir)
-        return kv_cache
-
-    def cleanup(self) -> None:
-        """Remove shared memory files (owner only)."""
-        if self.mode != "owner":
-            return
-        if os.path.exists(self._shm_dir):
-            shutil.rmtree(self._shm_dir)
-            logger.info("SharedKVCache: cleaned up %s", self._shm_dir)
-
-    def __del__(self):
-        try:
-            self.cleanup()
-        except Exception:
-            pass
 
 
 class SharedLogitBuffer:
@@ -231,6 +123,11 @@ class SharedLogitBuffer:
     def write_logits(self, logits: torch.Tensor, batch_size: int,
                      num_tokens: int) -> None:
         """Write draft logits to the shared buffer."""
+        assert batch_size <= self.max_batch, (
+            f"batch_size {batch_size} exceeds max_batch {self.max_batch}")
+        assert num_tokens <= self.max_spec_tokens, (
+            f"num_tokens {num_tokens} exceeds max_spec_tokens "
+            f"{self.max_spec_tokens}")
         self._buffer[:batch_size, :num_tokens, :] = logits
         self._meta_buffer[0] = batch_size
         self._meta_buffer[1] = num_tokens

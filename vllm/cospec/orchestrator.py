@@ -1,630 +1,564 @@
-"""CoSpec v2 Orchestrator.
+"""CoSpec v2 Orchestrator - Simplified.
 
-Lives in the target process. Coordinates per-step execution using SM
-partitioning for concurrent draft + target execution on the same GPU.
+Two-queue pipelining for concurrent draft + target execution.
+Reuses original spec_decode_worker methods for verification and output.
 """
 
-import enum
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
-import torch.cuda.nvtx as nvtx
 
 from vllm.cospec.sm_controller import SMController
 from vllm.cospec.worker_rpc import DraftWorkerRPC
 from vllm.logger import init_logger
 from vllm.sequence import ExecuteModelRequest, SequenceGroupMetadata
-from vllm.spec_decode.interfaces import SpeculativeProposals, SpeculativeScores
-from vllm.spec_decode.util import split_batch_by_proposal_len
-import vllm.envs as envs
+from vllm.spec_decode.interfaces import SpeculativeProposals
 
 logger = init_logger(__name__)
 
 
-class Mode(enum.Enum):
-    """Execution modes for CoSpec."""
-    AR = "ar"
-    VANILLA_SD = "vanilla_sd"
-    COLOCATED_SD = "colocated_sd"
-
-
 class CoSpecOrchestrator:
-    """Central orchestrator for CoSpec v2.
+    """Two-queue pipelining orchestrator for concurrent draft + target.
 
-    Two-queue colocated SD: sequences alternate between draft_queue (need
-    proposals) and verify_queue (have proposals). Each step runs drafting
-    and verification concurrently on partitioned SMs.
+    Pipeline model:
+      Step N:   Draft proposes batch A  ||  Target verifies batch B
+      Step N+1: Draft proposes batch B  ||  Target verifies batch A
 
-    Args:
-        target_worker: The target model worker.
-        draft_rpc: RPC client to draft worker process.
-        sm_controller: SM partition controller.
-        max_spec_tokens: Maximum speculative tokens (γ).
-        target_sm_ratio: Fraction of SMs for target model (draft gets 1.0 - target_sm_ratio).
+    New decode sequences are load-balanced between draft and pending_pool
+    based on current queue sizes to keep D ≈ V each step.
+
+    Reuses original spec_decode_worker methods for verification/output.
     """
 
     def __init__(
         self,
-        target_worker: Any,
+        spec_decode_worker: Any,
         draft_rpc: DraftWorkerRPC,
         sm_controller: SMController,
-        spec_decode_worker: Any = None,
-        max_spec_tokens: int = 7,
         target_sm_ratio: float = 0.7,
         shared_logit_buffer: Any = None,
     ):
-        self.target_worker = target_worker
+        self.sdw = spec_decode_worker  # Access to original methods
         self.draft_rpc = draft_rpc
         self.sm_controller = sm_controller
-        self.spec_decode_worker = spec_decode_worker
-        self.max_spec_tokens = max_spec_tokens
         self.target_sm_ratio = target_sm_ratio
         self.shared_logit_buffer = shared_logit_buffer
 
-        # Two-queue state for pipelining
+        # Two-queue state
         self._draft_queue: Dict[int, SequenceGroupMetadata] = {}
-        self._verify_queue: Dict[int, Tuple[SequenceGroupMetadata,
-                                             Dict[str, Any]]] = {}
+        # Verify state: batched proposals + seq_id -> row index mapping
+        self._verify_proposals: Optional[SpeculativeProposals] = None
+        self._verify_indices: Dict[int, int] = {}
+        # Pending pool: new decode seqs deferred to next step for balancing
         self._pending_pool: Dict[int, SequenceGroupMetadata] = {}
 
         # Stats
         self._step_count = 0
-        self._accepted = 0
-        self._total_spec = 0
+        # Track sampler counters to compute per-step acceptance
+        self._prev_accepted_tokens = 0
+        self._prev_draft_tokens = 0
 
-        # Set after each step: seq_ids present in the output
+        # Output metadata for engine
         self.last_output_seq_ids: Optional[List[int]] = None
-
-        # CUDA event for targeted synchronization (cheaper than global sync)
-        self._sync_event = torch.cuda.Event()
-
-        # Timing stats (only when COSPEC_PROFILE=1)
-        self._profiling_enabled = envs.COSPEC_PROFILE
-        if self._profiling_enabled:
-            self._times = {
-                "propose_async": 0.0,
-                "score": 0.0,
-                "propose_collect": 0.0,
-                "sync": 0.0,
-                "verify": 0.0,
-                "total": 0.0,
-            }
-            self._time_count = 0
+        self.last_output_num_prefills: int = 0
 
     def step(
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
         num_lookahead_slots: int,
     ) -> List[Any]:
-        """Execute one orchestrated step (always colocated SD mode)."""
+        """Execute one pipelined step."""
+        # Reset output metadata at start of each step to avoid stale values
+        self.last_output_seq_ids = None
+        self.last_output_num_prefills = 0
+
         if not seq_group_metadata_list:
             return []
 
         self._step_count += 1
-        gamma = num_lookahead_slots or self.max_spec_tokens
-
-        return self._step_colocated_sd(
-            seq_group_metadata_list, gamma, self.target_sm_ratio)
-
-    def _step_colocated_sd(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        gamma: int,
-        target_sm_ratio: float,
-    ) -> List[Any]:
-        """Colocated SD mode: concurrent draft + target with SM partitioning.
-
-        Two-queue pipelining:
-        - draft_queue sequences get proposals (draft model)
-        - verify_queue sequences get verified (target model)
-        - Both run concurrently on partitioned SMs
-        - Results are tagged with seq_ids for correct matching
-        """
-        nvtx.range_push("cospec_step")
-        if self._profiling_enabled:
-            t_start = time.perf_counter()
-
+        gamma = num_lookahead_slots or self.sdw.max_spec_tokens
         stream = torch.cuda.current_stream()
 
-        # Step 0: Move pending sequences into draft_queue (waited 1 step)
-        for sid, sgm in self._pending_pool.items():
-            self._draft_queue[sid] = sgm
+        # Promote pending_pool → draft_queue before splitting
+        self._draft_queue.update(self._pending_pool)
         self._pending_pool.clear()
 
-        # Split scheduler batch into draft/verify/prefill/new groups
-        draft_seqs: List[SequenceGroupMetadata] = []
-        verify_seqs: List[SequenceGroupMetadata] = []
-        verify_proposals: List[Dict[str, Any]] = []
+        # Split batch into: prefill, verify (have proposals), draft (need proposals)
+        prefill_seqs, verify_seqs, verify_row_indices, draft_seqs = (
+            self._split_batch(seq_group_metadata_list))
+
+        # === Bootstrap: no verify_seqs yet ===
+        if not verify_seqs:
+            return self._bootstrap_step(prefill_seqs, draft_seqs, gamma, stream)
+
+        # === Concurrent phase: draft || verify ===
+        t_step_start = time.monotonic()
+
+        self.sm_controller.set_partition(stream, self.target_sm_ratio)
+        self.draft_rpc.set_partition(1.0 - self.target_sm_ratio)
+
+        # Save bonus token seq_ids from the PREVIOUS verification step.
+        # draft_seqs are sequences that were verified last step, so the
+        # current _seq_with_bonus_token_in_last_step has their bonus info.
+        # Must read before _run_verification() which overwrites the set.
+        bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
+
+        # Start async draft proposals (with bonus token info)
+        if draft_seqs:
+            self.draft_rpc.propose_async(
+                draft_seqs, gamma,
+                seq_ids_with_bonus_token=bonus_ids)
+
+        # Run target scoring + verification (reuse original methods)
+        # This updates _seq_with_bonus_token_in_last_step for the NEXT step.
+        t_target_start = time.monotonic()
+        output = self._run_verification(
+            prefill_seqs, verify_seqs, verify_row_indices, gamma)
+        t_target_end = time.monotonic()
+
+        # Collect draft results
+        new_proposals = None
+        if draft_seqs:
+            new_proposals = self._collect_proposals(
+                self.draft_rpc.propose_collect())
+
+        # Sync draft KV cache for prefills
+        if prefill_seqs:
+            self.draft_rpc.execute_prefill(prefill_seqs)
+
+        # Rotate queues
+        self._rotate_queues(verify_seqs, draft_seqs, new_proposals)
+
+        t_step_end = time.monotonic()
+
+        n_prefill = len(prefill_seqs)
+        n_verify = len(verify_seqs)
+        n_draft = len(draft_seqs)
+
+        t_target_ms = (t_target_end - t_target_start) * 1000
+        t_total_ms = (t_step_end - t_step_start) * 1000
+
+        self._log_step("CoSpec", n_prefill, n_draft, n_verify,
+                       t_target_ms=t_target_ms, t_total_ms=t_total_ms)
+
+        # Set output metadata
+        self.last_output_seq_ids = [
+            self._get_seq_id(s) for s in (prefill_seqs + verify_seqs)]
+        self.last_output_num_prefills = n_prefill
+
+        return output
+
+    def _split_batch(
+        self,
+        seq_group_metadata_list: List[SequenceGroupMetadata],
+    ) -> Tuple[List[SequenceGroupMetadata], List[SequenceGroupMetadata],
+               List[int], List[SequenceGroupMetadata]]:
+        """Split scheduler batch into prefill/verify/draft groups.
+
+        New decode sequences (not in any queue) are load-balanced:
+        compare draft_queue size vs verify_queue + pending_pool size.
+        If draft side is larger, defer to pending_pool (drafted next step).
+        Otherwise, add to draft_seqs (drafted this step).
+
+        Returns:
+            prefill_seqs: Prompt sequences.
+            verify_seqs: Sequences with proposals ready for verification.
+            verify_row_indices: Row indices into _verify_proposals for each
+                verify_seq (same order/length as verify_seqs).
+            draft_seqs: Sequences that need new draft proposals.
+        """
         prefill_seqs: List[SequenceGroupMetadata] = []
+        verify_seqs: List[SequenceGroupMetadata] = []
+        verify_row_indices: List[int] = []
+        draft_seqs: List[SequenceGroupMetadata] = []
+        new_decode_seqs: List[SequenceGroupMetadata] = []
 
         for sgm in seq_group_metadata_list:
             sid = self._get_seq_id(sgm)
+
             if sgm.is_prompt:
                 prefill_seqs.append(sgm)
-            elif sid in self._verify_queue:
-                meta, props = self._verify_queue.pop(sid)
+            elif sid in self._verify_indices:
+                verify_row_indices.append(self._verify_indices.pop(sid))
                 verify_seqs.append(sgm)
-                verify_proposals.append(props)
             elif sid in self._draft_queue:
                 self._draft_queue.pop(sid)
                 draft_seqs.append(sgm)
             else:
-                # New decode sequence — load-balanced entry for 50/50 pipelining
-                # Balance draft_seqs vs (pending_pool + verify_seqs) to ensure
-                # equal splits during bootstrap and steady state
-                if len(draft_seqs) <= len(self._pending_pool) + len(verify_seqs):
-                    draft_seqs.append(sgm)
-                else:
-                    self._pending_pool[sid] = sgm
+                # New decode sequence - collect for load balancing
+                new_decode_seqs.append(sgm)
 
-        # Bootstrap: if nothing to verify, just draft and return empty
-        if not verify_seqs:
-            if draft_seqs:
-                # Set SM partitions
-                self.sm_controller.set_full_gpu(stream)
-                self.draft_rpc.set_full_gpu()
-
-                nvtx.range_push("bootstrap_propose")
-                proposals = self.draft_rpc.propose(draft_seqs, gamma)
-                nvtx.range_pop()
-                self._materialize_probs(proposals)
-                # Move drafted sequences to verify_queue
-                for i, sgm in enumerate(draft_seqs):
-                    sid = self._get_seq_id(sgm)
-                    self._verify_queue[sid] = (
-                        sgm, self._slice_proposal(proposals, i,
-                                                  len(draft_seqs)))
-
-            self.last_output_seq_ids = None
-            nvtx.range_pop()  # cospec_step
-            # Process prefills with full GPU (no verify happening)
-            if prefill_seqs:
-                return self._run_prefills_only(prefill_seqs)
-            return []  # no-op step
-
-        # === Concurrent phase ===
-        nvtx.range_push("concurrent_phase")
-        self.sm_controller.set_partition(stream, target_sm_ratio)
-        self.draft_rpc.set_partition(1.0 - target_sm_ratio)
-
-        # Draft proposes draft_seqs concurrently
-        nvtx.range_push("propose_async")
-        if self._profiling_enabled:
-            t_propose_start = time.perf_counter()
-        if draft_seqs:
-            self.draft_rpc.propose_async(draft_seqs, gamma)
-        if self._profiling_enabled:
-            t_propose_async_end = time.perf_counter()
-        nvtx.range_pop()
-
-        # Target: score verify_seqs proposals
-        merged_proposals = self._merge_proposals(verify_proposals)
-
-        # Include prefill sequences in the target batch for scoring
-        target_batch = verify_seqs
-        if prefill_seqs:
-            target_batch = prefill_seqs + verify_seqs
-
-        nvtx.range_push("score_proposals")
-        if self._profiling_enabled:
-            t_score_start = time.perf_counter()
-        target_scores = self._score_proposals(
-            target_batch, merged_proposals, gamma)
-        # Record event after scoring for targeted sync
-        self._sync_event.record()
-        if self._profiling_enabled:
-            t_score_end = time.perf_counter()
-        nvtx.range_pop()
-
-        # Collect draft results
-        nvtx.range_push("propose_collect")
-        if self._profiling_enabled:
-            t_collect_start = time.perf_counter()
-        new_proposals = None
-        if draft_seqs:
-            new_proposals = self.draft_rpc.propose_collect()
-        if self._profiling_enabled:
-            t_collect_end = time.perf_counter()
-        nvtx.range_pop()
-
-        # Wait for target scoring to complete (draft already synced via RPC)
-        nvtx.range_push("cuda_sync")
-        if self._profiling_enabled:
-            t_sync_start = time.perf_counter()
-        self._sync_event.synchronize()
-        if self._profiling_enabled:
-            t_sync_end = time.perf_counter()
-        nvtx.range_pop()
-
-        nvtx.range_pop()  # concurrent_phase
-
-        # Sync draft KV cache for prefill sequences
-        nvtx.range_push("sync_draft_prefills")
-        self._sync_draft_prefills(target_batch, merged_proposals)
-        nvtx.range_pop()
-
-        # Verify
-        nvtx.range_push("verify")
-        if self._profiling_enabled:
-            t_verify_start = time.perf_counter()
-        accepted, logprobs = self._verify(
-            target_batch, target_scores, merged_proposals, gamma)
-        if self._profiling_enabled:
-            t_verify_end = time.perf_counter()
-        nvtx.range_pop()
-
-        self._update_acceptance_stats(accepted)
-
-        # Build output — tagged with seq_ids from target_batch
-        output = self._create_output(
-            target_batch, accepted, logprobs, gamma, merged_proposals)
-
-        # Store seq_ids present in the output for engine matching
-        seq_ids = []
-        for sgm in target_batch:
-            seq_ids.append(self._get_seq_id(sgm))
-        self.last_output_seq_ids = seq_ids
-
-        # Rotate queues:
-        # Verified sequences → draft_queue (need new proposals next step)
-        for sgm in verify_seqs:
-            sid = self._get_seq_id(sgm)
-            self._draft_queue[sid] = sgm
-
-        # Drafted sequences → verify_queue (have proposals, verify next step)
-        if draft_seqs and new_proposals is not None:
-            self._materialize_probs(new_proposals)
-            for i, sgm in enumerate(draft_seqs):
+        # Load-balance new decode sequences between draft (now) and
+        # pending (next step) to keep D ≈ V.
+        # draft side = draft_seqs (will be drafted this step)
+        # verify side = verify_seqs (will be verified this step) +
+        #               pending_pool (will be drafted next step)
+        for sgm in new_decode_seqs:
+            draft_side = len(draft_seqs) + len(self._pending_pool)
+            verify_side = len(verify_seqs)
+            if draft_side <= verify_side:
+                draft_seqs.append(sgm)
+            else:
                 sid = self._get_seq_id(sgm)
-                self._verify_queue[sid] = (
-                    sgm, self._slice_proposal(new_proposals, i,
-                                              len(draft_seqs)))
+                self._pending_pool[sid] = sgm
 
-        nvtx.range_pop()  # cospec_step
+        return prefill_seqs, verify_seqs, verify_row_indices, draft_seqs
 
-        # Update timing stats
-        if self._profiling_enabled:
-            t_end = time.perf_counter()
-            self._times["propose_async"] += t_propose_async_end - t_propose_start
-            self._times["score"] += t_score_end - t_score_start
-            self._times["propose_collect"] += t_collect_end - t_collect_start
-            self._times["sync"] += t_sync_end - t_sync_start
-            self._times["verify"] += t_verify_end - t_verify_start
-            self._times["total"] += t_end - t_start
-            self._time_count += 1
+    def _bootstrap_step(
+        self,
+        prefill_seqs: List[SequenceGroupMetadata],
+        draft_seqs: List[SequenceGroupMetadata],
+        gamma: int,
+        stream: torch.cuda.Stream,
+    ) -> List[Any]:
+        """Bootstrap: draft proposals, run prefills, no verification yet."""
+        t_step_start = time.monotonic()
 
-        return output
-
-    def flush(self) -> List[Any]:
-        """Drain pipeline: verify all remaining sequences in verify_queue."""
-        if not self._verify_queue:
-            return []
-
-        stream = torch.cuda.current_stream()
         self.sm_controller.set_full_gpu(stream)
+        self.draft_rpc.set_full_gpu()
 
-        verify_seqs = []
-        verify_proposals = []
-        for sid, (meta, props) in self._verify_queue.items():
-            verify_seqs.append(meta)
-            verify_proposals.append(props)
+        t_draft_ms = 0.0
+        t_prefill_ms = 0.0
 
-        gamma = self.max_spec_tokens
-        merged = self._merge_proposals(verify_proposals)
-        scores = self._score_proposals(verify_seqs, merged, gamma)
-        accepted, logprobs = self._verify(verify_seqs, scores, merged, gamma)
-        output = self._create_output(verify_seqs, accepted, logprobs,
-                                     gamma, merged)
-        self._verify_queue.clear()
-        self._draft_queue.clear()
-        self._pending_pool.clear()
-        return output
+        # Draft proposals for draft_seqs
+        if draft_seqs:
+            # Pass bonus token info from previous verification (if any).
+            # In bootstrap, previously-verified sequences still need bonus
+            # token handling for correct draft KV cache state.
+            t0 = time.monotonic()
+            bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
+            proposals_dict = self.draft_rpc.propose(
+                draft_seqs, gamma,
+                seq_ids_with_bonus_token=bonus_ids)
+            # Store as batch — no slicing needed
+            self._verify_proposals = self._collect_proposals(proposals_dict)
+            self._verify_indices = {
+                self._get_seq_id(sgm): i
+                for i, sgm in enumerate(draft_seqs)
+            }
+            t_draft_ms = (time.monotonic() - t0) * 1000
 
-    def remove_sequence(self, seq_id: int) -> None:
-        """Remove finished/preempted sequence from queues."""
-        self._draft_queue.pop(seq_id, None)
-        self._verify_queue.pop(seq_id, None)
-        self._pending_pool.pop(seq_id, None)
+        # Run prefills through target
+        if prefill_seqs:
+            t0 = time.monotonic()
+            execute_req = ExecuteModelRequest(
+                seq_group_metadata_list=prefill_seqs,
+                num_lookahead_slots=0,
+            )
+            output = self.sdw.scorer_worker.execute_model(execute_req)
+            # Sync draft KV cache
+            self.draft_rpc.execute_prefill(prefill_seqs)
+            t_prefill_ms = (time.monotonic() - t0) * 1000
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+            # Restructure output: scorer_worker returns [SamplerOutput(outputs=[all_prefills])]
+            # but llm_engine expects [SamplerOutput(outputs=[p0]), SamplerOutput(outputs=[p1]), ...]
+            # (one SamplerOutput per prefill for seq_id-based remapping)
+            if output and len(output) == 1 and len(output[0].outputs) > 1:
+                from vllm.model_executor.layers.sampler import SamplerOutput
+                restructured = []
+                for seq_output in output[0].outputs:
+                    restructured.append(SamplerOutput(outputs=[seq_output]))
+                output = restructured
 
-    def _get_seq_id(self, sgm: SequenceGroupMetadata) -> int:
-        """Extract the single sequence ID from a SequenceGroupMetadata."""
-        if not sgm.seq_data:
-            raise ValueError("SequenceGroupMetadata has no sequences")
-        return next(iter(sgm.seq_data.keys()))
+            self.last_output_seq_ids = [
+                self._get_seq_id(s) for s in prefill_seqs]
+            self.last_output_num_prefills = len(prefill_seqs)
 
-    def _dict_to_proposals(self, proposals_dict: Dict[str, Any],
-                           device: torch.device) -> SpeculativeProposals:
-        """Convert a dict from the draft RPC into a SpeculativeProposals."""
-        token_ids = proposals_dict["proposal_token_ids"]
-        lens = proposals_dict["proposal_lens"]
+            # AR mode: prefill only, no drafting
+            if not draft_seqs:
+                t_total_ms = (time.monotonic() - t_step_start) * 1000
+                self._log_step("AR", len(prefill_seqs), 0, 0,
+                               t_prefill_ms=t_prefill_ms,
+                               t_total_ms=t_total_ms)
+            else:
+                t_total_ms = (time.monotonic() - t_step_start) * 1000
+                self._log_step("SD", len(prefill_seqs), len(draft_seqs), 0,
+                               t_draft_ms=t_draft_ms,
+                               t_prefill_ms=t_prefill_ms,
+                               t_total_ms=t_total_ms)
+            return output
 
-        # Read probs from shared GPU buffer if available (zero-copy),
-        # otherwise fall back to CPU tensors sent over the pipe.
-        if proposals_dict.get("probs_in_shared_buffer") and \
-                self.shared_logit_buffer is not None:
-            probs_view, batch_size, num_tokens = \
-                self.shared_logit_buffer.read_logits()
-            probs = probs_view.clone()  # detach from shared buffer
+        # Pure SD bootstrap - draft only, no output
+        t_total_ms = (time.monotonic() - t_step_start) * 1000
+        self._log_step("SD", 0, len(draft_seqs), 0,
+                       t_draft_ms=t_draft_ms, t_total_ms=t_total_ms)
+
+        self.last_output_seq_ids = None
+        self.last_output_num_prefills = 0
+        return []
+
+    def _run_verification(
+        self,
+        prefill_seqs: List[SequenceGroupMetadata],
+        verify_seqs: List[SequenceGroupMetadata],
+        verify_row_indices: List[int],
+        gamma: int,
+    ) -> List[Any]:
+        """Run target scoring and verification using original spec_decode_worker methods."""
+        # Combine prefills + verify_seqs for target batch
+        target_batch = prefill_seqs + verify_seqs
+
+        # Build proposals: select rows from batched proposals, prepend prefill dummies
+        proposals = self._build_verify_proposals(
+            verify_row_indices, len(prefill_seqs), gamma)
+
+        # Build execute request
+        execute_req = ExecuteModelRequest(
+            seq_group_metadata_list=target_batch,
+            num_lookahead_slots=gamma,
+        )
+
+        # Score proposals using original scorer
+        proposal_scores = self.sdw.scorer.score_proposals(
+            execute_req, proposals)
+
+        # Verify using original method
+        accepted_token_ids, target_logprobs = self.sdw._verify_tokens(
+            target_batch, proposal_scores, proposals, gamma)
+
+        # Create output using original method
+        proposal_lens = proposals.proposal_lens
+        if isinstance(proposal_lens, torch.Tensor):
+            proposal_lens_list = proposal_lens.tolist()
         else:
-            probs = proposals_dict["proposal_probs"]
-            if isinstance(probs, torch.Tensor) and probs is not None:
-                probs = probs.to(device)
+            proposal_lens_list = list(proposal_lens)
 
-        if isinstance(token_ids, torch.Tensor):
-            token_ids = token_ids.to(device)
-        if isinstance(lens, torch.Tensor):
-            lens = lens.to(device)
+        return self.sdw._create_output_sampler_list(
+            target_batch,
+            accepted_token_ids,
+            target_logprobs=target_logprobs,
+            prompt_logprobs=(proposal_scores.prompt_logprobs
+                            if not self.sdw._disable_logprobs else None),
+            k=gamma,
+            stage_times=(0.0, 0.0, 0.0),
+            proposal_lens_list=proposal_lens_list,
+        )
+
+    def _build_verify_proposals(
+        self,
+        row_indices: List[int],
+        num_prefills: int,
+        gamma: int,
+    ) -> SpeculativeProposals:
+        """Build verification proposals from batched storage using index_select.
+
+        Selects the requested rows from _verify_proposals and prepends
+        dummy entries for prefills (proposal_len=0).
+        """
+        device = self.sdw.device
+
+        if not row_indices:
+            # Only prefills
+            return SpeculativeProposals(
+                proposal_token_ids=torch.zeros(
+                    (num_prefills, gamma), dtype=torch.long, device=device),
+                proposal_probs=torch.zeros(
+                    (num_prefills, gamma, self.sdw._vocab_size),
+                    device=device),
+                proposal_lens=torch.zeros(
+                    num_prefills, dtype=torch.long, device=device),
+                no_proposals=True,
+            )
+
+        # Select rows from batched proposals
+        idx = torch.tensor(row_indices, dtype=torch.long, device=device)
+        src = self._verify_proposals
+        token_ids = torch.index_select(src.proposal_token_ids, 0, idx)
+        lens = torch.index_select(src.proposal_lens, 0, idx)
+        probs = (torch.index_select(src.proposal_probs, 0, idx)
+                 if src.proposal_probs is not None else None)
+
+        # Prepend dummy entries for prefills
+        if num_prefills > 0:
+            dummy_tokens = torch.zeros(
+                (num_prefills, gamma), dtype=torch.long, device=device)
+            dummy_lens = torch.zeros(
+                num_prefills, dtype=torch.long, device=device)
+            token_ids = torch.cat([dummy_tokens, token_ids], dim=0)
+            lens = torch.cat([dummy_lens, lens], dim=0)
+            if probs is not None:
+                dummy_probs = torch.zeros(
+                    (num_prefills, gamma, probs.shape[-1]), device=device)
+                probs = torch.cat([dummy_probs, probs], dim=0)
+
         return SpeculativeProposals(
             proposal_token_ids=token_ids,
             proposal_probs=probs,
             proposal_lens=lens,
+            no_proposals=False,
+        )
+
+    def _collect_proposals(
+        self, proposals_dict: Dict[str, Any],
+    ) -> SpeculativeProposals:
+        """Convert RPC response dict to SpeculativeProposals."""
+        device = self.sdw.device
+
+        # Read probs from shared buffer if available
+        if (proposals_dict.get("probs_in_shared_buffer")
+                and self.shared_logit_buffer):
+            proposal_probs, _, _ = self.shared_logit_buffer.read_logits()
+        else:
+            proposal_probs = proposals_dict["proposal_probs"]
+            if proposal_probs is not None:
+                proposal_probs = proposal_probs.to(device)
+
+        proposal_token_ids = proposals_dict["proposal_token_ids"].to(device)
+        proposal_lens = proposals_dict["proposal_lens"]
+        if isinstance(proposal_lens, torch.Tensor):
+            proposal_lens = proposal_lens.to(device)
+        else:
+            proposal_lens = torch.tensor(proposal_lens, device=device)
+
+        return SpeculativeProposals(
+            proposal_token_ids=proposal_token_ids,
+            proposal_probs=proposal_probs,
+            proposal_lens=proposal_lens,
             no_proposals=proposals_dict.get("no_proposals", False),
         )
 
-    def _materialize_probs(self, proposals_dict: Dict[str, Any]) -> None:
-        """If probs are in the shared logit buffer, read them into the dict.
+    def _rotate_queues(
+        self,
+        verify_seqs: List[SequenceGroupMetadata],
+        draft_seqs: List[SequenceGroupMetadata],
+        new_proposals: Optional[SpeculativeProposals],
+    ) -> None:
+        """Rotate queues after step completion."""
+        # Verified sequences -> draft queue (need new proposals)
+        for sgm in verify_seqs:
+            sid = self._get_seq_id(sgm)
+            self._draft_queue[sid] = sgm
 
-        Must be called before _slice_proposal so each slice gets real probs.
-        """
-        if not proposals_dict.get("probs_in_shared_buffer", False):
-            return
-        if self.shared_logit_buffer is None:
-            return
-        logits, batch_size, num_tokens = self.shared_logit_buffer.read_logits()
-        # logits shape: [batch_size, num_tokens, vocab_size]
-        # Convert to probs (softmax) to match what _verify_tokens expects
-        proposals_dict["proposal_probs"] = torch.nn.functional.softmax(
-            logits, dim=-1)
-        proposals_dict["probs_in_shared_buffer"] = False
-
-    def _slice_proposal(self, proposals_dict: Dict[str, Any],
-                        index: int, batch_size: int) -> Dict[str, Any]:
-        """Extract a single-sequence proposal from a batched proposals dict."""
-        if index < 0 or index >= batch_size:
-            raise IndexError(
-                f"Proposal slice index {index} out of bounds for "
-                f"batch_size {batch_size}")
-
-        result = {}
-        for key in ("proposal_token_ids", "proposal_probs", "proposal_lens"):
-            val = proposals_dict.get(key)
-            if val is None:
-                result[key] = None
-            elif isinstance(val, torch.Tensor):
-                result[key] = val[index:index + 1]
-            elif isinstance(val, list):
-                result[key] = [val[index]]
-            else:
-                result[key] = val
-        result["no_proposals"] = proposals_dict.get("no_proposals", False)
-        result["probs_in_shared_buffer"] = False  # sliced, not in buffer
-        return result
-
-    def _merge_proposals(
-            self, proposal_list: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Combine individual single-sequence proposals into batched format."""
-        if not proposal_list:
-            return {
-                "proposal_token_ids": torch.empty(0),
-                "proposal_probs": None,
-                "proposal_lens": torch.empty(0, dtype=torch.long),
-                "no_proposals": True,
-                "probs_in_shared_buffer": False,
+        # Drafted sequences -> verify queue (have proposals as batch)
+        if draft_seqs and new_proposals is not None:
+            self._verify_proposals = new_proposals
+            self._verify_indices = {
+                self._get_seq_id(sgm): i
+                for i, sgm in enumerate(draft_seqs)
             }
 
-        token_ids_list = []
-        probs_list = []
-        lens_list = []
-        has_probs = False
-
-        for p in proposal_list:
-            tid = p["proposal_token_ids"]
-            if isinstance(tid, torch.Tensor):
-                token_ids_list.append(tid)
-            pprobs = p["proposal_probs"]
-            if pprobs is not None:
-                has_probs = True
-                if isinstance(pprobs, torch.Tensor):
-                    probs_list.append(pprobs)
-            pl = p["proposal_lens"]
-            if isinstance(pl, torch.Tensor):
-                lens_list.append(pl)
-
-        merged = {
-            "proposal_token_ids": torch.cat(token_ids_list, dim=0)
-            if token_ids_list else torch.empty(0),
-            "proposal_probs": torch.cat(probs_list, dim=0)
-            if has_probs and probs_list else None,
-            "proposal_lens": torch.cat(lens_list, dim=0)
-            if lens_list else torch.empty(0, dtype=torch.long),
-            "no_proposals": all(p.get("no_proposals", False)
-                                for p in proposal_list),
-            "probs_in_shared_buffer": False,
-        }
-        return merged
-
-    def _run_prefills_only(
-            self,
-            prefill_seqs: List[SequenceGroupMetadata]) -> List[Any]:
-        """Run prefills through target model when no verify is happening."""
-        stream = torch.cuda.current_stream()
-        self.sm_controller.set_full_gpu(stream)
-
-        execute_model_req = ExecuteModelRequest(
-            seq_group_metadata_list=prefill_seqs,
-            num_lookahead_slots=0,
-        )
-        output = self.target_worker.execute_model(execute_model_req)
-
-        # Sync draft KV for these prefills
-        prefill_only = [seq for seq in prefill_seqs if seq.is_prompt]
-        if prefill_only:
-            self.draft_rpc.execute_prefill(prefill_only)
-
-        return output
-
-    def _score_proposals(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        proposals_dict: Dict[str, Any],
-        gamma: int,
-    ) -> SpeculativeScores:
-        """Score proposals using the target model."""
-        sdw = self.spec_decode_worker
-        device = sdw.device
-
-        proposals = self._dict_to_proposals(proposals_dict, device)
-
-        execute_model_req = ExecuteModelRequest(
-            seq_group_metadata_list=seq_group_metadata_list,
-            num_lookahead_slots=gamma,
-        )
-
-        return sdw.scorer.score_proposals(execute_model_req, proposals)
-
-    def _verify(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        target_scores: SpeculativeScores,
-        proposals_dict: Dict[str, Any],
-        gamma: int,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Verify proposals using speculative decoding acceptance."""
-        sdw = self.spec_decode_worker
-        device = sdw.device
-
-        proposals = self._dict_to_proposals(proposals_dict, device)
-        max_proposal_len = max(proposals.proposal_lens).item() \
-            if isinstance(proposals.proposal_lens, torch.Tensor) \
-            else max(proposals.proposal_lens)
-
-        return sdw._verify_tokens(
-            seq_group_metadata_list, target_scores,
-            proposals, max_proposal_len)
-
-    def _create_output(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        accepted_token_ids: torch.Tensor,
-        logprobs: torch.Tensor,
-        gamma: int,
-        proposals_dict: Optional[Dict[str, Any]] = None,
-    ) -> List[Any]:
-        """Create SamplerOutput list from accepted tokens."""
-        sdw = self.spec_decode_worker
-
-        if proposals_dict is not None:
-            # Use real proposal_lens from draft (handles prefill=0 correctly)
-            lens = proposals_dict["proposal_lens"]
-            if isinstance(lens, torch.Tensor):
-                proposal_lens_list = lens.tolist()
-            else:
-                proposal_lens_list = list(lens)
-        else:
-            # Fallback: construct from batch metadata
-            proposal_lens_list = []
-            for sgm in seq_group_metadata_list:
-                if sgm.is_prompt:
-                    proposal_lens_list.append(0)
-                else:
-                    proposal_lens_list.append(gamma)
-
-        stage_times = (0.0, 0.0, 0.0)  # timing not tracked in orchestrator
-
-        return sdw._create_output_sampler_list(
-            seq_group_metadata_list,
-            accepted_token_ids,
-            target_logprobs=logprobs,
-            prompt_logprobs=None,
-            k=gamma,
-            stage_times=stage_times,
-            proposal_lens_list=proposal_lens_list,
-        )
-
-    def _sync_draft_prefills(
-        self,
-        seq_group_metadata_list: List[SequenceGroupMetadata],
-        proposals_dict: Dict[str, Any],
-    ) -> None:
-        """Sync draft proposer KV cache for prefill sequences.
-
-        After target scoring, prefill sequences (proposal_lens=0) need their
-        KV cache populated in the draft model. This mirrors the logic in
-        spec_decode_worker.py:921-936.
-        """
-        lens = proposals_dict["proposal_lens"]
-        if isinstance(lens, torch.Tensor):
-            proposal_lens_list = lens.tolist()
-        else:
-            proposal_lens_list = list(lens)
-
-        _, (non_spec_seqs, non_spec_indices) = split_batch_by_proposal_len(
-            seq_group_metadata_list, proposal_lens_list)
-
-        if not non_spec_seqs:
-            return
-
-        # Filter to only actual prefill sequences
-        prefill_seqs = [seq for seq in non_spec_seqs if seq.is_prompt]
-        if prefill_seqs:
-            self.draft_rpc.execute_prefill(prefill_seqs)
-
-    def _update_acceptance_stats(self, accepted_token_ids: torch.Tensor
-                                  ) -> None:
-        """Update acceptance statistics."""
-        if accepted_token_ids is not None and accepted_token_ids.numel() > 0:
-            spec_tokens = accepted_token_ids[:, 1:]  # exclude first token
-            self._total_spec += spec_tokens.numel()
-            self._accepted += (spec_tokens != -1).sum().item()
+    def remove_sequence(self, seq_id: int) -> None:
+        """Remove finished sequence from queues."""
+        self._draft_queue.pop(seq_id, None)
+        self._verify_indices.pop(seq_id, None)
+        self._pending_pool.pop(seq_id, None)
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get orchestrator statistics."""
-        acceptance_rate = (self._accepted / self._total_spec
-                          if self._total_spec > 0 else 0.0)
+        """Get acceptance stats from the rejection sampler.
+
+        The sampler accumulates correct counters because _verify_tokens()
+        filters out non-spec sequences (prefills) via
+        split_batch_by_proposal_len() before calling the sampler.
+        This matches regular SD exactly.
+        """
+        sampler = self.sdw.spec_decode_sampler
+        accepted = 0
+        draft = 0
+        if sampler is not None:
+            acc_val = sampler.num_accepted_tokens
+            draft_val = sampler.num_draft_tokens
+            accepted = int(
+                acc_val.item() if hasattr(acc_val, 'item') else acc_val)
+            draft = int(
+                draft_val if isinstance(draft_val, int) else draft_val)
+        rate = accepted / draft if draft > 0 else 0.0
         return {
             "step_count": self._step_count,
-            "acceptance_rate": acceptance_rate,
-            "accepted_tokens": self._accepted,
-            "total_spec_tokens": self._total_spec,
-        }
-
-    def get_timing_stats(self) -> Dict[str, Any]:
-        """Return average timing breakdown in ms.
-
-        Only available when COSPEC_PROFILE=1.
-        """
-        if not self._profiling_enabled or self._time_count == 0:
-            return {}
-        n = self._time_count
-        return {
-            "avg_propose_async_ms": self._times["propose_async"] / n * 1000,
-            "avg_score_ms": self._times["score"] / n * 1000,
-            "avg_propose_collect_ms": self._times["propose_collect"] / n * 1000,
-            "avg_sync_ms": self._times["sync"] / n * 1000,
-            "avg_verify_ms": self._times["verify"] / n * 1000,
-            "avg_total_ms": self._times["total"] / n * 1000,
-            "step_count": n,
+            "acceptance_rate": rate,
+            "accepted_tokens": accepted,
+            "total_spec_tokens": draft,
         }
 
     def shutdown(self) -> None:
-        """Gracefully shut down the draft worker."""
+        """Shutdown orchestrator and draft worker."""
         logger.info("CoSpecOrchestrator shutting down. Stats: %s",
                      self.get_stats())
-        if self._profiling_enabled:
-            timing_stats = self.get_timing_stats()
-            logger.info("CoSpec timing: %s", timing_stats)
         try:
-            remaining = self.flush()
-            if remaining:
-                logger.info("CoSpecOrchestrator: flushed %d remaining outputs",
-                            len(remaining))
+            self.draft_rpc.shutdown()
         except Exception:
             pass
-        self.draft_rpc.shutdown()
-        if self.shared_logit_buffer is not None:
-            self.shared_logit_buffer.cleanup()
+
+    def _log_step(
+        self,
+        mode: str,
+        n_prefill: int,
+        n_draft: int,
+        n_verify: int,
+        t_draft_ms: float = 0.0,
+        t_target_ms: float = 0.0,
+        t_prefill_ms: float = 0.0,
+        t_total_ms: float = 0.0,
+    ) -> None:
+        """Log a single summary line for this step.
+
+        Fields:
+          mode     - AR / SD / CoSpec
+          P/D/V    - prefill / draft / verify batch sizes this step
+          pend     - sequences deferred to next step (load balancing)
+          accept   - tokens accepted/proposed this step (cumulative %)
+          timing   - per-phase wall-clock breakdown
+                     draft  = gamma draft model iterations (async on draft process)
+                     target = target forward pass + rejection sampling + output
+                     prefill = target prefill + draft KV sync
+          total    - end-to-end step time
+
+        Example output:
+          [CoSpec step=42] CoSpec | P=1 D=4 V=4 pend=2 | accept: 18/20=90% (cum 91.2%) | draft=2.1ms target=18.7ms | 34.3ms
+          [CoSpec step=43] SD    | P=0 D=6 V=0 | draft=15.1ms | 15.1ms
+          [CoSpec step=44] AR    | P=2 D=0 V=0 | prefill=8.3ms | 8.3ms
+        """
+        # Per-step acceptance from sampler delta
+        sampler = self.sdw.spec_decode_sampler
+        cur_acc = 0
+        cur_draft = 0
+        step_acc = 0
+        step_draft = 0
+        if sampler is not None:
+            acc_val = sampler.num_accepted_tokens
+            draft_val = sampler.num_draft_tokens
+            cur_acc = int(
+                acc_val.item() if hasattr(acc_val, 'item') else acc_val)
+            cur_draft = int(
+                draft_val if isinstance(draft_val, int) else draft_val)
+            step_acc = cur_acc - self._prev_accepted_tokens
+            step_draft = cur_draft - self._prev_draft_tokens
+            self._prev_accepted_tokens = cur_acc
+            self._prev_draft_tokens = cur_draft
+
+        # Batch composition string
+        n_pend = len(self._pending_pool)
+        if n_pend > 0:
+            batch_str = f"P={n_prefill} D={n_draft} V={n_verify} pend={n_pend}"
+        else:
+            batch_str = f"P={n_prefill} D={n_draft} V={n_verify}"
+
+        # Build timing string (only include non-zero phases)
+        timing_parts = []
+        if t_draft_ms > 0:
+            timing_parts.append(f"draft={t_draft_ms:.1f}ms")
+        if t_target_ms > 0:
+            timing_parts.append(f"target={t_target_ms:.1f}ms")
+        if t_prefill_ms > 0:
+            timing_parts.append(f"prefill={t_prefill_ms:.1f}ms")
+        timing = " ".join(timing_parts)
+
+        # Build acceptance string (only for steps that verify)
+        if step_draft > 0:
+            cum_rate = cur_acc / cur_draft * 100 if cur_draft > 0 else 0.0
+            accept_str = (f"accept: {step_acc}/{step_draft}="
+                          f"{step_acc / step_draft * 100:.0f}% "
+                          f"(cum {cum_rate:.1f}%) | ")
+        else:
+            accept_str = ""
+
+        logger.info(
+            "[CoSpec step=%d] %-6s | %s | %s%s| total=%.1fms",
+            self._step_count, mode, batch_str,
+            accept_str, timing, t_total_ms,
+        )
+
+    @staticmethod
+    def _get_seq_id(sgm: SequenceGroupMetadata) -> int:
+        """Get sequence ID from metadata."""
+        return next(iter(sgm.seq_data.keys()))

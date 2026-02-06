@@ -6,7 +6,6 @@ with configurable SM (streaming multiprocessor) partitioning via MPS.
 
 import ctypes
 import os
-from functools import wraps
 from typing import Optional
 
 import torch
@@ -15,27 +14,12 @@ from vllm.logger import init_logger
 
 logger = init_logger(__name__)
 
-# Default path to libsmctrl.so relative to the CoSpec csrc build directory
 _DEFAULT_LIBSMCTRL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "cospec", "csrc", "build", "libsmctrl.so")
 
-
-def _check_ret_code(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        rets = func(*args, **kwargs)
-        if isinstance(rets, tuple):
-            ret_code = rets[0]
-            ret_res = rets[1]
-        else:
-            ret_code = rets or 0
-            ret_res = None
-        if ret_code != 0:
-            raise OSError(ret_code,
-                          f"{os.strerror(ret_code)} in {func.__name__}")
-        return ret_res
-    return wrapper
+_MPS_ERROR = ("CoSpec requires NVIDIA MPS for SM partitioning. "
+              "Start MPS with: bash cospec/scripts/start_mps.sh")
 
 
 class c_uint128(ctypes.Structure):
@@ -55,85 +39,11 @@ class c_uint128(ctypes.Structure):
         return self.low | (self.high << 64)
 
 
-class _LibSMCtrl:
-    """Low-level ctypes bindings to libsmctrl."""
-
-    def __init__(self, libsmctrl_path: str):
-        device_props = torch.cuda.get_device_properties(
-            torch.cuda.current_device())
-        self.total_sms = device_props.multi_processor_count
-        try:
-            self.lib = ctypes.CDLL(libsmctrl_path)
-        except Exception as e:
-            raise OSError(
-                f"Failed to load libsmctrl.so from {libsmctrl_path}: {e}. "
-                "Build it with: cd cospec/csrc && mkdir -p build && cd build "
-                "&& cmake .. && make")
-
-        # Set return types for ctypes functions.
-        # libsmctrl_set_global_mask and _ext are void - ctypes defaults to
-        # c_int which reads garbage from memory, causing spurious errors.
-        self.lib.libsmctrl_set_global_mask.restype = None
-        self.lib.libsmctrl_set_global_mask.argtypes = [ctypes.c_uint64]
-        # The _ext version also returns void
-        if hasattr(self.lib, 'libsmctrl_set_global_mask_ext'):
-            self.lib.libsmctrl_set_global_mask_ext.restype = None
-            self.lib.libsmctrl_set_global_mask_ext.argtypes = [c_uint128]
-        # Stream mask functions return int
-        self.lib.libsmctrl_set_stream_mask.restype = ctypes.c_int
-        self.lib.libsmctrl_set_stream_mask.argtypes = [
-            ctypes.c_void_p, ctypes.c_uint64]
-        if hasattr(self.lib, 'libsmctrl_set_stream_mask_ext'):
-            self.lib.libsmctrl_set_stream_mask_ext.restype = ctypes.c_int
-            self.lib.libsmctrl_set_stream_mask_ext.argtypes = [
-                ctypes.c_void_p, c_uint128]
-
-    @_check_ret_code
-    def set_global_mask(self, mask: int) -> None:
-        if self.total_sms >= 128:
-            raise ValueError(
-                f"total_sms {self.total_sms} >= 128, use stream mask instead")
-        return self.lib.libsmctrl_set_global_mask(ctypes.c_uint64(mask))
-
-    @_check_ret_code
-    def set_stream_mask(self, stream: torch.cuda.Stream, mask: int) -> None:
-        stream_ptr = stream.cuda_stream
-        if stream_ptr == 0:
-            # Default stream (null handle) — use global mask instead
-            if self.total_sms < 128:
-                return self.lib.libsmctrl_set_global_mask(
-                    ctypes.c_uint64(mask))
-            else:
-                return self.lib.libsmctrl_set_global_mask_ext(c_uint128(mask))
-        if self.total_sms < 128:
-            return self.lib.libsmctrl_set_stream_mask(
-                ctypes.c_void_p(stream_ptr), ctypes.c_uint64(mask))
-        else:
-            return self.lib.libsmctrl_set_stream_mask_ext(
-                ctypes.c_void_p(stream_ptr), c_uint128(mask))
-
-    @_check_ret_code
-    def get_tpc_count(self, cuda_dev: int) -> int:
-        num_tpcs = ctypes.c_uint32()
-        ret = self.lib.libsmctrl_get_tpc_info_cuda(
-            ctypes.byref(num_tpcs), cuda_dev)
-        return ret, num_tpcs.value
-
-    @_check_ret_code
-    def make_mask(self, low: int, high_exclusive: int) -> int:
-        result = ctypes.c_uint64()
-        ret = self.lib.libsmctrl_make_mask(
-            ctypes.byref(result), low, high_exclusive)
-        return ret, result.value
-
-
 class SMController:
-    """High-level SM partitioning controller for CoSpec v2.
+    """SM partitioning controller for CoSpec.
 
     Manages SM allocation between target and draft processes using
-    libsmctrl stream masks. Each process creates its own SMController
-    and calls set_partition() or set_full_gpu() as directed by the
-    orchestrator.
+    libsmctrl stream masks. Each process creates its own SMController.
 
     Args:
         libsmctrl_path: Path to libsmctrl.so shared library.
@@ -145,52 +55,111 @@ class SMController:
         if libsmctrl_path is None:
             libsmctrl_path = _DEFAULT_LIBSMCTRL_PATH
         self.is_target = is_target
-        self._lib = _LibSMCtrl(libsmctrl_path)
-        self.total_tpcs = self._lib.get_tpc_count(
+
+        # Load library
+        try:
+            self._lib = ctypes.CDLL(libsmctrl_path)
+        except Exception as e:
+            raise OSError(
+                f"Failed to load libsmctrl.so from {libsmctrl_path}: {e}. "
+                "Build it with: cd cospec/csrc && mkdir -p build && cd build "
+                "&& cmake .. && make")
+
+        # GPU info
+        device_props = torch.cuda.get_device_properties(
             torch.cuda.current_device())
+        self.total_sms = device_props.multi_processor_count
+
+        # Configure ctypes signatures
+        # set_global_mask is void (ctypes defaults to c_int, causing garbage)
+        self._lib.libsmctrl_set_global_mask.restype = None
+        self._lib.libsmctrl_set_global_mask.argtypes = [ctypes.c_uint64]
+        if hasattr(self._lib, 'libsmctrl_set_global_mask_ext'):
+            self._lib.libsmctrl_set_global_mask_ext.restype = None
+            self._lib.libsmctrl_set_global_mask_ext.argtypes = [c_uint128]
+        # set_stream_mask returns int (error code)
+        self._lib.libsmctrl_set_stream_mask.restype = ctypes.c_int
+        self._lib.libsmctrl_set_stream_mask.argtypes = [
+            ctypes.c_void_p, ctypes.c_uint64]
+        if hasattr(self._lib, 'libsmctrl_set_stream_mask_ext'):
+            self._lib.libsmctrl_set_stream_mask_ext.restype = ctypes.c_int
+            self._lib.libsmctrl_set_stream_mask_ext.argtypes = [
+                ctypes.c_void_p, c_uint128]
+
+        # Get TPC count
+        num_tpcs = ctypes.c_uint32()
+        ret = self._lib.libsmctrl_get_tpc_info_cuda(
+            ctypes.byref(num_tpcs), torch.cuda.current_device())
+        if ret != 0:
+            raise OSError(ret, f"{os.strerror(ret)} in get_tpc_info_cuda")
+        self.total_tpcs = num_tpcs.value
+
         logger.info("SMController initialized: total_tpcs=%d, is_target=%s",
                      self.total_tpcs, is_target)
+
+    def _make_mask(self, low: int, high_exclusive: int) -> int:
+        """Create a TPC bitmask for the range [low, high_exclusive)."""
+        result = ctypes.c_uint64()
+        ret = self._lib.libsmctrl_make_mask(
+            ctypes.byref(result), low, high_exclusive)
+        if ret != 0:
+            raise OSError(ret, f"{os.strerror(ret)} in make_mask")
+        return result.value
+
+    def _set_stream_mask(self, stream: torch.cuda.Stream, mask: int) -> None:
+        """Apply a TPC mask to a CUDA stream."""
+        stream_ptr = stream.cuda_stream
+        if stream_ptr == 0:
+            # Default stream (null handle) — use global mask
+            if self.total_sms < 128:
+                self._lib.libsmctrl_set_global_mask(ctypes.c_uint64(mask))
+            else:
+                self._lib.libsmctrl_set_global_mask_ext(c_uint128(mask))
+        elif self.total_sms < 128:
+            ret = self._lib.libsmctrl_set_stream_mask(
+                ctypes.c_void_p(stream_ptr), ctypes.c_uint64(mask))
+            if ret != 0:
+                raise PermissionError(ret, os.strerror(ret))
+        else:
+            ret = self._lib.libsmctrl_set_stream_mask_ext(
+                ctypes.c_void_p(stream_ptr), c_uint128(mask))
+            if ret != 0:
+                raise PermissionError(ret, os.strerror(ret))
 
     def set_partition(self, stream: torch.cuda.Stream, ratio: float) -> None:
         """Partition SMs for this process.
 
         Args:
             stream: CUDA stream to apply the mask to.
-            ratio: Fraction of TPCs to allocate to this process (0.0-1.0).
-                For target process, allocates TPCs from the bottom.
-                For draft process, allocates TPCs from the top.
+            ratio: Fraction of TPCs to allocate (0.0-1.0).
+                Target allocates from the bottom, draft takes the rest.
+                Draft's range starts exactly where target ends, so no
+                TPCs are left idle due to int() truncation.
         """
-        num_tpcs = max(1, int(self.total_tpcs * ratio))
         if self.is_target:
+            num_tpcs = max(1, int(self.total_tpcs * ratio))
             low, high = 0, num_tpcs
         else:
-            low, high = self.total_tpcs - num_tpcs, self.total_tpcs
-        mask = self._lib.make_mask(low, high)
+            # Compute where target ends and take everything above it.
+            # target_ratio = 1.0 - draft_ratio
+            target_end = max(1, int(self.total_tpcs * (1.0 - ratio)))
+            low, high = target_end, self.total_tpcs
+        mask = self._make_mask(low, high)
         try:
-            self._lib.set_stream_mask(stream, mask)
+            self._set_stream_mask(stream, mask)
         except PermissionError as e:
             raise RuntimeError(
-                "SMController: set_partition failed - MPS not available. "
-                "CoSpec requires NVIDIA MPS for SM partitioning. "
-                "Start MPS with: bash cospec/scripts/start_mps.sh"
-            ) from e
+                f"SMController: set_partition failed - {_MPS_ERROR}") from e
         logger.debug("SMController partition: tpcs [%d, %d) for %s",
                      low, high, "target" if self.is_target else "draft")
 
     def set_full_gpu(self, stream: torch.cuda.Stream) -> None:
-        """Give this process access to all SMs.
-
-        Args:
-            stream: CUDA stream to apply the full mask to.
-        """
-        mask = self._lib.make_mask(0, self.total_tpcs)
+        """Give this process access to all SMs."""
+        mask = self._make_mask(0, self.total_tpcs)
         try:
-            self._lib.set_stream_mask(stream, mask)
+            self._set_stream_mask(stream, mask)
         except PermissionError as e:
             raise RuntimeError(
-                "SMController: set_full_gpu failed - MPS not available. "
-                "CoSpec requires NVIDIA MPS for SM partitioning. "
-                "Start MPS with: bash cospec/scripts/start_mps.sh"
-            ) from e
+                f"SMController: set_full_gpu failed - {_MPS_ERROR}") from e
         logger.debug("SMController full GPU for %s",
                      "target" if self.is_target else "draft")

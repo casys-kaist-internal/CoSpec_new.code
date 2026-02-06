@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """CacheEngine class for managing the KV cache."""
-from typing import List, Optional
+from typing import List
 
 import torch
 
@@ -27,13 +27,11 @@ class CacheEngine:
         model_config: ModelConfig,
         parallel_config: ParallelConfig,
         device_config: DeviceConfig,
-        shared_mode: Optional[str] = None,
     ) -> None:
         self.cache_config = cache_config
         self.model_config = model_config
         self.parallel_config = parallel_config
         self.device_config = device_config
-        self.shared_mode = shared_mode  # None, "owner", or "client"
 
         self.head_size = model_config.get_head_size()
         # Models like Jamba, have mixed typed layers, E.g Mamba
@@ -72,29 +70,9 @@ class CacheEngine:
         num_blocks: int,
         device: str,
     ) -> List[torch.Tensor]:
-        """Allocates KV cache on the specified device.
-
-        When shared_mode is set and device is GPU:
-        - "owner": allocate normally and export CUDA IPC handles
-        - "client": import tensors from CUDA IPC handles (shared with owner)
-        - None: legacy behavior, allocate normally
-        """
+        """Allocates KV cache on the specified device."""
         kv_cache_shape = self.attn_backend.get_kv_cache_shape(
             num_blocks, self.block_size, self.num_kv_heads, self.head_size)
-
-        # Use shared KV cache for GPU allocations when shared_mode is set
-        if self.shared_mode is not None and device not in ("cpu",):
-            from vllm.cospec.shared_memory import SharedKVCache
-            allocator = SharedKVCache(
-                mode=self.shared_mode, instance_id="default")
-            self._shared_kv_allocator = allocator
-            return allocator.allocate(
-                kv_cache_shape=kv_cache_shape,
-                dtype=self.dtype,
-                num_layers=self.num_attention_layers,
-                device=device,
-            )
-
         pin_memory = is_pin_memory_available() if device == "cpu" else False
         kv_cache: List[torch.Tensor] = []
 

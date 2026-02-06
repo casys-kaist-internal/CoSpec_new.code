@@ -121,6 +121,20 @@ class SchedulerContext:
                        skip=[]))
 
 
+def _get_cospec_data(executor):
+    """Get pre-computed CoSpec per-seq-group outputs and skip indices."""
+    try:
+        worker = getattr(executor, 'driver_worker', None)
+        if worker is None:
+            return None, []
+        actual = getattr(worker, 'worker', worker)
+        obsg = getattr(actual, '_cospec_outputs_by_seq_group', None)
+        skip = getattr(actual, '_cospec_skip_indices', None) or []
+        return obsg, skip
+    except Exception:
+        return None, []
+
+
 class LLMEngine:
     """An LLM engine that receives requests and generates texts.
 
@@ -442,15 +456,6 @@ class LLMEngine:
         elapsed = time.time() - start
         logger.info(("init engine (profile, create kv cache, "
                     "warmup model) took %.2f seconds"), elapsed)
-
-    def lazy_initialize_kv_cache(self) -> None:
-        """
-        Workaround to avoid OOM errors when loading model from shared memory.
-        Note: This is for the multiprocessing engine path, not used by CoSpec.
-        """
-        raise NotImplementedError(
-            "lazy_initialize_kv_cache requires shared memory setup. "
-            "CoSpec uses direct CUDA IPC for KV cache sharing.")
 
     @classmethod
     def _get_executor_cls(cls,
@@ -1007,19 +1012,6 @@ class LLMEngine:
             seq_group.update_num_computed_tokens(
                 seq_group_meta.token_chunk_size)
 
-    def _get_cospec_skip(self) -> Optional[List[int]]:
-        """Get skip indices from CoSpec spec_decode_worker, if available."""
-        try:
-            executor = self.model_executor
-            worker = getattr(executor, 'driver_worker', None)
-            if worker is None:
-                return None
-            # WorkerWrapperBase wraps the actual worker
-            actual = getattr(worker, 'worker', worker)
-            return getattr(actual, '_cospec_skip', None)
-        except Exception:
-            return None
-
     def _process_model_outputs(self,
                                ctx: SchedulerContext,
                                request_id: Optional[str] = None) -> None:
@@ -1050,81 +1042,35 @@ class LLMEngine:
         assert len(seq_group_metadata_list) == len(
             scheduler_outputs.scheduled_seq_groups)
 
-        # CoSpec two-queue: outputs may be partial (only verify_seqs +
-        # prefills). Add skip indices for draft-phase sequences.
-        # When outputs is empty (bootstrap phase), skip output processing
-        # entirely - the sequences will be scheduled again next step.
+        # CoSpec: handle partial outputs from two-queue pipeline.
+        # The worker pre-computes per-seq-group outputs in scheduler order,
+        # so we just read them here instead of doing remapping.
+        cospec_obsg = None
         if envs.COSPEC:
             if not outputs:
-                # CoSpec bootstrap phase: no-op step. Skip output processing.
-                # The scheduler will re-schedule these sequences next step.
-                return
-            cospec_skip = self._get_cospec_skip()
+                return  # Bootstrap phase: no-op step
+            cospec_obsg, cospec_skip = _get_cospec_data(self.model_executor)
             if cospec_skip:
                 for idx in cospec_skip:
                     if idx not in skip:
                         skip.append(idx)
 
-        has_multiple_outputs: bool = len(outputs) > 1
+        has_multiple_outputs: bool
         outputs_by_sequence_group: List[List[SequenceGroupOutput]]
-        if has_multiple_outputs:
+        if cospec_obsg is not None:
+            # CoSpec: use pre-computed per-seq-group outputs directly
+            has_multiple_outputs = True
+            outputs_by_sequence_group = cospec_obsg
+            is_first_step_output = None
+        elif len(outputs) > 1:
+            has_multiple_outputs = True
             assert self.scheduler_config.is_multi_step or \
                      self.speculative_config
-            # Organize outputs by [step][sequence group] instead of
-            # [sequence group][step].
-            if self.scheduler_config.is_multi_step:
-                outputs_by_sequence_group = create_output_by_sequence_group(
-                    outputs, len(seq_group_metadata_list))
-            elif self.speculative_config:
-                # CoSpec two-queue: outputs are indexed by target_batch
-                # (subset), not full seq_group_metadata_list. Count
-                # non-skipped prefills/decodes for correct remapping.
-                cospec_skip_set = set(skip) if skip else set()
-
-                # Decodes are multi-steps while prefills are not, outputting at
-                # most 1 token. Separate them so that we can trigger chunk
-                # processing without having to pad or copy over prompts K times
-                # to match decodes structure (costly with prompt_logprobs).
-                num_prefills = sum(
-                    sg.is_prompt for i, sg in
-                    enumerate(seq_group_metadata_list)
-                    if i not in cospec_skip_set)
-                prefills, decodes = outputs[:num_prefills], outputs[
-                    num_prefills:]
-                num_non_skip_decodes = sum(
-                    1 for i, sg in enumerate(seq_group_metadata_list)
-                    if not sg.is_prompt and i not in cospec_skip_set)
-                outputs_by_sequence_group = create_output_by_sequence_group(
-                    decodes,
-                    num_seq_groups=num_non_skip_decodes)
-                outputs_by_sequence_group = [p.outputs for p in prefills
-                                             ] + outputs_by_sequence_group
-
-                # Remap: insert empty placeholders for skipped sequences
-                # so indices align with seq_group_metadata_list.
-                # Note: outputs_by_sequence_group is ordered as [prefills,
-                # decodes], so we need separate counters for each type.
-                if cospec_skip_set:
-                    full_outputs: List = [None] * len(
-                        seq_group_metadata_list)
-                    prefill_idx = 0
-                    decode_idx = num_prefills  # decodes start after prefills
-                    for i in range(len(seq_group_metadata_list)):
-                        if i in cospec_skip_set:
-                            full_outputs[i] = []  # placeholder
-                        elif seq_group_metadata_list[i].is_prompt:
-                            full_outputs[i] = outputs_by_sequence_group[
-                                prefill_idx]
-                            prefill_idx += 1
-                        else:
-                            full_outputs[i] = outputs_by_sequence_group[
-                                decode_idx]
-                            decode_idx += 1
-                    outputs_by_sequence_group = full_outputs
-            # We have outputs for multiple steps submitted in a single burst,
-            # so invalidate is_first_step_output.
+            outputs_by_sequence_group = create_output_by_sequence_group(
+                outputs, len(seq_group_metadata_list))
             is_first_step_output = None
         else:
+            has_multiple_outputs = False
             outputs_by_sequence_group = outputs
 
         # Determine the requests we need to operate on
@@ -1171,8 +1117,17 @@ class LLMEngine:
                     self._update_num_computed_tokens_for_multi_step_prefill(
                         seq_group, seq_group_meta, is_first_step_output)
                 else:
-                    seq_group.update_num_computed_tokens(
-                        seq_group_meta.token_chunk_size or 0)
+                    token_chunk_size = seq_group_meta.token_chunk_size or 0
+                    # CoSpec safety: skip update if it would overflow
+                    # (stale metadata or empty output can desync the counter)
+                    if envs.COSPEC and cospec_obsg is not None:
+                        for seq in seq_group.get_seqs():
+                            if (seq.data.get_num_computed_tokens()
+                                    + token_chunk_size
+                                    > seq.data.get_len()):
+                                token_chunk_size = 0
+                                break
+                    seq_group.update_num_computed_tokens(token_chunk_size)
 
             if outputs:
                 for o in outputs:
@@ -1994,13 +1949,6 @@ class LLMEngine:
 
     def stop_profile(self) -> None:
         self.model_executor.stop_profile()
-
-    def set_num_speculative_tokens(self, num_speculative_tokens: int) -> None:
-        self.vllm_config.scheduler_config.num_lookahead_slots = num_speculative_tokens
-        self.vllm_config.speculative_config.num_speculative_tokens = num_speculative_tokens
-
-    def set_max_num_seqs(self, max_num_seqs: int) -> None:
-        self.vllm_config.scheduler_config.max_num_seqs = max_num_seqs
 
     def sleep(self, level: int = 1) -> None:
         assert self.vllm_config.model_config.enable_sleep_mode, (

@@ -114,7 +114,6 @@ if TYPE_CHECKING:
     # CoSpec specific env vars
     COSPEC: bool = False
     COSPEC_TARGET_SM_RATIO: float = 0.7
-    COSPEC_PROFILE: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -740,10 +739,6 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "COSPEC_TARGET_SM_RATIO":
     lambda: float(os.getenv("COSPEC_TARGET_SM_RATIO", "0.7")),
 
-    # Enable CoSpec profiling (timing stats logged on shutdown)
-    "COSPEC_PROFILE":
-    lambda: bool(int(os.getenv("COSPEC_PROFILE", "0"))),
-
 }
 
 # end-env-vars-definition
@@ -775,13 +770,6 @@ def set_vllm_use_v1(use_v1: bool):
             "Issue and explicitly set VLLM_USE_V1=0 or 1.")
     os.environ["VLLM_USE_V1"] = "1" if use_v1 else "0"
 
-def set_COSPEC(use_cospec: bool):
-    if is_set("COSPEC"):
-        raise ValueError(
-            "Should not call set_COSPEC() if COSPEC is set "
-            "explicitly by the user. Please raise this as a Github "
-            "Issue and explicitly set COSPEC=0 or 1.")
-    os.environ["COSPEC"] = "1" if use_cospec else "0"
 
 def compute_hash() -> str:
     """

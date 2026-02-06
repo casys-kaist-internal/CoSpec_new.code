@@ -34,7 +34,21 @@
       "WebFetch(domain:www.usenix.org)",
       "WebFetch(domain:sites.google.com)",
       "WebFetch(domain:blog.vllm.ai)",
-      "Bash(sleep 2 docker exec -w /workspace -e VLLM_USE_V1=0 -e COSPEC=1 cospec-vllm timeout 120 python3 -c ' import os print\\(\"\"Testing CoSpec...\"\"\\) from vllm import LLM, SamplingParams from vllm.cospec import cleanup_cospec_resources cleanup_cospec_resources\\(\\) llm = LLM\\( model=\"\"JackFram/llama-68m\"\", enforce_eager=True, speculative_config={\"\"model\"\": \"\"JackFram/llama-68m\"\", \"\"num_speculative_tokens\"\": 5}, \\) print\\(\"\"LLM created, generating...\"\"\\) outputs = llm.generate\\([\"\"Hello\"\"], SamplingParams\\(temperature=0, max_tokens=10\\)\\) print\\(\"\"OUTPUT:\"\", outputs[0].outputs[0].text\\) ')"
+      "Bash(sleep 2 docker exec -w /workspace -e VLLM_USE_V1=0 -e COSPEC=1 cospec-vllm timeout 120 python3 -c ' import os print\\(\"\"Testing CoSpec...\"\"\\) from vllm import LLM, SamplingParams from vllm.cospec import cleanup_cospec_resources cleanup_cospec_resources\\(\\) llm = LLM\\( model=\"\"JackFram/llama-68m\"\", enforce_eager=True, speculative_config={\"\"model\"\": \"\"JackFram/llama-68m\"\", \"\"num_speculative_tokens\"\": 5}, \\) print\\(\"\"LLM created, generating...\"\"\\) outputs = llm.generate\\([\"\"Hello\"\"], SamplingParams\\(temperature=0, max_tokens=10\\)\\) print\\(\"\"OUTPUT:\"\", outputs[0].outputs[0].text\\) ')",
+      "Bash(pgrep:*)",
+      "Bash(kill:*)",
+      "Bash(sleep 3 docker exec -d cospec-vllm bash -c 'cd /workspace && COSPEC=1 VLLM_USE_V1=0 vllm serve Qwen/Qwen3-8B --speculative-config ''''{\"\"model\"\": \"\"Qwen/Qwen3-0.6B\"\", \"\"num_speculative_tokens\"\": 5}'''' --port 8000 --max-num-seqs 32 --enforce-eager > /tmp/server.log 2>&1' for i in {1..90})",
+      "Bash(do if docker exec cospec-vllm cat /tmp/server.log)",
+      "Bash(then)",
+      "Bash(break)",
+      "Bash(fi:*)",
+      "Bash(done)",
+      "Bash(sleep 3 docker exec -d cospec-vllm bash -c 'cd /workspace && COSPEC=1 VLLM_USE_V1=0 vllm serve Qwen/Qwen3-8B --speculative-config ''''{\"\"model\"\": \"\"Qwen/Qwen3-0.6B\"\", \"\"num_speculative_tokens\"\": 5}'''' --port 8000 --max-num-seqs 4 --enforce-eager > /tmp/server.log 2>&1' for i in {1..90})",
+      "Bash(sleep 3 docker exec -d cospec-vllm bash -c 'cd /workspace && COSPEC=1 VLLM_USE_V1=0 vllm serve Qwen/Qwen3-8B --speculative-config ''''{\"\"model\"\": \"\"Qwen/Qwen3-0.6B\"\", \"\"num_speculative_tokens\"\": 5}'''' --port 8000 --max-num-seqs 8 --enforce-eager > /tmp/server.log 2>&1' for i in {1..90})",
+      "Bash(VLLM_USE_V1=0 python:*)",
+      "Bash(while read pid)",
+      "Bash(do docker exec cospec-vllm kill -9 \"$pid\")",
+      "Bash(sort:*)"
     ]
   }
 }

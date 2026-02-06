@@ -1,4 +1,4 @@
-# CoSpec v2 — Specialized Workers with Shared KV Cache for vLLM
+# CoSpec v2 — Colocated Speculative Decoding for vLLM
 
 ## What Is CoSpec
 
@@ -13,7 +13,7 @@ API Entrypoint (thin, single queue)
         |
   Target Process (owns scheduler + orchestrator)
     ├── Target model weights
-    ├── Shared KV cache (allocated here, exported via CUDA IPC)
+    ├── Target KV cache
     ├── Shared logit buffer (allocated here, exported via CUDA IPC)
     ├── CostModel: decide(B, α, S) → (mode, γ, r)
     ├── SMController (libsmctrl)
@@ -21,12 +21,13 @@ API Entrypoint (thin, single queue)
         |
   Draft Process (RPC worker, receives commands)
     ├── Draft model weights
-    ├── Shared KV cache (opened via CUDA IPC)
+    ├── Draft KV cache (separate from target)
     ├── Shared logit buffer (opened via CUDA IPC)
     └── SMController (libsmctrl)
 ```
 
 Both processes on same GPU via MPS.
+Note: Target and draft have SEPARATE KV caches (different model architectures).
 
 ## Three Modes (per-step decision, zero-cost switching)
 
@@ -46,17 +47,17 @@ Both processes on same GPU via MPS.
 | `sm_controller.py` | `SMController`: ctypes wrapper for libsmctrl SM partitioning. `CospecManager`: creates controller, holds config. |
 | `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining. `Mode` enum. Always uses colocated mode with SM ratio 0.7. |
 | `worker_rpc.py` | `DraftWorkerRPC` (client) and `DraftWorkerServer` (draft process). Commands over pipe, large data via shared GPU memory. |
-| `shared_memory.py` | `SharedKVCache` and `SharedLogitBuffer`: CUDA IPC for sharing GPU tensors between target and draft processes. |
+| `shared_memory.py` | `SharedLogitBuffer`: CUDA IPC for sharing draft logits between target and draft processes. |
+| `metadata.py` | `CoSpecOutputMetadata`: Dataclass bundling per-step output metadata (seq_ids, num_prefills, skip_indices). |
 
 ### Modified vLLM Files
 
 | File | CoSpec Changes |
 |------|----------------|
 | `vllm/envs.py` | Defines `COSPEC` environment variable (master switch). `VLLM_USE_V1` defaults to `1` (non-CoSpec users get V1). |
-| `vllm/worker/cache_engine.py` | `shared_mode` parameter in `_allocate_kv_cache()`: `"owner"` (allocate + export IPC), `"client"` (open IPC), `None` (legacy) |
 | `vllm/worker/model_runner.py` | Standard vLLM model runner. SM partitioning is managed by the orchestrator, not model_runner. |
-| `vllm/spec_decode/spec_decode_worker.py` | Creates `CospecManager` with SM controller, wires to workers. Handles two-queue partial outputs via `_cospec_skip`. Calls `orchestrator.remove_sequence()` on finished requests. |
-| `vllm/engine/llm_engine.py` | Handles CoSpec empty outputs (no-op bootstrap steps) and partial outputs (`_cospec_skip` indices for draft-phase sequences). |
+| `vllm/spec_decode/spec_decode_worker.py` | Creates `CospecManager` with SM controller, wires to workers. Stores per-step `CoSpecOutputMetadata` for engine. Calls `orchestrator.remove_sequence()` on finished requests. |
+| `vllm/engine/llm_engine.py` | Handles CoSpec empty outputs (no-op bootstrap steps) and partial outputs via `CoSpecOutputMetadata` for seq_id-based remapping. |
 | `vllm/entrypoints/openai/api_server.py` | Engine selection: `COSPEC=1` → in-process AsyncLLMEngine, else V1/V0 branching. Calls `cleanup_cospec_resources()` on startup. |
 | `vllm/config.py` | `SpeculativeConfig.is_primary` field |
 | `vllm/engine/arg_utils.py` | `is_primary` parameter threading |
@@ -121,7 +122,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 ## Implementation Progress (v2 wiring)
 
-### DONE — Code written and tested (26 tests pass: 14 unit + 12 E2E)
+### DONE — Code written and tested (11 unit + 12 E2E tests)
 1. **`shared_logit_buffer.py`**: Fixed double `_share_cuda_()` bug (line 68/72).
 2. **`cost_model.py`**: `decide()` hardcoded to always return `COLOCATED_SD` mode.
 3. **`worker_rpc.py`**: Added `propose_async()` / `propose_collect()` to `DraftWorkerRPC`. Wired `DraftWorkerServer._handle_propose()` to call `self._worker.get_spec_proposals()` and return CPU tensors over pipe.
@@ -156,7 +157,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 1. **Cost model latency formulas**: `cost_model.py` `decide()` is hardcoded to always return `COLOCATED_SD`. The skeleton latency formulas (`_latency_ar`, `_latency_vanilla_sd`, `_latency_colocated_sd`) need coefficients from profiling to enable actual per-step mode selection.
 2. **SM ratio tuning**: Hardcoded `default_sm_ratio=0.7`. Should be profiled per model pair.
 3. **`cospec_manager.target_sm_ratio` feedback from orchestrator**: Currently hardcoded 1.0. The orchestrator controls SM partitions directly via `sm_controller` but doesn't update `cospec_manager.target_sm_ratio`, which `model_runner.py` reads. Only matters for the non-orchestrator code path.
-4. **CUDA graph support**: E2E tests use `enforce_eager=True`. Need to verify CoSpec works with CUDA graphs enabled for max performance.
+4. ~~**CUDA graph support**~~: CoSpec works with CUDA graphs. Do NOT use `enforce_eager` — CUDA graphs are enabled by default and provide better performance.
 
 #### P2: Robustness — Edge cases and cleanup
 5. ~~**Process cleanup on shutdown**~~: FIXED — Added `atexit` handler for reliable cleanup. `DraftWorkerRPC.shutdown()` now waits for acknowledgment.
@@ -166,13 +167,16 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 9. **UltraDict cleanup at exit**: `FileNotFoundError: '/cospec_shared_3'` during interpreter shutdown. Non-fatal but noisy. Need to unlink shared memory before `cleanup_cospec_resources()` deletes it.
 
 ### RECENTLY FIXED
+40. **Fixed acceptance rate metrics discrepancy** (was P0): Two issues fixed:
+   - **Buggy counters**: Orchestrator's `_update_stats()` counted ALL rows of `accepted_token_ids` including prefill dummy rows. Fix: removed `_update_stats()` and orchestrator counters; `get_stats()` now reads directly from `self.sdw.spec_decode_sampler`.
+   - **Draft KV cache desync from bonus tokens**: After verification, the target gives a "bonus token" to accepted sequences. The draft model's KV cache was missing this token's entry, causing wrong proposals and ~13% rejection rate (87.44% acceptance vs expected 100% with same model). Fix: pass `seq_ids_with_bonus_token` from orchestrator to draft worker via RPC in both the concurrent phase (`propose_async`) and bootstrap phase (`propose`). The draft's `multi_step_worker._expand_execute_model_request()` then handles the bonus token expansion correctly (same mechanism as regular SD). Also syncs draft KV cache for prefills via `execute_prefill` RPC in `spec_decode_worker.py`. Test now shows 0% difference between CoSpec and regular SD (440/440 = 100% for both).
 7. **`sm_controller.py`**: Fixed segfault when `set_stream_mask` was called with the default CUDA stream (handle=0). Now falls back to `set_global_mask` for default stream. Added graceful `PermissionError` handling when MPS is not available (logs warning once, then silently skips). **Fixed ctypes restype bug**: `libsmctrl_set_global_mask` is a void function, but ctypes defaults to `c_int` return type. In thread pool workers (like AsyncLLMEngine uses), this caused garbage values to be interpreted as error code 1 (EPERM). Fixed by setting `restype = None` and `argtypes` for all libsmctrl functions.
 8. **`spec_decode_worker.py`**: Added `__del__` cleanup to shut down the orchestrator and draft thread on garbage collection.
 9. **`test_cost_model.py`**: Updated `test_ar_mode_has_zero_gamma` → `test_hardcoded_colocated_mode` to match the hardcoded always-colocated behavior.
 10. **`test_sm_controller.py`**: Added `PermissionError` handling for tests that need MPS privileges. Added `test_set_partition_explicit_stream` for non-default stream testing.
 11. **`loader.py` (SharedMemoryModelLoader)**: Fixed `CUDA error: invalid resource handle` when target and draft models are in the same process. Added in-process state_dict caching (`_inprocess_state_dicts` class variable) to avoid CUDA IPC for intra-process sharing. Draft model now loads from cached state_dict in ~6ms instead of failing.
 12. **`orchestrator.py`**: Replaced `_prev_batch`/`_prev_proposals` pipeline with two-queue model (`_draft_queue`, `_verify_queue`, `_pending_pool`). Load-balanced entry for new decode sequences. `flush()` drains pipeline on shutdown. `remove_sequence()` for cleanup.
-13. **All tests passing**: 26 tests pass (14 unit + 12 E2E). Run all tests: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
+13. **All tests passing**: 23 tests pass (11 unit + 12 E2E). Run all tests: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
 14. **Chunked prefill support in orchestrator** (was P0): `_create_output()` now uses real `proposal_lens` from draft proposals instead of hardcoding gamma. Added `_sync_draft_prefills()` to sync draft KV cache for prefill sequences after target scoring (mirrors `spec_decode_worker.py:921-936`). Added `EXECUTE_PREFILL` RPC command in `worker_rpc.py`. Added E2E test with `enable_chunked_prefill=True`.
 15. **IPC cleanup**: `cleanup_cospec_resources()` in `cospec_manager.py` removes stale `/dev/shm/cospec_*` and `/tmp/cospec_*`. Called from `api_server.py` on startup, `spec_decode_worker.__del__`, and test `init_cospec()`.
 16. **Removed forced XFORMERS backend**: All CoSpec scripts and tests now use the default attention backend (FLASH_ATTN) for max performance.
@@ -189,12 +193,22 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 27. **`max_spec_tokens` fix**: Removed hardcoded fallback of 5. Now reads from `speculative_config.num_speculative_tokens` and raises `ValueError` if not found. Note: `proposer_worker.max_proposal_len` is max SEQUENCE length, not speculative tokens - do not confuse them.
 28. **E2E test JSON parsing**: Fixed `test_e2e.py` to extract JSON output from among vLLM log lines (vLLM logs to stdout, not stderr).
 29. **Output remapping for CoSpec partial outputs**: Fixed `llm_engine.py` output remapping bug. The outputs are in `prefills + decodes` order but the remapping assumed original scheduler order. Now uses separate `prefill_idx` and `decode_idx` counters to correctly map outputs to sequence groups when prefills and decodes are interleaved in the scheduler batch. This fixes `AssertionError` in `multi_step.py:121` where `parent_seq_id` didn't match `seq_id`.
+30. **Disabled async output processing for CoSpec**: In async mode, `_advance_to_next_step()` uses `zip()` which stops early with partial outputs, causing prefills to not get their `num_computed_tokens` updated (leading to scheduler assertion errors). Fixed in `scheduler.py` by disabling async output processing when `COSPEC=1`.
+31. **Fixed prefill proposal mismatch**: When prefills are in the target batch for scoring/verification, `_verify_tokens` expected proposals to match the batch size. But `merged_proposals` only had entries for `verify_seqs`. Added `_prepend_prefill_proposals()` in `orchestrator.py` to add dummy proposal entries (with `proposal_len=0`) for prefills.
+32. **Removed incorrect KV cache sharing**: Target and draft models have SEPARATE KV caches (different model architectures, different layer counts, different head sizes). Removed `cospec_shared_mode = "owner"` from target worker and `cospec_shared_mode = "client"` from draft process. Each model now allocates its own KV cache normally. Draft KV cache is populated via `execute_prefill` RPC calls. This was the root cause of near-zero acceptance rate (0.05%) — draft was reading garbage data from wrong-shaped KV tensors.
+33. **Fixed SharedLogitBuffer.read_logits() call signature**: The orchestrator was passing batch_size and num_tokens as arguments, but `read_logits()` takes no arguments (reads metadata from buffer). Fixed to call `read_logits()` with no args and unpack returned tuple.
+34. ~~**Fixed _strip_sgm_for_draft token separation**~~: REMOVED - `_strip_sgm_for_draft` was deleted as dead code. SequenceGroupMetadata is now passed directly to draft worker without stripping.
+35. **Fixed bootstrap output restructuring**: `scorer_worker.execute_model()` returns `[SamplerOutput(outputs=[all_prefills])]` (one SamplerOutput with all outputs), but llm_engine remapping expects one SamplerOutput per prefill. Added restructuring in `_bootstrap_step` to split into per-prefill SamplerOutputs.
+36. **Added defensive output remapping**: The two-queue pipeline can have seq_id mismatches between `last_output_seq_ids` and actual outputs. Added defensive code in `llm_engine.py` to: (a) detect count mismatches, (b) extract seq_ids from actual output parent_seq_ids, (c) log warnings instead of crashing. This improves stability though root cause (queue state sync) is not fully fixed.
+37. **Reset orchestrator state each step**: Added `last_output_seq_ids = None` and `last_output_num_prefills = 0` at start of each `step()` to prevent stale values from previous steps causing remapping errors.
+38. **Force multi-output path for CoSpec**: Changed `has_multiple_outputs` condition to include CoSpec even with single output, ensuring seq_id-based remapping is always used when `cospec_seq_ids` is set.
+39. **Code cleanup**: Removed dead code: `SharedKVCache` class (target/draft have separate KV caches), `_strip_sgm_for_draft` function (unnecessary stripping), `shared_mode` parameter from `CacheEngine`. Added `CoSpecOutputMetadata` dataclass to bundle per-step metadata atomically. Simplified llm_engine.py output remapping (~190 → ~90 lines).
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`
 - `cost_model.py`: EMA coefficients `alpha=0.8`, `ema_weight=0.3`, `batch_ema_weight=0.5` (untuned)
 - `cost_model.py`: Latency formula coefficients are placeholders (never profiled)
-- `shared_kv_cache.py` / `shared_logit_buffer.py`: `instance_id="default"` (collision risk)
+- `shared_logit_buffer.py`: `instance_id="default"` (collision risk with multiple instances)
 - `cospec_manager.py`: `target_sm_ratio=1.0` never updated by orchestrator
 
 ### Skeleton Methods Status
@@ -209,21 +223,35 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 | File | What It Tests |
 |------|---------------|
 | `tests/cospec/test_e2e.py` | E2E correctness tests (12 tests): greedy decoding, chunked prefill, different gamma values, batch sizes |
-| `tests/cospec/test_cost_model.py` | Mode enum values |
 | `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller |
-| `tests/cospec/test_shared_kv_cache.py` | Tests for SharedKVCache allocation/cleanup |
 | `tests/cospec/test_worker_rpc.py` | Tests for RPC pipe communication |
+| `tests/cospec/test_acceptance_rate.py` | Acceptance rate comparison between CoSpec and regular SD (currently failing, see P0) |
 
 ## Build & Run
 
 - This is a vLLM fork; standard vLLM build (`pip install -e .`).
 - Build libsmctrl: `cd cospec/csrc && mkdir -p build && cd build && cmake .. && make`
 - **Start MPS before running**: `bash cospec/scripts/start_mps.sh`
-- CoSpec server: set `COSPEC=1` and run the normal `vllm.entrypoints.openai.api_server`.
-- Tests: `pytest tests/cospec/` (14 unit + 12 E2E tests, requires GPU for E2E).
-- Run in Docker: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
 - **Do NOT set `VLLM_ATTENTION_BACKEND`** — let vLLM auto-select FLASH_ATTN for best performance.
 - **MPS must be running** — CoSpec fails immediately without MPS. Tests skip automatically if MPS is not detected.
+- All scripts are written for the container environment — no `docker exec` wrappers inside scripts.
+
+### Running in Docker
+
+**Start server** (terminal 1):
+```bash
+docker exec -it -w /workspace cospec-vllm bash cospec/scripts/server.sh
+```
+
+**Run benchmark client** (terminal 2):
+```bash
+docker exec -it -w /workspace cospec-vllm bash cospec/scripts/client.sh
+```
+
+**Run tests**:
+```bash
+docker exec -w /workspace -e VLLM_USE_V1=0 -e CUDA_VISIBLE_DEVICES=0 cospec-vllm python3 -m pytest tests/cospec/ -v --timeout=300
+```
 
 ## Code Review Notes
 

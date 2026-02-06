@@ -10,6 +10,7 @@ from typing import Callable, Deque, Dict, Iterable, List, Optional
 from typing import Sequence as GenericSequence
 from typing import Set, Tuple, Union
 
+from vllm import envs
 from vllm.config import CacheConfig, LoRAConfig, SchedulerConfig
 from vllm.core.interfaces import AllocStatus, BlockSpaceManager
 from vllm.logger import init_logger
@@ -720,6 +721,16 @@ class Scheduler:
             num_running_tokens = num_uncached_new_tokens
             if num_running_tokens == 0:
                 # No budget => Stop
+                break
+
+            # Check if adding these tokens would exceed the token budget.
+            # This is especially important when not using chunked prefill,
+            # as decode sequences always request 1 token and can exceed the
+            # budget when there are many sequences in the running queue.
+            # Note: We only check tokens, not sequences, because the sequence
+            # count for running sequences is pre-populated before this method.
+            if budget.num_batched_tokens + num_running_tokens > budget.token_budget:
+                # Token budget exhausted, stop scheduling running sequences
                 break
 
             running_queue.popleft()
@@ -1504,7 +1515,13 @@ class Scheduler:
         if not self.cache_config.enable_prefix_caching:
             common_computed_block_nums = []
 
-        allow_async_output_proc: bool = self.use_async_output_proc
+        # CoSpec two-queue mode returns partial outputs (only verify_seqs +
+        # prefills). Async output processing's _advance_to_next_step() uses
+        # zip() which stops early with partial outputs, causing some sequences
+        # to not get their num_computed_tokens updated. Disable async mode for
+        # CoSpec to ensure correct prefill processing.
+        allow_async_output_proc: bool = (self.use_async_output_proc
+                                         and not envs.COSPEC)
 
         # Create input data structures.
         seq_group_metadata_list: List[SequenceGroupMetadata] = []
