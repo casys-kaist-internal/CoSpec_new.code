@@ -35,6 +35,7 @@ export CUDA_MPS_PIPE_DIRECTORY="${PROJECT_ROOT}/log/mps/nvidia-mps"
 
 export CUDA_VISIBLE_DEVICES=0
 export COSPEC=1
+export COSPEC_LOG=1
 export VLLM_USE_V1=0
 export PYTHONUNBUFFERED=1
 

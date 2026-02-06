@@ -48,7 +48,8 @@
       "Bash(VLLM_USE_V1=0 python:*)",
       "Bash(while read pid)",
       "Bash(do docker exec cospec-vllm kill -9 \"$pid\")",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(nsys:*)"
     ]
   }
 }

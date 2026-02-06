@@ -114,6 +114,7 @@ if TYPE_CHECKING:
     # CoSpec specific env vars
     COSPEC: bool = False
     COSPEC_TARGET_SM_RATIO: float = 0.7
+    COSPEC_LOG: bool = False
 
 def get_default_cache_root():
     return os.getenv(
@@ -738,6 +739,11 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Draft model gets 1.0 - COSPEC_TARGET_SM_RATIO
     "COSPEC_TARGET_SM_RATIO":
     lambda: float(os.getenv("COSPEC_TARGET_SM_RATIO", "0.7")),
+
+    # CoSpec per-step logging (mode, batch composition, acceptance rate, timing)
+    # Set COSPEC_LOG=0 to disable and avoid GPU->CPU sync overhead from sampler counters
+    "COSPEC_LOG":
+    lambda: bool(int(os.getenv("COSPEC_LOG", "1"))),
 
 }
 

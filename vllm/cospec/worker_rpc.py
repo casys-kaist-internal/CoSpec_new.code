@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import torch
 
 from vllm.logger import init_logger
+from vllm.sequence import ExecuteModelRequest
 
 logger = init_logger(__name__)
 
@@ -184,6 +185,15 @@ class DraftWorkerServer:
         self._shared_logit_buffer = shared_logit_buffer
         self._running = False
 
+        # Dispatch table: avoids if/elif chain on every command
+        self._dispatch = {
+            DraftCommand.PROPOSE: self._dispatch_propose,
+            DraftCommand.SET_PARTITION: self._dispatch_set_partition,
+            DraftCommand.SET_FULL_GPU: self._dispatch_set_full_gpu,
+            DraftCommand.EXECUTE_PREFILL: self._dispatch_execute_prefill,
+            DraftCommand.SHUTDOWN: self._dispatch_shutdown,
+        }
+
     def serve(self) -> None:
         """Main event loop. Blocks until shutdown command received."""
         self._running = True
@@ -211,35 +221,12 @@ class DraftWorkerServer:
                         kwargs: Dict[str, Any]) -> None:
         """Dispatch a command and send response."""
         try:
-            if cmd == DraftCommand.PROPOSE:
-                result = self._handle_propose(**kwargs)
-                self._conn.send((DraftResponse.OK, result))
-
-            elif cmd == DraftCommand.SET_PARTITION:
-                if self._sm_controller is not None:
-                    stream = torch.cuda.current_stream()
-                    self._sm_controller.set_partition(
-                        stream, kwargs["ratio"])
-                self._conn.send((DraftResponse.OK, None))
-
-            elif cmd == DraftCommand.SET_FULL_GPU:
-                if self._sm_controller is not None:
-                    stream = torch.cuda.current_stream()
-                    self._sm_controller.set_full_gpu(stream)
-                self._conn.send((DraftResponse.OK, None))
-
-            elif cmd == DraftCommand.EXECUTE_PREFILL:
-                result = self._handle_execute_prefill(**kwargs)
-                self._conn.send((DraftResponse.OK, result))
-
-            elif cmd == DraftCommand.SHUTDOWN:
-                self._running = False
-                self._conn.send((DraftResponse.OK, None))
-
+            handler = self._dispatch.get(cmd)
+            if handler is not None:
+                handler(kwargs)
             else:
                 self._conn.send((DraftResponse.ERROR,
                                  f"Unknown command: {cmd}"))
-
         except Exception as e:
             logger.error("DraftWorkerServer: error handling %s: %s", cmd, e)
             traceback.print_exc()
@@ -247,6 +234,30 @@ class DraftWorkerServer:
                 self._conn.send((DraftResponse.ERROR, str(e)))
             except Exception:
                 pass
+
+    def _dispatch_propose(self, kwargs: Dict[str, Any]) -> None:
+        result = self._handle_propose(**kwargs)
+        self._conn.send((DraftResponse.OK, result))
+
+    def _dispatch_set_partition(self, kwargs: Dict[str, Any]) -> None:
+        if self._sm_controller is not None:
+            stream = torch.cuda.current_stream()
+            self._sm_controller.set_partition(stream, kwargs["ratio"])
+        self._conn.send((DraftResponse.OK, None))
+
+    def _dispatch_set_full_gpu(self, kwargs: Dict[str, Any]) -> None:
+        if self._sm_controller is not None:
+            stream = torch.cuda.current_stream()
+            self._sm_controller.set_full_gpu(stream)
+        self._conn.send((DraftResponse.OK, None))
+
+    def _dispatch_execute_prefill(self, kwargs: Dict[str, Any]) -> None:
+        result = self._handle_execute_prefill(**kwargs)
+        self._conn.send((DraftResponse.OK, result))
+
+    def _dispatch_shutdown(self, kwargs: Dict[str, Any]) -> None:
+        self._running = False
+        self._conn.send((DraftResponse.OK, None))
 
     def _handle_propose(self, seq_group_metadata_list: list,
                         num_spec_tokens: int,
@@ -266,7 +277,6 @@ class DraftWorkerServer:
                 expand the batch and correctly handle the KV cache for the
                 bonus token position (same mechanism as regular SD).
         """
-        from vllm.sequence import ExecuteModelRequest
 
         bonus_set = seq_ids_with_bonus_token or set()
 
@@ -308,8 +318,9 @@ class DraftWorkerServer:
             num_tokens = proposals.proposal_probs.shape[1]
             self._shared_logit_buffer.write_logits(
                 proposals.proposal_probs, batch_size, num_tokens)
-            # Sync to ensure logits are visible to target process via IPC
-            torch.cuda.current_stream().synchronize()
+            # No explicit sync needed: the .cpu() calls below implicitly
+            # synchronize the current stream, which guarantees the shared
+            # buffer write is committed before we send the pipe response.
 
         result = {
             "proposal_token_ids": proposals.proposal_token_ids.cpu(),
@@ -327,8 +338,6 @@ class DraftWorkerServer:
     def _handle_execute_prefill(
             self, seq_group_metadata_list: list) -> None:
         """Run draft model forward pass on prefill sequences to sync KV cache."""
-        from vllm.sequence import ExecuteModelRequest
-
         execute_model_req = ExecuteModelRequest(
             seq_group_metadata_list=seq_group_metadata_list,
             num_lookahead_slots=0,

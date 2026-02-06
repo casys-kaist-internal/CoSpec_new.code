@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import torch
 
+import vllm.envs as envs
 from vllm.cospec.sm_controller import SMController
 from vllm.cospec.worker_rpc import DraftWorkerRPC
 from vllm.logger import init_logger
@@ -53,6 +54,10 @@ class CoSpecOrchestrator:
         # Pending pool: new decode seqs deferred to next step for balancing
         self._pending_pool: Dict[int, SequenceGroupMetadata] = {}
 
+        # Per-step logging: controlled by COSPEC_LOG=1 env var.
+        # Disabled by default to avoid GPU->CPU sync from sampler .item().
+        self._do_log = envs.COSPEC_LOG
+
         # Stats
         self._step_count = 0
         # Track sampler counters to compute per-step acceptance
@@ -93,7 +98,9 @@ class CoSpecOrchestrator:
             return self._bootstrap_step(prefill_seqs, draft_seqs, gamma, stream)
 
         # === Concurrent phase: draft || verify ===
-        t_step_start = time.monotonic()
+        _do_timing = self._do_log
+        if _do_timing:
+            t_step_start = time.monotonic()
 
         self.sm_controller.set_partition(stream, self.target_sm_ratio)
         self.draft_rpc.set_partition(1.0 - self.target_sm_ratio)
@@ -112,10 +119,12 @@ class CoSpecOrchestrator:
 
         # Run target scoring + verification (reuse original methods)
         # This updates _seq_with_bonus_token_in_last_step for the NEXT step.
-        t_target_start = time.monotonic()
+        if _do_timing:
+            t_target_start = time.monotonic()
         output = self._run_verification(
             prefill_seqs, verify_seqs, verify_row_indices, gamma)
-        t_target_end = time.monotonic()
+        if _do_timing:
+            t_target_end = time.monotonic()
 
         # Collect draft results
         new_proposals = None
@@ -130,22 +139,17 @@ class CoSpecOrchestrator:
         # Rotate queues
         self._rotate_queues(verify_seqs, draft_seqs, new_proposals)
 
-        t_step_end = time.monotonic()
-
-        n_prefill = len(prefill_seqs)
-        n_verify = len(verify_seqs)
-        n_draft = len(draft_seqs)
-
-        t_target_ms = (t_target_end - t_target_start) * 1000
-        t_total_ms = (t_step_end - t_step_start) * 1000
-
-        self._log_step("CoSpec", n_prefill, n_draft, n_verify,
-                       t_target_ms=t_target_ms, t_total_ms=t_total_ms)
+        if _do_timing:
+            t_step_end = time.monotonic()
+            self._log_step(
+                "CoSpec", len(prefill_seqs), len(draft_seqs), len(verify_seqs),
+                t_target_ms=(t_target_end - t_target_start) * 1000,
+                t_total_ms=(t_step_end - t_step_start) * 1000)
 
         # Set output metadata
         self.last_output_seq_ids = [
             self._get_seq_id(s) for s in (prefill_seqs + verify_seqs)]
-        self.last_output_num_prefills = n_prefill
+        self.last_output_num_prefills = len(prefill_seqs)
 
         return output
 
@@ -213,7 +217,9 @@ class CoSpecOrchestrator:
         stream: torch.cuda.Stream,
     ) -> List[Any]:
         """Bootstrap: draft proposals, run prefills, no verification yet."""
-        t_step_start = time.monotonic()
+        _do_timing = self._do_log
+        if _do_timing:
+            t_step_start = time.monotonic()
 
         self.sm_controller.set_full_gpu(stream)
         self.draft_rpc.set_full_gpu()
@@ -226,7 +232,8 @@ class CoSpecOrchestrator:
             # Pass bonus token info from previous verification (if any).
             # In bootstrap, previously-verified sequences still need bonus
             # token handling for correct draft KV cache state.
-            t0 = time.monotonic()
+            if _do_timing:
+                t0 = time.monotonic()
             bonus_ids = set(self.sdw._seq_with_bonus_token_in_last_step)
             proposals_dict = self.draft_rpc.propose(
                 draft_seqs, gamma,
@@ -237,11 +244,13 @@ class CoSpecOrchestrator:
                 self._get_seq_id(sgm): i
                 for i, sgm in enumerate(draft_seqs)
             }
-            t_draft_ms = (time.monotonic() - t0) * 1000
+            if _do_timing:
+                t_draft_ms = (time.monotonic() - t0) * 1000
 
         # Run prefills through target
         if prefill_seqs:
-            t0 = time.monotonic()
+            if _do_timing:
+                t0 = time.monotonic()
             execute_req = ExecuteModelRequest(
                 seq_group_metadata_list=prefill_seqs,
                 num_lookahead_slots=0,
@@ -249,7 +258,8 @@ class CoSpecOrchestrator:
             output = self.sdw.scorer_worker.execute_model(execute_req)
             # Sync draft KV cache
             self.draft_rpc.execute_prefill(prefill_seqs)
-            t_prefill_ms = (time.monotonic() - t0) * 1000
+            if _do_timing:
+                t_prefill_ms = (time.monotonic() - t0) * 1000
 
             # Restructure output: scorer_worker returns [SamplerOutput(outputs=[all_prefills])]
             # but llm_engine expects [SamplerOutput(outputs=[p0]), SamplerOutput(outputs=[p1]), ...]
@@ -265,24 +275,25 @@ class CoSpecOrchestrator:
                 self._get_seq_id(s) for s in prefill_seqs]
             self.last_output_num_prefills = len(prefill_seqs)
 
-            # AR mode: prefill only, no drafting
-            if not draft_seqs:
+            if _do_timing:
                 t_total_ms = (time.monotonic() - t_step_start) * 1000
-                self._log_step("AR", len(prefill_seqs), 0, 0,
-                               t_prefill_ms=t_prefill_ms,
-                               t_total_ms=t_total_ms)
-            else:
-                t_total_ms = (time.monotonic() - t_step_start) * 1000
-                self._log_step("SD", len(prefill_seqs), len(draft_seqs), 0,
-                               t_draft_ms=t_draft_ms,
-                               t_prefill_ms=t_prefill_ms,
-                               t_total_ms=t_total_ms)
+                if not draft_seqs:
+                    self._log_step("AR", len(prefill_seqs), 0, 0,
+                                   t_prefill_ms=t_prefill_ms,
+                                   t_total_ms=t_total_ms)
+                else:
+                    self._log_step("SD", len(prefill_seqs),
+                                   len(draft_seqs), 0,
+                                   t_draft_ms=t_draft_ms,
+                                   t_prefill_ms=t_prefill_ms,
+                                   t_total_ms=t_total_ms)
             return output
 
         # Pure SD bootstrap - draft only, no output
-        t_total_ms = (time.monotonic() - t_step_start) * 1000
-        self._log_step("SD", 0, len(draft_seqs), 0,
-                       t_draft_ms=t_draft_ms, t_total_ms=t_total_ms)
+        if _do_timing:
+            t_total_ms = (time.monotonic() - t_step_start) * 1000
+            self._log_step("SD", 0, len(draft_seqs), 0,
+                           t_draft_ms=t_draft_ms, t_total_ms=t_total_ms)
 
         self.last_output_seq_ids = None
         self.last_output_num_prefills = 0
@@ -490,24 +501,10 @@ class CoSpecOrchestrator:
         t_prefill_ms: float = 0.0,
         t_total_ms: float = 0.0,
     ) -> None:
-        """Log a single summary line for this step.
+        """Log a single summary line for this step."""
+        if not self._do_log:
+            return
 
-        Fields:
-          mode     - AR / SD / CoSpec
-          P/D/V    - prefill / draft / verify batch sizes this step
-          pend     - sequences deferred to next step (load balancing)
-          accept   - tokens accepted/proposed this step (cumulative %)
-          timing   - per-phase wall-clock breakdown
-                     draft  = gamma draft model iterations (async on draft process)
-                     target = target forward pass + rejection sampling + output
-                     prefill = target prefill + draft KV sync
-          total    - end-to-end step time
-
-        Example output:
-          [CoSpec step=42] CoSpec | P=1 D=4 V=4 pend=2 | accept: 18/20=90% (cum 91.2%) | draft=2.1ms target=18.7ms | 34.3ms
-          [CoSpec step=43] SD    | P=0 D=6 V=0 | draft=15.1ms | 15.1ms
-          [CoSpec step=44] AR    | P=2 D=0 V=0 | prefill=8.3ms | 8.3ms
-        """
         # Per-step acceptance from sampler delta
         sampler = self.sdw.spec_decode_sampler
         cur_acc = 0

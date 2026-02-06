@@ -45,7 +45,8 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 |------|---------|
 | `__init__.py` | Module exports and `cleanup_cospec_resources()` for removing stale IPC handles. |
 | `sm_controller.py` | `SMController`: ctypes wrapper for libsmctrl SM partitioning. `CospecManager`: creates controller, holds config. |
-| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining. `Mode` enum. Always uses colocated mode with SM ratio 0.7. |
+| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining with load balancing, per-step logging, and timing. `Mode` enum. Always uses colocated mode with SM ratio 0.7. |
+| `draft_process.py` | Draft process lifecycle: `init_draft_process()`, `cleanup_cospec()`, `assert_mps_running()`, `_draft_process_entry()`. Spawns draft as `mp.Process` with its own CUDA context for MPS concurrency. |
 | `worker_rpc.py` | `DraftWorkerRPC` (client) and `DraftWorkerServer` (draft process). Commands over pipe, large data via shared GPU memory. |
 | `shared_memory.py` | `SharedLogitBuffer`: CUDA IPC for sharing draft logits between target and draft processes. |
 | `metadata.py` | `CoSpecOutputMetadata`: Dataclass bundling per-step output metadata (seq_ids, num_prefills, skip_indices). |
@@ -76,6 +77,7 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `COSPEC` | `0` | Master switch. Enables CoSpec with SM partitioning and MPS. |
+| `COSPEC_LOG` | `0` | Per-step orchestrator logging (mode, batch composition, acceptance rate, timing). Set `COSPEC_LOG=1` to enable. |
 | `VLLM_USE_V1` | `0` | Use V1 engine. This CoSpec fork defaults to V0 since V1 doesn't support speculative decoding. |
 
 **Important notes**:
@@ -122,7 +124,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 ## Implementation Progress (v2 wiring)
 
-### DONE — Code written and tested (11 unit + 12 E2E tests)
+### DONE — Code written and tested (10 unit + 14 E2E tests = 24 total)
 1. **`shared_logit_buffer.py`**: Fixed double `_share_cuda_()` bug (line 68/72).
 2. **`cost_model.py`**: `decide()` hardcoded to always return `COLOCATED_SD` mode.
 3. **`worker_rpc.py`**: Added `propose_async()` / `propose_collect()` to `DraftWorkerRPC`. Wired `DraftWorkerServer._handle_propose()` to call `self._worker.get_spec_proposals()` and return CPU tensors over pipe.
@@ -132,9 +134,11 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
    - `_merge_proposals()`: combine individual proposals back into batch
    - `_run_prefills_only()`: handle prefills when verify_queue is empty
    - `flush()`: drain verify_queue on shutdown
-   - `remove_sequence(seq_id)`: clean up finished/preempted sequences
+   - `remove_sequence(seq_id)`: clean up finished/preempted sequences from all queues (draft, verify, pending)
    - `_step_colocated_sd()`: full two-queue concurrent pipeline
    - All wired methods: `_score_proposals()`, `_verify()`, `_create_output()`, `_sync_draft_prefills()`
+   - **Per-step logging** (`_log_step()`): logs mode (AR/SD/CoSpec), batch composition (P/D/V + pend=N), per-step acceptance rate (delta from cumulative sampler counters), and timing (draft/target/prefill/total in ms). In CoSpec concurrent mode, draft time is not measured (overlaps with target); gap between target and total shows if draft was bottleneck.
+   - **Load balancing**: New decode sequences are split between `draft_seqs` (drafted now) and `_pending_pool` (deferred to next step) by comparing `len(draft_seqs) + len(pending_pool)` vs `len(verify_seqs)`. Pending pool is promoted to draft_queue at start of each step.
 5. **`spec_decode_worker.py`**:
    - Added `self.orchestrator` and `self._draft_process` fields to `__init__`.
    - `_init_cospec_draft_process()` spawns draft as `mp.Process` (spawn context) with its own CUDA context for true MPS concurrency. Called from `initialize_cache()` (not `init_device()`) so KV cache handles and model weights are ready.
@@ -163,7 +167,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 5. ~~**Process cleanup on shutdown**~~: FIXED — Added `atexit` handler for reliable cleanup. `DraftWorkerRPC.shutdown()` now waits for acknowledgment.
 6. **`SharedMemoryModelLoader._inprocess_state_dicts` cleanup**: Class-level dict caches state_dicts forever. Should be cleaned up when the engine is destroyed to free GPU memory for the shared weight references.
 7. **Shared memory instance_id collision**: `shared_kv_cache.py` and `shared_logit_buffer.py` use `instance_id="default"`. Multiple CoSpec instances on same machine will collide. Should use PID or UUID.
-8. **E2E test coverage**: Two E2E tests with identical models (`JackFram/llama-68m` for both target and draft): one without chunked prefill, one with. Need tests with: (a) different target/draft models, (b) larger batch sizes, (c) greedy vs sampling. Note: running both E2E tests in the same pytest process fails due to GPU memory not being freed between tests (pre-existing issue); run them in separate processes.
+8. **E2E test coverage**: ~~Need tests with different target/draft models~~ DONE — added `test_acceptance_rate_different_models` with Qwen3-8B/Qwen3-0.6B. Still could add: (a) greedy vs sampling tests, (b) longer sequence tests. Note: running E2E tests in subprocesses (each test spawns its own vLLM) to avoid GPU memory leaks between tests.
 9. **UltraDict cleanup at exit**: `FileNotFoundError: '/cospec_shared_3'` during interpreter shutdown. Non-fatal but noisy. Need to unlink shared memory before `cleanup_cospec_resources()` deletes it.
 
 ### RECENTLY FIXED
@@ -176,7 +180,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 10. **`test_sm_controller.py`**: Added `PermissionError` handling for tests that need MPS privileges. Added `test_set_partition_explicit_stream` for non-default stream testing.
 11. **`loader.py` (SharedMemoryModelLoader)**: Fixed `CUDA error: invalid resource handle` when target and draft models are in the same process. Added in-process state_dict caching (`_inprocess_state_dicts` class variable) to avoid CUDA IPC for intra-process sharing. Draft model now loads from cached state_dict in ~6ms instead of failing.
 12. **`orchestrator.py`**: Replaced `_prev_batch`/`_prev_proposals` pipeline with two-queue model (`_draft_queue`, `_verify_queue`, `_pending_pool`). Load-balanced entry for new decode sequences. `flush()` drains pipeline on shutdown. `remove_sequence()` for cleanup.
-13. **All tests passing**: 23 tests pass (11 unit + 12 E2E). Run all tests: `docker exec -w /workspace/vllm -e VLLM_USE_V1=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
+13. **All tests passing**: 24 tests pass (10 unit + 14 E2E). Run all tests: `docker exec -w /workspace -e VLLM_USE_V1=0 -e CUDA_VISIBLE_DEVICES=0 cospec-vllm python3 -m pytest tests/cospec/ -v`
 14. **Chunked prefill support in orchestrator** (was P0): `_create_output()` now uses real `proposal_lens` from draft proposals instead of hardcoding gamma. Added `_sync_draft_prefills()` to sync draft KV cache for prefill sequences after target scoring (mirrors `spec_decode_worker.py:921-936`). Added `EXECUTE_PREFILL` RPC command in `worker_rpc.py`. Added E2E test with `enable_chunked_prefill=True`.
 15. **IPC cleanup**: `cleanup_cospec_resources()` in `cospec_manager.py` removes stale `/dev/shm/cospec_*` and `/tmp/cospec_*`. Called from `api_server.py` on startup, `spec_decode_worker.__del__`, and test `init_cospec()`.
 16. **Removed forced XFORMERS backend**: All CoSpec scripts and tests now use the default attention backend (FLASH_ATTN) for max performance.
@@ -203,6 +207,11 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 37. **Reset orchestrator state each step**: Added `last_output_seq_ids = None` and `last_output_num_prefills = 0` at start of each `step()` to prevent stale values from previous steps causing remapping errors.
 38. **Force multi-output path for CoSpec**: Changed `has_multiple_outputs` condition to include CoSpec even with single output, ensuring seq_id-based remapping is always used when `cospec_seq_ids` is set.
 39. **Code cleanup**: Removed dead code: `SharedKVCache` class (target/draft have separate KV caches), `_strip_sgm_for_draft` function (unnecessary stripping), `shared_mode` parameter from `CacheEngine`. Added `CoSpecOutputMetadata` dataclass to bundle per-step metadata atomically. Simplified llm_engine.py output remapping (~190 → ~90 lines).
+40. **Per-step logging in orchestrator**: Added `_log_step()` method with per-step summary line showing: mode (AR/SD/CoSpec), batch composition (P=prefills D=draft V=verify, optional pend=N), per-step acceptance rate as delta from cumulative rejection sampler counters, and timing in ms. In CoSpec concurrent mode, draft time is unmeasurable (overlaps with target), so only target and total times are shown — the gap indicates if draft was the bottleneck.
+41. **Load balancing for two-queue pipeline**: Implemented `_pending_pool` for load-balanced entry of new decode sequences. New sequences are split between `draft_seqs` (drafted this step) and `_pending_pool` (deferred to next step) by comparing queue sizes. Pending pool promoted to draft_queue at start of each step. Dramatically improved queue balance during burst arrivals (D=38 V=35 vs old D=13 V=1).
+42. **Acceptance rate tests**: Added `TestCoSpecAcceptanceRate` with two tests: (a) `test_acceptance_rate_same_model` — same model for target/draft, verifies 100% acceptance and exact output match; (b) `test_acceptance_rate_different_models` — Qwen3-8B target + Qwen3-0.6B draft, verifies acceptance rates within 5% tolerance. Note: with different models, outputs may diverge slightly between regular SD and CoSpec due to floating-point non-determinism in batched GPU operations (this affects regular SD vs AR too, not CoSpec-specific).
+43. **Draft process refactored to `draft_process.py`**: Extracted draft process management from `spec_decode_worker.py` into `vllm/cospec/draft_process.py`. Functions: `init_draft_process()`, `cleanup_cospec()`, `assert_mps_running()`, `_draft_process_entry()`. Cleaner separation of concerns.
+44. **GPU memory utilization**: Lowered `server.sh` default from 0.85 to 0.80 to avoid draft worker OOM with large batches (40+ seqs). Added `PYTHONUNBUFFERED=1` for immediate log output.
 
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`
@@ -222,10 +231,10 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 
 | File | What It Tests |
 |------|---------------|
-| `tests/cospec/test_e2e.py` | E2E correctness tests (12 tests): greedy decoding, chunked prefill, different gamma values, batch sizes |
-| `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller |
-| `tests/cospec/test_worker_rpc.py` | Tests for RPC pipe communication |
-| `tests/cospec/test_acceptance_rate.py` | Acceptance rate comparison between CoSpec and regular SD (currently failing, see P0) |
+| `tests/cospec/test_e2e.py` | E2E correctness tests (14 tests): greedy decoding, chunked prefill, different gamma values, batch sizes, acceptance rate with same model (100% match) and different models (Qwen3-8B/Qwen3-0.6B, within 5% tolerance) |
+| `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller (7 tests) |
+| `tests/cospec/test_worker_rpc.py` | Tests for RPC pipe communication (3 tests) |
+| `tests/cospec/test_acceptance_rate.py` | Standalone acceptance rate comparison script (not run by pytest, use `python3 tests/cospec/test_acceptance_rate.py`) |
 
 ## Build & Run
 

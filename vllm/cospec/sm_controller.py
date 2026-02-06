@@ -6,7 +6,7 @@ with configurable SM (streaming multiprocessor) partitioning via MPS.
 
 import ctypes
 import os
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 
@@ -94,16 +94,26 @@ class SMController:
             raise OSError(ret, f"{os.strerror(ret)} in get_tpc_info_cuda")
         self.total_tpcs = num_tpcs.value
 
+        self._mask_cache: Dict[Tuple[int, int], int] = {}
+
         logger.info("SMController initialized: total_tpcs=%d, is_target=%s",
                      self.total_tpcs, is_target)
 
     def _make_mask(self, low: int, high_exclusive: int) -> int:
-        """Create a TPC bitmask for the range [low, high_exclusive)."""
+        """Create a TPC bitmask for the range [low, high_exclusive).
+
+        Results are cached since masks are deterministic for a given range.
+        """
+        key = (low, high_exclusive)
+        cached = self._mask_cache.get(key)
+        if cached is not None:
+            return cached
         result = ctypes.c_uint64()
         ret = self._lib.libsmctrl_make_mask(
             ctypes.byref(result), low, high_exclusive)
         if ret != 0:
             raise OSError(ret, f"{os.strerror(ret)} in make_mask")
+        self._mask_cache[key] = result.value
         return result.value
 
     def _set_stream_mask(self, stream: torch.cuda.Stream, mask: int) -> None:

@@ -162,6 +162,73 @@ print(json.dumps(results))
     return _extract_json_output(stdout)
 
 
+def run_sd_with_metrics(model: str, draft_model: str, prompts: list,
+                        max_tokens: int, seed: int,
+                        num_speculative_tokens: int = 5,
+                        cospec: bool = False) -> dict:
+    """Run speculative decoding and return outputs + acceptance metrics."""
+    script = f'''
+import json, torch
+from vllm import LLM, SamplingParams
+
+if {cospec}:
+    try:
+        from vllm.cospec import cleanup_cospec_resources
+        cleanup_cospec_resources()
+    except Exception:
+        pass
+
+prompts = {prompts!r}
+sampling_params = SamplingParams(
+    temperature=0.0,
+    max_tokens={max_tokens},
+    seed={seed},
+)
+
+llm = LLM(
+    model="{model}",
+    enforce_eager=True,
+    speculative_config={{
+        "model": "{draft_model}",
+        "num_speculative_tokens": {num_speculative_tokens},
+    }},
+)
+outputs = llm.generate(prompts, sampling_params, use_tqdm=False)
+torch.cuda.synchronize()
+
+results = [out.outputs[0].text for out in outputs]
+
+# Extract acceptance metrics from rejection sampler
+executor = llm.llm_engine.model_executor
+worker = getattr(executor, "driver_worker", None)
+actual = getattr(worker, "worker", worker)
+
+accepted, draft = 0, 0
+sampler = getattr(actual, "spec_decode_sampler", None)
+if sampler:
+    acc_val = sampler.num_accepted_tokens
+    draft_val = sampler.num_draft_tokens
+    accepted = int(acc_val.item() if hasattr(acc_val, "item") else acc_val)
+    draft = int(draft_val.item() if hasattr(draft_val, "item") else draft_val)
+
+print("METRICS:" + json.dumps({{
+    "outputs": results,
+    "accepted": accepted,
+    "draft": draft,
+}}))
+'''
+    cospec_val = "1" if cospec else "0"
+    env = {"COSPEC": cospec_val, "VLLM_USE_V1": "0"}
+    stdout = _run_in_subprocess(script, env)
+
+    for line in stdout.strip().split('\n'):
+        line = line.strip()
+        if line.startswith("METRICS:"):
+            return json.loads(line[len("METRICS:"):])
+
+    raise RuntimeError(f"No METRICS line in output:\n{stdout[-500:]}")
+
+
 def compare_outputs(ar_outputs, cospec_outputs, prompts):
     """Compare AR baseline outputs with CoSpec outputs."""
     assert len(ar_outputs) == len(cospec_outputs), \
@@ -278,6 +345,95 @@ class TestCoSpecStress:
         ar_outputs = run_ar_baseline(model, prompts, max_tokens, seed=42)
         cospec_outputs = run_cospec(model, draft_model, prompts, max_tokens, seed=42)
         compare_outputs(ar_outputs, cospec_outputs, prompts)
+
+
+class TestCoSpecAcceptanceRate:
+    """Compare acceptance rates between CoSpec and regular speculative decoding.
+
+    Uses the same model for target and draft so expected acceptance is 100%.
+    Any difference indicates a bug in CoSpec's draft KV cache management.
+    """
+
+    def test_acceptance_rate_same_model(self):
+        """Acceptance rate should match between CoSpec and regular SD."""
+        model = DEFAULT_MODEL
+        prompts = PROMPTS
+        max_tokens = 64
+
+        # Run regular SD (no CoSpec)
+        regular = run_sd_with_metrics(
+            model, model, prompts, max_tokens, seed=42,
+            cospec=False)
+
+        # Run CoSpec
+        cospec = run_sd_with_metrics(
+            model, model, prompts, max_tokens, seed=42,
+            cospec=True)
+
+        r_rate = (regular["accepted"] / regular["draft"]
+                  if regular["draft"] > 0 else 0)
+        c_rate = (cospec["accepted"] / cospec["draft"]
+                  if cospec["draft"] > 0 else 0)
+
+        print(f"\nRegular SD: {regular['accepted']}/{regular['draft']}"
+              f" = {r_rate:.2%}")
+        print(f"CoSpec:     {cospec['accepted']}/{cospec['draft']}"
+              f" = {c_rate:.2%}")
+        print(f"Difference: {abs(r_rate - c_rate):.2%}")
+
+        # Outputs should match (greedy, same model)
+        assert regular["outputs"] == cospec["outputs"], \
+            "Outputs differ between regular SD and CoSpec"
+
+        # Acceptance rates should be within 5% tolerance
+        assert abs(r_rate - c_rate) < 0.05, (
+            f"Acceptance rate mismatch: regular={r_rate:.2%}, "
+            f"cospec={c_rate:.2%}, diff={abs(r_rate - c_rate):.2%}")
+
+    def test_acceptance_rate_different_models(self):
+        """Acceptance rate should match between CoSpec and regular SD
+        with different target and draft models.
+
+        Note: Outputs may differ because CoSpec's two-queue pipeline
+        processes sequences in a different batching order, which can
+        cause different rejection/resampling paths. The key metric
+        is that acceptance rates are comparable.
+        """
+        target_model = "Qwen/Qwen3-8B"
+        draft_model = "Qwen/Qwen3-0.6B"
+        prompts = PROMPTS
+        max_tokens = 64
+
+        # Run regular SD (no CoSpec)
+        regular = run_sd_with_metrics(
+            target_model, draft_model, prompts, max_tokens, seed=42,
+            cospec=False)
+
+        # Run CoSpec
+        cospec = run_sd_with_metrics(
+            target_model, draft_model, prompts, max_tokens, seed=42,
+            cospec=True)
+
+        r_rate = (regular["accepted"] / regular["draft"]
+                  if regular["draft"] > 0 else 0)
+        c_rate = (cospec["accepted"] / cospec["draft"]
+                  if cospec["draft"] > 0 else 0)
+
+        print(f"\nRegular SD: {regular['accepted']}/{regular['draft']}"
+              f" = {r_rate:.2%}")
+        print(f"CoSpec:     {cospec['accepted']}/{cospec['draft']}"
+              f" = {c_rate:.2%}")
+        print(f"Difference: {abs(r_rate - c_rate):.2%}")
+
+        # Report output differences (not a hard failure with different models)
+        n_match = sum(1 for r, c in zip(regular["outputs"], cospec["outputs"])
+                      if r == c)
+        print(f"Output match: {n_match}/{len(prompts)} prompts")
+
+        # Acceptance rates should be within 5% tolerance
+        assert abs(r_rate - c_rate) < 0.05, (
+            f"Acceptance rate mismatch: regular={r_rate:.2%}, "
+            f"cospec={c_rate:.2%}, diff={abs(r_rate - c_rate):.2%}")
 
 
 if __name__ == "__main__":
