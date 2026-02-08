@@ -7,7 +7,6 @@ import torch
 
 from vllm import _custom_ops as ops
 from vllm.triton_utils import HAS_TRITON
-import vllm.envs as envs
 from vllm.logger import init_logger
 
 if HAS_TRITON:
@@ -108,7 +107,6 @@ class PagedAttention:
         blocksparse_vert_stride: int = 0,
         blocksparse_block_size: int = 64,
         blocksparse_head_sliding_step: int = 0,
-        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if blocksparse_vert_stride is not None and blocksparse_vert_stride > 1:
             # use blocksparse paged attention
@@ -133,63 +131,29 @@ class PagedAttention:
         use_v1 = (max_seq_len <= 8192
                   and (max_num_partitions == 1 or num_seqs * num_heads > 512))
 
-        should_run_consolidated_attention = True
-        if not envs.COSPEC_CONSOLIDATED_ATTENTION:
-            should_run_consolidated_attention = False 
-        elif consolidated_lens_tensor is None:
-            should_run_consolidated_attention = False
-        # elif torch.mean(consolidated_lens_tensor.float()) < 2:
-        #     should_run_consolidated_attention = False
-
         if use_v1:
             # Run PagedAttention V1.
-            if should_run_consolidated_attention:
-                # logger.info("Running consolidated PagedAttention V1")
-                ops.consolidated_paged_attention_v1(
-                    output,
-                    query,
-                    key_cache,
-                    value_cache,
-                    num_kv_heads,
-                    scale,
-                    block_tables,
-                    seq_lens,
-                    consolidated_lens_tensor,
-                    block_size,
-                    max_seq_len,
-                    alibi_slopes,
-                    kv_cache_dtype,
-                    k_scale,
-                    v_scale,
-                    tp_rank,
-                    blocksparse_local_blocks,
-                    blocksparse_vert_stride,
-                    blocksparse_block_size,
-                    blocksparse_head_sliding_step,
-                )
-            else:
-                # logger.info("Running PagedAttention V2")
-                ops.paged_attention_v1(
-                    output,
-                    query,
-                    key_cache,
-                    value_cache,
-                    num_kv_heads,
-                    scale,
-                    block_tables,
-                    seq_lens,
-                    block_size,
-                    max_seq_len,
-                    alibi_slopes,
-                    kv_cache_dtype,
-                    k_scale,
-                    v_scale,
-                    tp_rank,
-                    blocksparse_local_blocks,
-                    blocksparse_vert_stride,
-                    blocksparse_block_size,
-                    blocksparse_head_sliding_step,
-                )
+            ops.paged_attention_v1(
+                output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                block_size,
+                max_seq_len,
+                alibi_slopes,
+                kv_cache_dtype,
+                k_scale,
+                v_scale,
+                tp_rank,
+                blocksparse_local_blocks,
+                blocksparse_vert_stride,
+                blocksparse_block_size,
+                blocksparse_head_sliding_step,
+            )
         else:
             # Run PagedAttention V2.
             assert _PARTITION_SIZE % block_size == 0
@@ -205,59 +169,30 @@ class PagedAttention:
             )
             max_logits = torch.empty_like(exp_sums)
 
-            if should_run_consolidated_attention:
-                # logger.info("Running consolidated PagedAttention V2")
-                ops.consolidated_paged_attention_v2(
-                    output,
-                    exp_sums,
-                    max_logits,
-                    tmp_output,
-                    query,
-                    key_cache,
-                    value_cache,
-                    num_kv_heads,
-                    scale,
-                    block_tables,
-                    seq_lens,
-                    consolidated_lens_tensor,
-                    block_size,
-                    max_seq_len,
-                    alibi_slopes,
-                    kv_cache_dtype,
-                    k_scale,
-                    v_scale,
-                    tp_rank,
-                    blocksparse_local_blocks,
-                    blocksparse_vert_stride,
-                    blocksparse_block_size,
-                    blocksparse_head_sliding_step,
-                )
-            else:
-                # logger.info("Running PagedAttention V2")
-                ops.paged_attention_v2(
-                    output,
-                    exp_sums,
-                    max_logits,
-                    tmp_output,
-                    query,
-                    key_cache,
-                    value_cache,
-                    num_kv_heads,
-                    scale,
-                    block_tables,
-                    seq_lens,
-                    block_size,
-                    max_seq_len,
-                    alibi_slopes,
-                    kv_cache_dtype,
-                    k_scale,
-                    v_scale,
-                    tp_rank,
-                    blocksparse_local_blocks,
-                    blocksparse_vert_stride,
-                    blocksparse_block_size,
-                    blocksparse_head_sliding_step,
-                )
+            ops.paged_attention_v2(
+                output,
+                exp_sums,
+                max_logits,
+                tmp_output,
+                query,
+                key_cache,
+                value_cache,
+                num_kv_heads,
+                scale,
+                block_tables,
+                seq_lens,
+                block_size,
+                max_seq_len,
+                alibi_slopes,
+                kv_cache_dtype,
+                k_scale,
+                v_scale,
+                tp_rank,
+                blocksparse_local_blocks,
+                blocksparse_vert_stride,
+                blocksparse_block_size,
+                blocksparse_head_sliding_step,
+            )
         return output
 
 

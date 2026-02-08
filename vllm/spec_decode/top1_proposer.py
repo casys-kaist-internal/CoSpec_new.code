@@ -171,7 +171,6 @@ class Top1Proposer(SpeculativeProposer):
         for i in range(len(proposal_lens)):
             if proposal_lens[i] > adjusted_proposal_len:
                 proposal_lens[i] = adjusted_proposal_len
-        # print("adjusted proposal len", proposal_lens)
         return adjusted_proposal_len
 
     @staticmethod

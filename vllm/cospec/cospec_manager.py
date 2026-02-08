@@ -57,10 +57,8 @@ class CospecManager:
     
     def predict_colocation_speedup_ratio(self, batch_size: int) -> float:        
         if self.is_driver:
-            # torch.cuda.nvtx.range_push("predict_colocation_speedup_ratio")
-            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size, 
-                                                                            self.get_num_speculative_tokens_ema()) 
-            # torch.cuda.nvtx.range_pop()
+            speedup_ratio = self.profiler.predict_colocation_speedup_ratio(batch_size,
+                                                                            self.get_num_speculative_tokens_ema())
             return speedup_ratio
         return 1 
     
@@ -90,9 +88,9 @@ class CospecManager:
             torch.cuda.nvtx.range_push("target_start")
             self.profiler.start_target_marker()
         else:
-            # Busy-wait until the driver’s group matches this process’s group.
+            # Busy-wait until the driver's group matches this process's group.
             while self.shm.get("target_lock_acquired") != self.is_primary:
-                pass
+                time.sleep(0.001)
             # At this point, the driver is in the same group, so acquire the lock.
             fcntl.flock(self.target_lock_fd, fcntl.LOCK_EX)
 
@@ -102,7 +100,6 @@ class CospecManager:
         if self.is_driver:            
             self.shm.delete("target_lock_acquired")
             torch.cuda.nvtx.range_pop()
-            # print("target_num_tokens, ", num_tokens)
             self.profiler.stop_target_marker(num_tokens)
             # Signal the other engine to early exit draft model execution
             # And reset the flag for the current engine 
@@ -118,9 +115,9 @@ class CospecManager:
             self.shm.put("draft_lock_acquired", self.is_primary)
             torch.cuda.nvtx.range_push("draft_start")
         else:
-            # Busy-wait until the driver’s group matches this process’s group.
+            # Busy-wait until the driver's group matches this process's group.
             while self.shm.get("draft_lock_acquired") != self.is_primary:
-                pass
+                time.sleep(0.001)
             fcntl.flock(self.draft_lock_fd, fcntl.LOCK_EX)
 
     def draft_finish(self):
@@ -158,13 +155,8 @@ class CospecManager:
         if self.profiler.is_profiling():
             return proposals
 
-        if self.is_driver:        
-            # torch.cuda.nvtx.range_push("selective_validation")
-            # start_time = time.perf_counter()
+        if self.is_driver:
             filtered_proposals = self.selective_validator.selective_validation(proposals, total_non_proposal_tokens)
-            # end_time = time.perf_counter()
-            # print(f"selective_validation time in ms {((end_time - start_time) * 1000):.2f}")
-            # torch.cuda.nvtx.range_pop()
             return filtered_proposals
         else:
             return proposals
@@ -180,10 +172,7 @@ class CospecManager:
             return
 
         if self.is_driver:
-            # if not self.is_selective_validator_trained():
-            # torch.cuda.nvtx.range_push("update_proposal_history")
             self.selective_validator.update_proposal_history(proposals, proposal_scores)
-            # torch.cuda.nvtx.range_pop()
 
     def get_num_speculative_tokens_ema(self) -> int:
         return self.selective_validator.get_mean_selective_validation_tokens_ema()

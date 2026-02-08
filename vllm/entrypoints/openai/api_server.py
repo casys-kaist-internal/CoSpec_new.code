@@ -258,41 +258,8 @@ async def build_async_engine_client_from_engine_args(
             from prometheus_client import multiprocess
             multiprocess.mark_process_dead(engine_process.pid)
 
-    # # V1 AsyncLLM.
-    # elif envs.VLLM_USE_V1:
-    #     if disable_frontend_multiprocessing:
-    #         logger.warning(
-    #             "V1 is enabled, but got --disable-frontend-multiprocessing. "
-    #             "To disable frontend multiprocessing, set VLLM_USE_V1=0.")
-
-    #     from vllm.v1.engine.async_llm import AsyncLLM
-    #     async_llm: Optional[AsyncLLM] = None
-    #     try:
-    #         async_llm = AsyncLLM.from_vllm_config(
-    #             vllm_config=vllm_config,
-    #             usage_context=usage_context,
-    #             disable_log_requests=engine_args.disable_log_requests,
-    #             disable_log_stats=engine_args.disable_log_stats)
-    #         yield async_llm
-    #     finally:
-    #         if async_llm:
-    #             async_llm.shutdown()
-
-    # # V0 AsyncLLM.
-    # elif (MQLLMEngineClient.is_unsupported_config(vllm_config)
-    #       or disable_frontend_multiprocessing):
-
-    #     engine_client: Optional[EngineClient] = None
-    #     try:
-    #         engine_client = AsyncLLMEngine.from_vllm_config(
-    #             vllm_config=vllm_config,
-    #             usage_context=usage_context,
-    #             disable_log_requests=engine_args.disable_log_requests,
-    #             disable_log_stats=engine_args.disable_log_stats)
-    #         yield engine_client
-    #     finally:
-    #         if engine_client and hasattr(engine_client, "shutdown"):
-    #             engine_client.shutdown()
+    # NOTE: V1 AsyncLLM and V0 AsyncLLMEngine paths are removed for CoSpec.
+    # CoSpec requires VLLM_USE_V1=0 and uses V0 MQLLMEngine exclusively.
 
     # V0MQLLMEngine.
     else:
@@ -1458,9 +1425,6 @@ if __name__ == "__main__":
         logger.info("Cleaned up %d shared memory files from previous runs", len(shm_files))
     except Exception as e:
         logger.error("Shared memory cleanup failed: %s", str(e))
-
-    # Set attention backend to XFORMERS
-    os.environ["VLLM_ATTENTION_BACKEND"] = "XFORMERS"
 
     if envs.COSPEC:
         uvloop.run(run_server_cospec(args))

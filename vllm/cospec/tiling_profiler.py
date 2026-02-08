@@ -2,13 +2,10 @@ import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, List, Optional
 from vllm.logger import init_logger
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
-from vllm.spec_decode.util import nvtx_range
-import torch
 
 logger = init_logger(__name__)
 
@@ -44,7 +41,6 @@ class TilingProfiler:
         if not os.path.exists(self.profile_file):
             return False
         
-        print("Loading cached profiling results from ", self.profile_file)
         try:
             with open(self.profile_file, "r") as f:
                 # Skip header
@@ -59,15 +55,15 @@ class TilingProfiler:
                     self.run_counts[num_tokens] = 1
                     
             logger.info(f"Loaded cached profiling results from {self.profile_file}")
-            
+
             self._plot_tiling_effect()
             self._train_linear_regression()
             self._update_precomputed_data()
-            
+            return True
+
         except Exception as e:
             logger.error(f"Failed to load cached profiling results: {str(e)}")
-
-        return True
+            return False
 
     def start_target_marker(self):
         """Start timing the target model"""
@@ -81,7 +77,6 @@ class TilingProfiler:
         target_duration = target_end_time - self.target_start_time
         # Reset target timing state
         self.target_start_time = None
-        # print("num_tokens", num_tokens, "target_duration", target_duration)
 
         if num_tokens not in self.input_tokens_capture_list:
             return

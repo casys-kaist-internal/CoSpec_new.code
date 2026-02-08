@@ -113,7 +113,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                 if not self._check_engine_processes():
                     logger.error("[Dynamic Colocation] Engine processes are not alive")
                     break
-                # logger.info("[Dynamic Colocation] Colocation mode: {}".format(self.colocation_mode))
                 await self._maybe_change_colocation_mode()
                 await asyncio.sleep(self._colocation_check_interval)
             except asyncio.CancelledError:
@@ -687,8 +686,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
     async def profile_colocation(self) -> None:
         loaded_cached_profile = await self.engine_client.maybe_load_cached_colocation_profile()
         if loaded_cached_profile:
-            time.sleep(10)
-            loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
+            await asyncio.sleep(10)
+            loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile()
             assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
             logger.info("Loaded cached profile. Skipping profiling.")
             return 
@@ -725,8 +724,8 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_num_speculative_tokens(original_num_speculative_tokens)
         await self.engine_client2.set_num_speculative_tokens(original_num_speculative_tokens2)
 
-        time.sleep(10)
-        loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile() 
+        await asyncio.sleep(10)
+        loaded_cached_profile = await self.engine_client2.maybe_load_cached_colocation_profile()
         assert loaded_cached_profile, "Cached colocation profile cannot be loaded on secondary engine"
 
     async def _profile_non_colocation(self, batch_size: int, num_speculative_tokens: int):
@@ -811,7 +810,7 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         await self.engine_client.set_max_num_seqs(max_num_seqs)
         await self.engine_client.set_num_speculative_tokens(num_speculative_tokens)
 
-        time.sleep(10)
+        await asyncio.sleep(10)
         loaded_cached_profile = await self.engine_client2.maybe_load_cached_tiling_profile()
         assert loaded_cached_profile, "Cached tiling profile cannot be loaded on secondary engine"
 
@@ -887,8 +886,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
         else:
             ratio = await self.engine_client2.predict_colocation_speedup_ratio(batch_size)
 
-        # logger.info("batch_size_ema: {:.2f}, ratio: {:.2f}".format(batch_size, ratio)) 
-
         switched = False
         if self.colocation_mode:
             if ratio < (1 - self.performance_threshold):
@@ -898,7 +895,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                 
                 # Only switch if we have enough consecutive counts
                 if self.consecutive_non_colocation_count >= self.consecutive_count_threshold:
-                    # logger.info(f"[Dynamic Colocation] Switching to non-colocation mode after {self.consecutive_non_colocation_count} consecutive predictions")
                     self.colocation_mode = False
                     # Select the engine with more requests
                     engine1_requests = self.engine_client.get_num_requests()
@@ -910,7 +906,6 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                     # get num speculative tokens ema and set it the speculative window size 
                     num_spec_tokens_ema = await self.engine_client.get_num_speculative_tokens_ema()
                     num_spec_tokens_ema = math.ceil(num_spec_tokens_ema)
-                    # logger.info(f"[Dynamic Colocation] Setting num speculative tokens to {num_spec_tokens_ema}")
                     await self.engine_client.set_num_speculative_tokens(num_spec_tokens_ema)
                     await self.engine_client2.set_num_speculative_tokens(num_spec_tokens_ema)
             else:
@@ -925,13 +920,11 @@ class OpenAIServingCompletionCoSpec(OpenAIServing):
                 
                 # Only switch if we have enough consecutive counts
                 if self.consecutive_colocation_count >= self.consecutive_count_threshold:
-                    # logger.info(f"[Dynamic Colocation] Switching to colocation mode after {self.consecutive_colocation_count} consecutive predictions")
                     self.colocation_mode = True
                     switched = True
                     # Reset counter after switching
                     self.consecutive_colocation_count = 0
                     # Set num speculative tokens to 7 (maximum)
-                    # logger.info(f"[Dynamic Colocation] Setting num speculative tokens to 7")
                     await self.engine_client.set_num_speculative_tokens(7)
                     await self.engine_client2.set_num_speculative_tokens(7)
             else:

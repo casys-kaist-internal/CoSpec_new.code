@@ -26,8 +26,7 @@ class SelectiveValidator:
         self.regression_model = LinearRegression()
         self.is_model_trained = False
         self.selective_validation_threshold = float(envs.COSPEC_SELECTIVE_VALIDATION_THRESHOLD)
-        # self.tile_alignment = int(envs.COSPEC_SELECTIVE_VALIDATION_TILE_SIZE)
-        self.mean_selective_validation_tokens_ema = 7 
+        self.mean_selective_validation_tokens_ema = 7
         self.moving_avg_alpha = 0.1  # Smoothing factor for moving average
         self.has_first_data_point = False  # Flag to track if we have received first data point
         self.profiler = profiler
@@ -145,9 +144,6 @@ class SelectiveValidator:
             # If no probabilities are below threshold, take all tokens
             optimal_total_length = total_valid_tokens
         
-        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
-        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
-
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
@@ -202,9 +198,6 @@ class SelectiveValidator:
             # If no probabilities are below threshold, take all tokens
             optimal_total_length = total_valid_tokens
         
-        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
-        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
-
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
@@ -246,9 +239,6 @@ class SelectiveValidator:
             # If no probabilities are below threshold, take all tokens
             optimal_total_length = total_valid_tokens
         
-        # logger.info(f"[Selective Validation] {optimal_total_length + total_non_proposal_tokens}")
-        # logger.info(f"[Selective Validation] probability at optimal length: {sorted_values[optimal_total_length - 1]}")
-
         # Create final mask in one operation
         flat_mask = torch.zeros(batch_size * max_proposal_len, dtype=torch.bool, device=device)
         flat_mask[sorted_indices[:optimal_total_length]] = True
@@ -390,12 +380,7 @@ class SelectiveValidator:
             if not self.validation_completed:
                 self.collect_validation_data(unscaled_temp_probs, acceptance_probs)
             return
-        
-        # print(f"unscaled_temp_probs: {unscaled_temp_probs.shape}")
-        # print(f"acceptance_probs: {acceptance_probs.shape}")
-        # print(f"unscaled_temp_probs: {unscaled_temp_probs}")
-        # print(f"acceptance_probs: {acceptance_probs}")
-        
+
         # Convert to numpy and flatten
         unscaled_temp_probs_np = unscaled_temp_probs.cpu().numpy()
         acceptance_probs_np = acceptance_probs.cpu().numpy()
@@ -407,6 +392,7 @@ class SelectiveValidator:
         # Filter out -1 values
         valid_mask = unscaled_temp_probs_np != -1
         unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+        acceptance_probs_np = acceptance_probs_np[valid_mask]
 
         assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)
 
@@ -463,10 +449,6 @@ class SelectiveValidator:
         return float(mse)
 
     def is_selective_validator_trained(self) -> bool:
-        # print the progress
-        # current_samples = len(self.history_X)
-        # samples_left = max(0, self.history_size - current_samples)
-        # print(f"Training progress: {current_samples}/{self.history_size} samples collected. {samples_left} samples left.")
         return self.is_model_trained and self.validation_completed
 
     def collect_validation_data(self, unscaled_temp_probs: torch.Tensor, acceptance_probs: torch.Tensor):
@@ -491,6 +473,7 @@ class SelectiveValidator:
         # Filter out -1 values
         valid_mask = unscaled_temp_probs_np != -1
         unscaled_temp_probs_np = unscaled_temp_probs_np[valid_mask]
+        acceptance_probs_np = acceptance_probs_np[valid_mask]
 
         # Ensure both arrays have the same length
         assert len(unscaled_temp_probs_np) == len(acceptance_probs_np)

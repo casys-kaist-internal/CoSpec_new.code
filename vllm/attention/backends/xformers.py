@@ -109,9 +109,6 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
     # the computed tokens + new tokens None if it is a decoding.
     seq_lens: Optional[List[int]] = None
 
-    # Used for Consolidated PagedAttention.
-    consolidated_lens_tensor: Optional[torch.Tensor] = None
-
     # FIXME: It is for flash attn.
     # (batch_size + 1,). The cumulative sequence lengths of the sequences in
     # the batch, used to index into sequence. E.g., if the sequence length is
@@ -249,13 +246,8 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
             return None
 
         if self._cached_decode_metadata is not None:
-            # Recover cached decode-phase attention
-            # metadata structure
-            # if self.consolidated_lens_tensor is not None:
-            #     self._cached_decode_metadata.consolidated_lens_tensor = self.consolidated_lens_tensor
-            
             return self._cached_decode_metadata
-        
+
         assert ((self.seq_lens_tensor is not None)
                 or (self.encoder_seq_lens_tensor is not None))
 
@@ -266,9 +258,7 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
                            self.seq_lens_tensor[self.num_prefills:])
         block_tables = (None if self.block_tables is None else
                         self.block_tables[self.num_prefills:])
-        consolidated_lens_tensor = (None if self.consolidated_lens_tensor is None else 
-                                self.consolidated_lens_tensor)
-        
+
         # Construct & cache decode-phase attention metadata structure
         self._cached_decode_metadata = XFormersMetadata(
             num_prefills=0,
@@ -278,7 +268,6 @@ class XFormersMetadata(AttentionMetadata, PagedAttentionMetadata):
             multi_modal_placeholder_index_maps=None,
             enable_kv_scales_calculation=True,
             seq_lens_tensor=seq_lens_tensor,
-            consolidated_lens_tensor=consolidated_lens_tensor,
             max_prefill_seq_len=0,
             max_decode_seq_len=self.max_decode_seq_len,
             block_tables=block_tables,
@@ -614,9 +603,6 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                 block_tables_arg,
             ) = get_seq_len_block_table_args(decode_meta, False, attn_type)
 
-            # if decode_meta.consolidated_lens_tensor is not None:
-            #     print("consolidated_lens_tensor sum: ", decode_meta.consolidated_lens_tensor.sum())
-            #     print("decode_query length: ", decode_query.shape[0])
             result = PagedAttention.forward_decode(
                 decode_query,
                 key_cache,
@@ -630,7 +616,6 @@ class XFormersImpl(AttentionImpl[XFormersMetadata]):
                 self.alibi_slopes,
                 layer._k_scale,
                 layer._v_scale,
-                consolidated_lens_tensor=decode_meta.consolidated_lens_tensor,
             )
             output[num_prefill_query_tokens:] = result
 

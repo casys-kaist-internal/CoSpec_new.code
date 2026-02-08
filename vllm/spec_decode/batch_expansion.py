@@ -5,7 +5,6 @@ from itertools import chain, count
 from typing import Iterator, List, Optional, Tuple
 
 import torch
-from vllm.config import envs
 from vllm import SamplingParams
 
 from vllm.model_executor.layers.sampler import SamplerOutput
@@ -79,21 +78,11 @@ class BatchExpansionTop1Scorer(SpeculativeScorer):
              proposal_lens_list=proposal_lens_list,
          )
 
-        if envs.COSPEC_CONSOLIDATED_ATTENTION:
-            non_spec_indices_without_chunked_prefill = [
-                idx for idx in non_spec_indices
-                if not execute_model_req.seq_group_metadata_list[idx].is_prompt
-            ]
-            decode_indicies = non_spec_indices_without_chunked_prefill + spec_indices
-            execute_model_req.consolidated_lens_tensor = (proposals.proposal_lens[decode_indicies] + 1).to(torch.int)
-            
-        # torch.cuda.nvtx.range_push("execute_model")
         target_sampler_output = self._scorer_worker.execute_model(
             execute_model_req=execute_model_req.clone(
                 seq_group_metadata_list=target_seq_group_metadata_list),
                 is_target=True
             )
-        # torch.cuda.nvtx.range_pop()
         assert len(target_sampler_output) == 1, "expected single-step output"
         target_sampler_output = target_sampler_output[0]
     

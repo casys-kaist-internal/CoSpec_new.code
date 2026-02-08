@@ -1,14 +1,12 @@
 import os
-import csv
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Dict, Optional, Tuple, List, Set
+from typing import Dict, List
 from vllm.logger import init_logger
 from sklearn.model_selection import train_test_split
-import time
 import torch
-from vllm.spec_decode.util import nvtx_range
 
 logger = init_logger(__name__)
 
@@ -384,8 +382,6 @@ class ColocationProfiler:
         # Calculate ratio (non-colocation / colocation)
         ratio = non_colocation_time / colocation_time
 
-        # logger.info("[Dynamic Colocation] batch_size: {}, num_spec_tokens: {}, ratio: {}".format(batch_size, num_spec_tokens, ratio))
-        
         return ratio
     
     def _compute_metrics(self,

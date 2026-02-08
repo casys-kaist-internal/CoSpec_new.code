@@ -272,7 +272,6 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
             self.computed_block_nums = computed_block_nums
             self.n_seqs = n_seqs
             self.encoder_seq_len = encoder_seq_len
-            self.proposal_len = 0 # Used for consolidated attention
 
             if reinit:
                 if len(self.seq_ids) == 1 and reinit_use_defaults:
@@ -761,11 +760,6 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
             reinit=True,
             reinit_use_defaults=True,
             encoder_seq_len=encoder_seq_len)
-        
-        if seq_group_metadata.num_speculative_tokens is not None:
-            inter_data.proposal_len = seq_group_metadata.num_speculative_tokens + 1
-        else:
-            inter_data.proposal_len = 1
 
         self.inter_data_list.append(inter_data)
 
@@ -833,7 +827,7 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
         assert graph_batch_size >= batch_size
         return graph_batch_size - batch_size
 
-    def build(self, consolidated_lens_tensor: Optional[torch.Tensor] = None) -> ModelInputForGPU:
+    def build(self) -> ModelInputForGPU:
         """Finalize the builder intermediate data and
         create on-device tensors.
         """
@@ -939,7 +933,7 @@ class ModelInputForGPUBuilder(ModelRunnerInputBuilderBase[ModelInputForGPU]):
 
         # Attention metadata. 
         attn_metadata = self.attn_metadata_builder.build(
-            seq_lens, query_lens, cuda_graph_pad_size, batch_size, consolidated_lens_tensor)
+            seq_lens, query_lens, cuda_graph_pad_size, batch_size)
 
         # LoRA data.
         lora_requests = set()
@@ -1217,7 +1211,6 @@ class GPUModelRunnerBase(ModelRunnerBase[TModelInputForGPU]):
         self,
         seq_group_metadata_list: List[SequenceGroupMetadata],
         finished_requests_ids: Optional[List[str]] = None,
-        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> TModelInputForGPU:
         """Helper method to prepare the model input based on a given sequence
         group. Prepares metadata needed for the base model forward pass but not
@@ -1244,7 +1237,7 @@ class GPUModelRunnerBase(ModelRunnerBase[TModelInputForGPU]):
 
         self.builder.reset_cached_inter_data()
 
-        return self.builder.build(consolidated_lens_tensor)  # type: ignore
+        return self.builder.build()  # type: ignore
 
     @contextmanager
     def set_in_profile_run(self):
@@ -1666,7 +1659,6 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
         seq_group_metadata_list: List[SequenceGroupMetadata],
         virtual_engine: int = 0,
         finished_requests_ids: Optional[List[str]] = None,
-        consolidated_lens_tensor: Optional[torch.Tensor] = None,
     ) -> ModelInputForGPUWithSamplingMetadata:
         """Prepare the model input based on a given sequence group, including
         metadata for the sampling step.
@@ -1682,7 +1674,7 @@ class ModelRunner(GPUModelRunnerBase[ModelInputForGPUWithSamplingMetadata]):
         If cuda graph is required, this API automatically pads inputs.
         """
         model_input = self._prepare_model_input_tensors(
-            seq_group_metadata_list, finished_requests_ids, consolidated_lens_tensor)
+            seq_group_metadata_list, finished_requests_ids)
         if get_pp_group().is_last_rank:
             # Sampling metadata is only required for the final pp group
             generators = self.get_generators(finished_requests_ids)

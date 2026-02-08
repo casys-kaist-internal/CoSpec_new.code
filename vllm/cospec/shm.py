@@ -1,5 +1,5 @@
 import time
-from typing import Any, Dict
+from typing import Any
 from UltraDict import UltraDict
 
 class SharedMemory:    
@@ -19,7 +19,7 @@ class SharedMemory:
 
     def wait_for_exists(self, key: str) -> None:
         while key not in self.shared_dict:
-            pass 
+            time.sleep(0.001)
 
     def delete(self, key: str) -> None:
         with self.shared_dict.lock:
