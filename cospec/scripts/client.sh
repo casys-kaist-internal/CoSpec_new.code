@@ -1,11 +1,12 @@
 #!/bin/bash
 # CoSpec benchmark client script
-# Usage: ./client.sh [num_prompts]
+# Usage: ./client.sh [num_prompts] [output_len]
 # Output: client.log
 
 set -e
 
 NUM_PROMPTS="${1:-100}"
+OUTPUT_LEN="${2:-128}"
 PORT="${PORT:-8000}"
 MODEL="${MODEL:-Qwen/Qwen3-8B}"
 REQUEST_RATE="${REQUEST_RATE:-inf}"
@@ -17,7 +18,7 @@ LOG_FILE="client.log"
 echo "Running benchmark..."
 echo "  Dataset:      sharegpt ($DATASET_PATH)"
 echo "  Num prompts:  $NUM_PROMPTS"
-echo "  Output len:   from dataset (ignore EOS)"
+echo "  Output len:   $OUTPUT_LEN (fixed)"
 echo "  Model:        $MODEL"
 echo "  Request rate: $REQUEST_RATE req/s"
 echo "  Server:       http://localhost:$PORT"
@@ -29,6 +30,7 @@ vllm bench serve \
     --dataset-name sharegpt \
     --dataset-path "$DATASET_PATH" \
     --num-prompts "$NUM_PROMPTS" \
+    --sharegpt-output-len "$OUTPUT_LEN" \
     --ignore-eos \
     --request-rate "$REQUEST_RATE" \
     --seed 42 \

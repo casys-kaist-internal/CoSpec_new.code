@@ -45,7 +45,7 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 |------|---------|
 | `__init__.py` | Module exports and `cleanup_cospec_resources()` for removing stale IPC handles. |
 | `sm_controller.py` | `SMController`: ctypes wrapper for libsmctrl SM partitioning. `CospecManager`: creates controller, holds config. |
-| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining with load balancing, per-step logging, and timing. `Mode` enum. Always uses colocated mode with SM ratio 0.7. |
+| `orchestrator.py` | `CoSpecOrchestrator`: Two-queue colocated SD pipelining with load balancing, per-step logging, timing, and `COSPEC_ACCEPT_RATE` override for experiments. Always uses colocated mode with SM ratio 0.7. |
 | `draft_process.py` | Draft process lifecycle: `init_draft_process()`, `cleanup_cospec()`, `assert_mps_running()`, `_draft_process_entry()`. Spawns draft as `mp.Process` with its own CUDA context for MPS concurrency. |
 | `worker_rpc.py` | `DraftWorkerRPC` (client) and `DraftWorkerServer` (draft process). Commands over pipe, large data via shared GPU memory. |
 | `shared_memory.py` | `SharedLogitBuffer`: CUDA IPC for sharing draft logits between target and draft processes. |
@@ -55,7 +55,7 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 
 | File | CoSpec Changes |
 |------|----------------|
-| `vllm/envs.py` | Defines `COSPEC` environment variable (master switch). `VLLM_USE_V1` defaults to `1` (non-CoSpec users get V1). |
+| `vllm/envs.py` | Defines `COSPEC` environment variable (master switch), `COSPEC_ACCEPT_RATE` for acceptance rate override experiments. `VLLM_USE_V1` defaults to `1` (non-CoSpec users get V1). |
 | `vllm/worker/model_runner.py` | Standard vLLM model runner. SM partitioning is managed by the orchestrator, not model_runner. |
 | `vllm/spec_decode/spec_decode_worker.py` | Creates `CospecManager` with SM controller, wires to workers. Stores per-step `CoSpecOutputMetadata` for engine. Calls `orchestrator.remove_sequence()` on finished requests. |
 | `vllm/engine/llm_engine.py` | Handles CoSpec empty outputs (no-op bootstrap steps) and partial outputs via `CoSpecOutputMetadata` for seq_id-based remapping. |
@@ -82,6 +82,7 @@ Note: Target and draft have SEPARATE KV caches (different model architectures).
 | `COSPEC_PROFILE_SKIP` | `20` | Number of warmup steps to skip before profiling. |
 | `COSPEC_PROFILE_STEPS` | `100` | Number of steps to profile after warmup. |
 | `COSPEC_PROFILE_OUTPUT` | `/workspace/cospec_trace.json` | Output path for Chrome trace JSON. Open in `chrome://tracing` or Perfetto UI. |
+| `COSPEC_ACCEPT_RATE` | `-1.0` | Override acceptance rate for experiments. `0.0`–`1.0` forces that fraction of draft tokens to be accepted per position (cascading rejection). `-1.0` = use natural rate. Applied post-verification in orchestrator. |
 | `VLLM_USE_V1` | `0` | Use V1 engine. This CoSpec fork defaults to V0 since V1 doesn't support speculative decoding. |
 
 **Important notes**:
@@ -218,6 +219,9 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 44. **GPU memory utilization**: Lowered `server.sh` default from 0.85 to 0.80 to avoid draft worker OOM with large batches (40+ seqs). Added `PYTHONUNBUFFERED=1` for immediate log output.
 45. **PyTorch profiler integration**: Added `COSPEC_PROFILE=1` env var to enable `torch.profiler` with CPU+CUDA activities. Profiler starts in `orchestrator.__init__()` (before first `set_global_mask` call) so CUPTI registers its callback subscriber first. Uses `torch.profiler.schedule()` with configurable warmup/active steps. Exports Chrome trace JSON via `on_trace_ready` callback. Modified `libsmctrl_core.c` to gracefully handle CUPTI conflict: `setup_sm_control_callback()` now warns and returns instead of aborting when `cuSubscribeLaunchCallback` fails (error 999). `set_global_mask`/`set_next_mask` become no-ops when callback setup failed (checked via `sm_control_setup_ok` flag). SM partitioning is disabled during profiling, but two-queue pipeline is fully captured.
 
+46. **Acceptance rate override (`COSPEC_ACCEPT_RATE`)**: Added `COSPEC_ACCEPT_RATE` env var (float, default `-1.0` = natural rate). Set `0.0`–`1.0` to force that fraction of draft tokens accepted per position. Implemented as post-verification override in `orchestrator._apply_accept_rate_override()`: for each accepted draft token at position k, randomly rejects with probability `(1 - rate)` with cascading (subsequent positions become -1). Position 0 is never rejected (always has a valid token). Bonus token cleared on any rejection. Used for acceptance rate sensitivity experiments.
+47. **Batch/seqlen/gamma sweep script**: Added `cospec/scripts/sweep_batch_seqlen.sh` — sweeps batch size (1–128), input length (128–2048), output length (128–2048), gamma (1,3,5,7), and acceptance rate (0.5–1.0) across AR/Vanilla SD/CoSpec modes. Uses `--dataset-name random` with `--max-num-seqs` for controlled conditions. Outputs TSV file. Results in `/workspace/sweep_results.tsv`.
+
 ### Known Hardcoded Values
 - `cost_model.py`: Always returns `COLOCATED_SD` mode, `target_sm_ratio=0.7`
 - `cost_model.py`: EMA coefficients `alpha=0.8`, `ema_weight=0.3`, `batch_ema_weight=0.5` (untuned)
@@ -240,6 +244,7 @@ Prefill → [load balance] → draft_queue (or pending 1 step)
 | `tests/cospec/test_sm_controller.py` | Unit + GPU integration tests for SM controller (7 tests) |
 | `tests/cospec/test_worker_rpc.py` | Tests for RPC pipe communication (3 tests) |
 | `tests/cospec/test_acceptance_rate.py` | Standalone acceptance rate comparison script (not run by pytest, use `python3 tests/cospec/test_acceptance_rate.py`) |
+| `cospec/scripts/sweep_batch_seqlen.sh` | Sweep script: batch size, input/output length, acceptance rate, gamma across AR/Vanilla SD/CoSpec. Outputs TSV. Usage: `bash cospec/scripts/sweep_batch_seqlen.sh [output.tsv]`. Select sweeps with `SWEEP=batch,gamma`. |
 
 ## Build & Run
 
@@ -297,6 +302,82 @@ Open the trace in `chrome://tracing` or [Perfetto UI](https://ui.perfetto.dev/).
 - **Target GPU utilization**: 32.9% overall, 55-75% during verify steps
 - **Two-queue pattern visible**: odd steps have ~1,046 kernels (verify), even steps have 0 kernels (target idles while draft proposes)
 - **Main bottlenecks**: `cudaStreamSynchronize` (78% of CUDA runtime = draft/target barrier), ~35ms idle per draft-only step, `aten::index_put_` spikes to 354ms (KV cache sync stalls)
+
+## Benchmark Sweep Results (Qwen3-8B + Qwen3-0.6B, RTX A6000, random dataset)
+
+Full results in `/workspace/sweep_results.tsv`. Run with `cospec/scripts/sweep_batch_seqlen.sh`.
+
+### Batch Size Sweep (input=512, output=512, gamma=5)
+
+| Batch | AR (tok/s) | Vanilla SD | CoSpec | SD vs AR |
+|------:|-----------:|-----------:|-------:|---------:|
+| 1 | 37 | **57** | 38 | **1.55x** |
+| 4 | 130 | **171** | 139 | **1.32x** |
+| 8 | 218 | **265** | 250 | **1.22x** |
+| 16 | 411 | **448** | 410 | **1.09x** |
+| 32 | **659** | 655 | 512 | 0.99x |
+| 64 | **1030** | 804 | 651 | 0.78x |
+| 128 | **1247** | 911 | 701 | 0.73x |
+
+**Crossover at batch ~32.** SD wins for batch <= 16 (latency optimization), AR wins for batch >= 32 (GPU already saturated, batch expansion wastes compute).
+
+### Input Length Sweep (batch=32, output=512, gamma=5)
+
+| Input Len | AR | Vanilla SD | CoSpec |
+|----------:|---:|-----------:|-------:|
+| 128 | **739** | 651 | 573 |
+| 256 | **713** | 666 | 579 |
+| 512 | 658 | **668** | 560 |
+| 1024 | **567** | 557 | 462 |
+| 2048 | **462** | 457 | 362 |
+
+Input length has minimal effect on the SD vs AR balance at batch=32. AR slightly wins at most lengths.
+
+### Output Length Sweep (batch=32, input=512, gamma=5)
+
+| Output Len | AR | Vanilla SD | CoSpec | SD vs AR |
+|-----------:|---:|-----------:|-------:|---------:|
+| 128 | **537** | 449 | 350 | 0.84x |
+| 256 | **619** | 544 | 457 | 0.88x |
+| 512 | **656** | 655 | 534 | 1.00x |
+| 1024 | 687 | **698** | 595 | **1.02x** |
+| 2048 | 687 | **751** | 636 | **1.09x** |
+
+**Long outputs favor SD.** At output=2048, SD regains 9% advantage over AR even at batch=32. More decode steps amortize SD setup overhead.
+
+### Gamma Sweep (batch=32, input=512, output=512)
+
+| Gamma | AR | Vanilla SD | CoSpec |
+|------:|---:|-----------:|-------:|
+| 1 | 659 | 672 | 497 |
+| 3 | - | **702** | 564 |
+| 5 | - | 666 | 535 |
+| 7 | - | 605 | 469 |
+
+**Gamma=3 is optimal.** Higher gamma increases batch expansion cost faster than acceptance benefit provides.
+
+### Acceptance Rate Sweep (batch=32, CoSpec, gamma=5)
+
+Controlled via `COSPEC_ACCEPT_RATE` env var. Overrides post-verification acceptance.
+
+| Rate | CoSpec (tok/s) | vs 1.0 |
+|-----:|---------------:|-------:|
+| 1.0 | 541 | 1.00x |
+| 0.9 | 489 | 0.90x |
+| 0.8 | 412 | 0.76x |
+| 0.7 | 398 | 0.73x |
+| 0.6 | 346 | 0.64x |
+| 0.5 | 309 | 0.57x |
+
+Throughput drops roughly linearly with acceptance rate.
+
+### Key Takeaways
+- **SD is a latency optimization, not throughput optimization** — benefits at low batch, hurts at high batch
+- **Crossover at batch ~32** for Qwen3-8B/0.6B on A6000
+- **CoSpec ~78% of Vanilla SD** throughput at batch >= 32 (two-queue RPC pipeline overhead)
+- **SM partitioning always hurts** — decode GEMM is memory-bandwidth-bound
+- **Gamma=3 optimal** — higher gamma wastes compute on batch expansion
+- **Long outputs favor SD** — more decode steps amortize the fixed overhead
 
 ## Code Review Notes
 

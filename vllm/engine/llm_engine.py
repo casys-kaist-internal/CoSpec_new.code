@@ -1066,8 +1066,47 @@ class LLMEngine:
             has_multiple_outputs = True
             assert self.scheduler_config.is_multi_step or \
                      self.speculative_config
-            outputs_by_sequence_group = create_output_by_sequence_group(
-                outputs, len(seq_group_metadata_list))
+
+            if self.speculative_config and not envs.COSPEC:
+                # Vanilla SD with chunked prefill produces mixed output:
+                # first N entries are per-prefill SamplerOutputs (1 entry
+                # each), rest are per-step decode SamplerOutputs (D entries
+                # each). Naive positional transpose garbles the mapping.
+                # Split into prefill and decode sections, transpose each.
+                n_prefills = 0
+                for out in outputs:
+                    if (n_prefills < len(seq_group_metadata_list)
+                            and seq_group_metadata_list[
+                                n_prefills].is_prompt
+                            and len(out.outputs) == 1):
+                        n_prefills += 1
+                    else:
+                        break
+
+                if n_prefills > 0:
+                    prefill_outputs = outputs[:n_prefills]
+                    decode_outputs = outputs[n_prefills:]
+                    n_decodes = (len(seq_group_metadata_list)
+                                 - n_prefills)
+
+                    outputs_by_sequence_group = []
+                    for pout in prefill_outputs:
+                        outputs_by_sequence_group.append(
+                            list(pout.outputs))
+                    if decode_outputs and n_decodes > 0:
+                        decode_obsg = \
+                            create_output_by_sequence_group(
+                                decode_outputs, n_decodes)
+                        outputs_by_sequence_group.extend(decode_obsg)
+                else:
+                    outputs_by_sequence_group = \
+                        create_output_by_sequence_group(
+                            outputs, len(seq_group_metadata_list))
+            else:
+                outputs_by_sequence_group = \
+                    create_output_by_sequence_group(
+                        outputs, len(seq_group_metadata_list))
+
             is_first_step_output = None
         else:
             has_multiple_outputs = False

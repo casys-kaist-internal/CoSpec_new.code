@@ -116,6 +116,7 @@ if TYPE_CHECKING:
     COSPEC_TARGET_SM_RATIO: float = 0.7
     COSPEC_LOG: bool = False
     COSPEC_PROFILE: bool = False
+    COSPEC_ACCEPT_RATE: float = -1.0
 
 def get_default_cache_root():
     return os.getenv(
@@ -752,6 +753,11 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Output: /workspace/cospec_trace.json (Chrome trace, open in chrome://tracing)
     "COSPEC_PROFILE":
     lambda: bool(int(os.getenv("COSPEC_PROFILE", "0"))),
+
+    # CoSpec acceptance rate override (0.0-1.0). Default -1.0 = natural rate.
+    # Set e.g. COSPEC_ACCEPT_RATE=0.7 to force ~70% acceptance per position.
+    "COSPEC_ACCEPT_RATE":
+    lambda: float(os.getenv("COSPEC_ACCEPT_RATE", "-1.0")),
 
 }
 

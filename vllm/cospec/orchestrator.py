@@ -48,6 +48,11 @@ class CoSpecOrchestrator:
         self.target_sm_ratio = target_sm_ratio
         self.shared_logit_buffer = shared_logit_buffer
 
+        # SM partitioning: disabled by default (MPS natural sharing is better
+        # for memory-bound decode). Set COSPEC_SM_PARTITION=1 to enable.
+        self._use_sm_partition = bool(
+            int(os.getenv("COSPEC_SM_PARTITION", "0")))
+
         # Two-queue state
         self._draft_queue: Dict[int, SequenceGroupMetadata] = {}
         # Verify state: batched proposals + seq_id -> row index mapping
@@ -55,6 +60,13 @@ class CoSpecOrchestrator:
         self._verify_indices: Dict[int, int] = {}
         # Pending pool: new decode seqs deferred to next step for balancing
         self._pending_pool: Dict[int, SequenceGroupMetadata] = {}
+
+        # Acceptance rate override: COSPEC_ACCEPT_RATE=0.7 forces ~70%.
+        # Default -1.0 means use natural rate (no override).
+        self._target_accept_rate = envs.COSPEC_ACCEPT_RATE
+        if self._target_accept_rate >= 0:
+            logger.info("CoSpec acceptance rate override: %.2f",
+                        self._target_accept_rate)
 
         # Per-step logging: controlled by COSPEC_LOG=1 env var.
         # Disabled by default to avoid GPU->CPU sync from sampler .item().
@@ -153,6 +165,7 @@ class CoSpecOrchestrator:
                 prefill_seqs, verify_seqs, verify_row_indices, draft_seqs = (
                     self._split_batch(seq_group_metadata_list))
 
+
             # === Bootstrap: no verify_seqs yet ===
             if not verify_seqs:
                 result = self._bootstrap_step(
@@ -165,9 +178,10 @@ class CoSpecOrchestrator:
             if _do_timing:
                 t_step_start = time.monotonic()
 
-            with record_function("cospec::set_partition_target"):
+            # SM partitioning: controlled by COSPEC_SM_PARTITION env var.
+            # Default off (MPS natural sharing better for memory-bound decode).
+            if self._use_sm_partition:
                 self.sm_controller.set_partition(stream, self.target_sm_ratio)
-            with record_function("cospec::set_partition_draft_rpc"):
                 self.draft_rpc.set_partition_async(
                     1.0 - self.target_sm_ratio)
 
@@ -270,14 +284,20 @@ class CoSpecOrchestrator:
                 new_decode_seqs.append(sgm)
 
         # Load-balance new decode sequences between draft (now) and
-        # pending (next step) to keep D ≈ V.
-        # draft side = draft_seqs (will be drafted this step)
-        # verify side = verify_seqs (will be verified this step) +
-        #               pending_pool (will be drafted next step)
+        # pending (next step) to keep the pipeline balanced.
+        #
+        # After this step, the pipeline state becomes:
+        #   verify_queue = draft_seqs (just drafted → need verification)
+        #   draft_queue  = pending_pool (promoted next step) +
+        #                  verify_seqs (rotated back after verification)
+        #
+        # For next-step balance: len(draft_seqs) ≈ len(pending) + len(verify_seqs)
+        # This ensures both queues have sequences, enabling true concurrent
+        # draft || verify execution instead of alternating phases.
         for sgm in new_decode_seqs:
-            draft_side = len(draft_seqs) + len(self._pending_pool)
-            verify_side = len(verify_seqs)
-            if draft_side <= verify_side:
+            future_verify = len(draft_seqs)
+            future_draft = len(self._pending_pool) + len(verify_seqs)
+            if future_verify <= future_draft:
                 draft_seqs.append(sgm)
             else:
                 sid = self._get_seq_id(sgm)
@@ -472,6 +492,11 @@ class CoSpecOrchestrator:
             accepted_token_ids, target_logprobs = self.sdw._verify_tokens(
                 target_batch, proposal_scores, proposals, gamma)
 
+        # Override acceptance rate if configured
+        if self._target_accept_rate >= 0:
+            accepted_token_ids = self._apply_accept_rate_override(
+                accepted_token_ids, gamma)
+
         # Create output using original method
         with record_function("cospec::create_output"):
             proposal_lens = proposals.proposal_lens
@@ -601,7 +626,13 @@ class CoSpecOrchestrator:
         draft_seqs: List[SequenceGroupMetadata],
         new_proposals: Optional[SpeculativeProposals],
     ) -> None:
-        """Rotate queues after step completion."""
+        """Rotate queues after step completion.
+
+        Also rebalances if rotation would leave verify_queue empty while
+        draft_queue is large: moves half of draft_queue to pending_pool
+        so the next step can achieve concurrent execution after one
+        bootstrap step instead of alternating indefinitely.
+        """
         # Verified sequences -> draft queue (need new proposals)
         for sgm in verify_seqs:
             sid = self._get_seq_id(sgm)
@@ -614,6 +645,16 @@ class CoSpecOrchestrator:
                 self._get_seq_id(sgm): i
                 for i, sgm in enumerate(draft_seqs)
             }
+        elif not draft_seqs and len(self._draft_queue) > 1:
+            # No seqs were drafted → verify_queue will be empty next step.
+            # Rebalance: move half of draft_queue to pending_pool so that
+            # after bootstrap, both queues have sequences for concurrent
+            # execution.
+            items = list(self._draft_queue.items())
+            half = len(items) // 2
+            self._draft_queue = dict(items[:half])
+            for sid, sgm in items[half:]:
+                self._pending_pool[sid] = sgm
 
     def remove_sequence(self, seq_id: int) -> None:
         """Remove finished sequence from queues."""
@@ -720,6 +761,41 @@ class CoSpecOrchestrator:
             self._step_count, mode, batch_str,
             accept_str, timing, t_total_ms,
         )
+
+    def _apply_accept_rate_override(
+        self,
+        accepted_token_ids: torch.Tensor,
+        gamma: int,
+    ) -> torch.Tensor:
+        """Override accepted_token_ids to force a target acceptance rate.
+
+        For each sequence, at each draft position (1..gamma-1):
+        - If currently accepted, randomly reject with prob (1 - rate)
+        - Cascading: once rejected, all subsequent positions become -1
+        - Position 0 is NEVER rejected (it always has a valid token from
+          either draft acceptance or target resampling — setting it to -1
+          would cause IndexError in _create_output_sampler_list)
+        - Bonus token (position gamma) is set to -1 if rejection happened
+          (bonus only valid when ALL draft tokens accepted)
+        """
+        batch_size = accepted_token_ids.shape[0]
+        rate = self._target_accept_rate
+        result = accepted_token_ids.clone()
+
+        for b in range(batch_size):
+            for k in range(gamma):
+                if result[b, k].item() == -1:
+                    break  # already rejected, cascade
+                if torch.rand(1).item() > rate:
+                    # Keep token at position k (it's a valid accepted token),
+                    # but reject all subsequent positions
+                    if k + 1 < gamma:
+                        result[b, k + 1:gamma] = -1
+                    # Bonus token (position gamma) is only valid if ALL
+                    # draft tokens accepted; since we just rejected, clear it
+                    result[b, gamma] = -1
+                    break
+        return result
 
     @staticmethod
     def _get_seq_id(sgm: SequenceGroupMetadata) -> int:
