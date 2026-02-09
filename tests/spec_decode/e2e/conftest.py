@@ -298,36 +298,45 @@ def run_equality_correctness_test_with_env(
     with vllm_runner(**org_args) as vllm_model:
         org_outputs = vllm_model.generate_w_logprobs(prompts, sampling_params)
 
-    # Set environment variables if provided
+    # Save and set environment variables
+    saved_env = {}
     if env_vars:
         for key, value in env_vars.items():
+            saved_env[key] = os.environ.get(key)
             os.environ[key] = value
 
-    with vllm_runner(**sd_args) as vllm_model:
-        if ensure_all_accepted or expected_acceptance_rate is not None:
-            # Force log interval to be 0 to catch all metrics.
-            stat_logger = vllm_model.model.llm_engine.stat_loggers[
-                'prometheus']
-            stat_logger.local_interval = -100
+    try:
+        with vllm_runner(**sd_args) as vllm_model:
+            if ensure_all_accepted or expected_acceptance_rate is not None:
+                # Force log interval to be 0 to catch all metrics.
+                stat_logger = vllm_model.model.llm_engine.stat_loggers[
+                    'prometheus']
+                stat_logger.local_interval = -100
 
-        sd_outputs = vllm_model.generate_w_logprobs(prompts, sampling_params)
+            sd_outputs = vllm_model.generate_w_logprobs(prompts,
+                                                        sampling_params)
 
-        if ensure_all_accepted or expected_acceptance_rate is not None:
-            acceptance_rate = (stat_logger.metrics.
-                               gauge_spec_decode_draft_acceptance_rate.labels(
-                                   **stat_logger.labels)._value.get())
+            if ensure_all_accepted or expected_acceptance_rate is not None:
+                acceptance_rate = (
+                    stat_logger.metrics.
+                    gauge_spec_decode_draft_acceptance_rate.labels(
+                        **stat_logger.labels)._value.get())
 
-            if ensure_all_accepted:
-                assert True
-                # FIXME: ci fails to log acceptance rate.
-                # It works locally.
-                # assert acceptance_rate == 1.0
+                if ensure_all_accepted:
+                    assert True
+                    # FIXME: ci fails to log acceptance rate.
+                    # It works locally.
+                    # assert acceptance_rate == 1.0
 
-            if expected_acceptance_rate is not None:
-                assert acceptance_rate >= expected_acceptance_rate - 1e-2
-
-    # print("org_outputs: ", org_outputs)
-    # print("sd_outputs: ", sd_outputs)
+                if expected_acceptance_rate is not None:
+                    assert acceptance_rate >= expected_acceptance_rate - 1e-2
+    finally:
+        # Restore environment variables
+        for key, original in saved_env.items():
+            if original is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = original
 
     # Only pass token entries, not the logprobs
     check_outputs_equal(outputs_0_lst=[out[0:2] for out in org_outputs],
